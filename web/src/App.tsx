@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Ban,
   Bell,
+  Bug,
   Check,
   ChevronDown,
   CircleHelp,
@@ -31,10 +32,11 @@ import {
 } from "lucide-react";
 import { friendlyError, formatDate, Modal, PageHeading } from "./ui";
 import { QualityWorkspace } from "./QualityWorkspace";
+import { BugsWorkspace, type BugDraft } from "./BugsWorkspace";
 import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
-type View = "overview" | "keys" | "payments" | "quality" | "users";
+type View = "overview" | "keys" | "payments" | "quality" | "bugs" | "users";
 type AuthState = "checking" | "login" | "mfa" | "app";
 
 interface ActionResult {
@@ -353,6 +355,7 @@ function App() {
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedEpic, setSelectedEpic] = useState("");
+  const [bugDraft, setBugDraft] = useState<BugDraft | null>(null);
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userNotice, setUserNotice] = useState("");
   const [userError, setUserError] = useState("");
@@ -495,6 +498,7 @@ function App() {
     { id: "keys" as const, label: "Llaves", mobileLabel: "Llaves", icon: KeyRound },
     { id: "payments" as const, label: "Pagos", mobileLabel: "Pagos", icon: CreditCard },
     { id: "quality" as const, label: "Calidad y pruebas", mobileLabel: "QA", icon: ClipboardCheck },
+    { id: "bugs" as const, label: "Bugs y fixes", mobileLabel: "Bugs", icon: Bug },
     ...(user && user.role !== "usuario"
       ? [{ id: "users" as const, label: "Usuarios y roles", mobileLabel: "Usuarios", icon: Users }]
       : []),
@@ -587,6 +591,17 @@ function App() {
             <QualityWorkspace
               epics={epics}
               onEpicsChanged={loadDashboard}
+              onReportBug={user.role === "usuario" ? (draft) => { setBugDraft(draft); setView("bugs"); } : undefined}
+              onSelectEpic={setSelectedEpic}
+              selectedEpic={selectedEpic}
+              user={user}
+            />
+          )}
+          {view === "bugs" && user && (
+            <BugsWorkspace
+              draft={bugDraft}
+              epics={epics}
+              onDraftUsed={() => setBugDraft(null)}
               onSelectEpic={setSelectedEpic}
               selectedEpic={selectedEpic}
               user={user}

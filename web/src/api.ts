@@ -172,6 +172,41 @@ export interface Execution {
   placeholders?: Record<string, string>;
 }
 
+export interface BugFix {
+  key: string;
+  title: string;
+  description: string;
+  status: "in_progress" | "ready_for_retest" | string;
+  created_by?: { email?: string; display_name?: string };
+  created_at_epoch?: number;
+}
+
+export interface BugHistoryEvent {
+  from: string | null;
+  to: string;
+  actor?: { email?: string; display_name?: string };
+  at_epoch?: number;
+  retest_passed?: boolean | null;
+  fix_key?: string;
+}
+
+export interface Bug {
+  key: string;
+  epic_key: string;
+  case_key: string;
+  execution_key?: string | null;
+  title: string;
+  description: string;
+  severity: "trivial" | "minor" | "major" | "critical" | "blocker" | string;
+  status: "open" | "assigned" | "in_fix" | "ready_for_retest" | "closed" | "reopened" | string;
+  assignee?: EpicMember | null;
+  fixes: BugFix[];
+  history: BugHistoryEvent[];
+  created_by?: { email?: string; display_name?: string };
+  created_at_epoch?: number;
+  notification_status?: string;
+}
+
 export interface PaymentKey {
   id: number;
   key_type: string;
@@ -319,6 +354,27 @@ export const api = {
   },
   caseExecutions(caseKey: string): Promise<Execution[]> {
     return request(`/qa/cases/${encodeURIComponent(caseKey)}/executions`);
+  },
+  epicBugs(epicKey: string): Promise<Bug[]> {
+    return request(`/qa/epics/${encodeURIComponent(epicKey)}/bugs`);
+  },
+  async createBug(payload: {
+    case_key: string;
+    execution_key: string | null;
+    title: string;
+    description: string;
+    severity: string;
+  }): Promise<Bug> {
+    return mutate<Bug>("/qa/bugs", "POST", payload);
+  },
+  async createFix(bugKey: string, payload: { title: string; description: string }): Promise<Bug & { fix: BugFix }> {
+    return mutate(`/qa/bugs/${encodeURIComponent(bugKey)}/fixes`, "POST", payload);
+  },
+  async markFixReady(bugKey: string, fixKey: string): Promise<Bug> {
+    return mutate(`/qa/bugs/${encodeURIComponent(bugKey)}/fixes/${encodeURIComponent(fixKey)}/transition`, "POST", { status: "ready_for_retest" });
+  },
+  async transitionBug(bugKey: string, payload: { status: string; retest_passed?: boolean; assignee_id?: number }): Promise<Bug> {
+    return mutate(`/qa/bugs/${encodeURIComponent(bugKey)}/transition`, "POST", payload);
   },
   async createUser(payload: {
     email: string;

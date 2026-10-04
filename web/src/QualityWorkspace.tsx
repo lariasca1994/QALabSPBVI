@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Activity,
   BookOpen,
+  Bug as BugIcon,
   Braces,
   Check,
   ClipboardCheck,
@@ -25,6 +26,7 @@ import {
   type WorkItem,
 } from "./api";
 import { formatDate, friendlyError, Modal, PageHeading } from "./ui";
+import type { BugDraft } from "./BugsWorkspace";
 
 type Role = User["role"];
 type ModalState =
@@ -194,7 +196,7 @@ function DefinitionEditor({ value, onChange }: { value: string; onChange: (value
   );
 }
 
-export function ExecutionResult({ execution }: { execution: Execution }) {
+export function ExecutionResult({ execution, onReportBug }: { execution: Execution; onReportBug?: () => void }) {
   return (
     <section className={`surface-card execution-card ${execution.passed ? "execution-card--passed" : "execution-card--failed"}`}>
       <div className="card-heading"><div><h2>Resultado de ejecución</h2><p>{execution.key} · {execution.passed ? "Aprobado" : "Fallido"}</p></div><span className={`result-pill ${execution.passed ? "result-pill--passed" : "result-pill--failed"}`}>{execution.passed ? "APROBADO" : "FALLIDO"}</span></div>
@@ -207,6 +209,7 @@ export function ExecutionResult({ execution }: { execution: Execution }) {
       )}
       <details className="response-details"><summary>Ver solicitud enviada</summary><pre>{JSON.stringify(execution.request?.body ?? null, null, 2)}</pre></details>
       <details className="response-details"><summary>Ver respuesta registrada</summary><pre>{JSON.stringify(execution.result?.body ?? execution.result ?? {}, null, 2)}</pre></details>
+      {!execution.passed && onReportBug && <div className="execution-actions"><button className="button button--small button--danger" onClick={onReportBug} type="button"><BugIcon size={14} /> Reportar bug</button></div>}
     </section>
   );
 }
@@ -217,12 +220,14 @@ export function QualityWorkspace({
   selectedEpic,
   onSelectEpic,
   onEpicsChanged,
+  onReportBug,
 }: {
   user: User;
   epics: Epic[];
   selectedEpic: string;
   onSelectEpic: (key: string) => void;
   onEpicsChanged: () => Promise<void>;
+  onReportBug?: (draft: BugDraft) => void;
 }) {
   const role: Role = user.role;
   const isAdmin = role === "admin";
@@ -238,6 +243,7 @@ export function QualityWorkspace({
   const [team, setTeam] = useState<User[]>([]);
   const [execution, setExecution] = useState<Execution | null>(null);
   const [executingKey, setExecutingKey] = useState("");
+  const [executedCase, setExecutedCase] = useState("");
   const [definitionText, setDefinitionText] = useState("");
   const [epicKeys, setEpicKeys] = useState<EpicKey[]>([]);
   const [keyChoices, setKeyChoices] = useState<Record<string, string>>({});
@@ -327,6 +333,7 @@ export function QualityWorkspace({
     setError("");
     try {
       setExecution(await api.executeCase(caseKey, selectedKeys));
+      setExecutedCase(caseKey);
       if (selectedEpic) setEpicKeys(await api.epicKeys(selectedEpic));
     } catch (runError) {
       setError(friendlyError(runError));
@@ -504,7 +511,7 @@ export function QualityWorkspace({
             )}
           </section>
 
-          {execution && <ExecutionResult execution={execution} />}
+          {execution && <ExecutionResult execution={execution} onReportBug={onReportBug && executedCase ? () => onReportBug({ caseKey: executedCase, executionKey: execution.key }) : undefined} />}
         </>
       )}
 
