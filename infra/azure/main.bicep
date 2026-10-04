@@ -10,8 +10,8 @@ param environmentName string = 'lab'
 @description('Región seleccionada para los recursos regionales del borrador.')
 param location string = 'eastus2'
 
-@description('Región del Azure SQL de DIFE. Puede diferir de location: eastus2 no admite servidores SQL nuevos en esta suscripción.')
-param sqlLocation string = location
+@description('Región del Azure SQL de DIFE. La oferta gratuita de Azure SQL solo se pudo crear en australiaeast (eastus2 y eastus no admiten servidores nuevos; centralus, westus2, southcentralus y canadacentral fallan con la oferta gratuita).')
+param sqlLocation string = 'australiaeast'
 
 @description('Cuenta SQL inicial. Cambiala por un usuario administrador dedicado al entorno.')
 param sqlAdministratorLogin string
@@ -30,7 +30,7 @@ param deploymentPrincipalObjectId string
 ])
 param deploymentPrincipalType string = 'User'
 
-@description('Imagen de la API. El primer despliegue usa una imagen de ejemplo; el CD la reemplaza por la etiqueta del commit.')
+@description('Imagen pública de la API en GHCR. El primer despliegue usa una imagen de ejemplo; el CD la reemplaza por la etiqueta del commit.')
 param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 @description('Activar solo después de cargar en Key Vault los secretos de runtime (ver README). Si faltan, la revisión no arranca.')
@@ -51,27 +51,12 @@ param isoGatewayUrl string = ''
 var resourceToken = '${uniqueString(subscription().id, resourceGroup().id, location, environmentName)}1'
 var logAnalyticsName = 'azla${resourceToken}'
 var identityName = 'azid${resourceToken}'
-var registryName = toLower('azacr${resourceToken}')
 var keyVaultName = toLower('azkv${resourceToken}')
 var managedEnvironmentName = 'azcae${resourceToken}'
 var containerAppName = 'azca${resourceToken}'
-// El SQL deriva su nombre de su propia región: un intento fallido en otra región deja el nombre reservado.
-var sqlToken = '${uniqueString(subscription().id, resourceGroup().id, sqlLocation, environmentName)}1'
-var sqlServerName = toLower('azsql${sqlToken}')
-var sqlDatabaseName = 'azdb${resourceToken}'
-var staticWebAppName = 'azswa${resourceToken}'
-var frontDoorProfileName = 'azafd${resourceToken}'
-var frontDoorEndpointName = 'azfde${resourceToken}'
-var apiOriginGroupName = 'azoga${resourceToken}'
-var webOriginGroupName = 'azogw${resourceToken}'
-var apiOriginName = 'azora${resourceToken}'
-var webOriginName = 'azorw${resourceToken}'
-var apiRouteName = 'azrta${resourceToken}'
-var webRouteName = 'azrtw${resourceToken}'
-var acrPullRoleDefinitionId = subscriptionResourceId(
-  'Microsoft.Authorization/roleDefinitions',
-  '7f951dda-4ed3-4680-a7ca-43fe172d538d'
-)
+// Servidor dedicado a DIFE en la región donde se pudo crear la oferta gratuita.
+var sqlServerName = toLower('azsqlqalab${take(sqlLocation, 6)}1')
+var sqlDatabaseName = 'qalabdife'
 var keyVaultSecretsOfficerRoleDefinitionId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
   'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
@@ -141,28 +126,6 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
   location: location
 }
 
-resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
-  name: registryName
-  location: location
-  sku: {
-    name: 'Basic'
-  }
-  properties: {
-    adminUserEnabled: false
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
-resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registry.id, identity.id, acrPullRoleDefinitionId)
-  scope: registry
-  properties: {
-    roleDefinitionId: acrPullRoleDefinitionId
-    principalId: identity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
@@ -220,22 +183,26 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   parent: sqlServer
   name: sqlDatabaseName
   location: sqlLocation
+  // Oferta gratuita de Azure SQL: 100.000 vCore-segundos y 32 GB al mes; si se agota, la
+  // base se pausa hasta el mes siguiente en lugar de cobrar.
   sku: {
-    name: 'Basic'
-    tier: 'Basic'
+    name: 'GP_S_Gen5_2'
+    tier: 'GeneralPurpose'
   }
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
-    maxSizeBytes: 2147483648
+    useFreeLimit: true
+    freeLimitExhaustionBehavior: 'AutoPause'
+    autoPauseDelay: 60
+    minCapacity: json('0.5')
     zoneRedundant: false
-    readScale: 'Disabled'
     requestedBackupStorageRedundancy: 'Local'
   }
 }
 
 resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
   parent: sqlServer
-  name: 'azfw${resourceToken}'
+  name: 'azure-services'
   properties: {
     startIpAddress: '0.0.0.0'
     endIpAddress: '0.0.0.0'
@@ -268,37 +235,6 @@ resource sqlAdminLoginSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   ]
 }
 
-resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
-  name: staticWebAppName
-  location: location
-  sku: {
-    name: 'Standard'
-    tier: 'Standard'
-  }
-  properties: {
-    publicNetworkAccess: 'Enabled'
-    stagingEnvironmentPolicy: 'Enabled'
-  }
-}
-
-resource frontDoorProfile 'Microsoft.Cdn/profiles@2024-02-01' = {
-  name: frontDoorProfileName
-  location: 'global'
-  sku: {
-    name: 'Standard_AzureFrontDoor'
-  }
-  properties: {}
-}
-
-resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-02-01' = {
-  parent: frontDoorProfile
-  name: frontDoorEndpointName
-  location: 'global'
-  properties: {
-    enabledState: 'Enabled'
-  }
-}
-
 resource managedEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: managedEnvironmentName
   location: location
@@ -327,36 +263,12 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       secrets: enableAppSecrets ? appSecrets : []
-      registries: [
-        {
-          server: registry.properties.loginServer
-          identity: identity.id
-        }
-      ]
+      // La imagen está en GHCR y es pública: no hace falta registro ni credenciales.
       ingress: {
         external: true
         targetPort: 8000
         transport: 'auto'
         allowInsecure: false
-        corsPolicy: {
-          allowedOrigins: [
-            'https://${frontDoorEndpoint.properties.hostName}'
-          ]
-          allowedMethods: [
-            'GET'
-            'POST'
-            'PUT'
-            'PATCH'
-            'DELETE'
-            'OPTIONS'
-          ]
-          allowedHeaders: [
-            '*'
-          ]
-          exposeHeaders: []
-          maxAge: 600
-          allowCredentials: true
-        }
       }
     }
     template: {
@@ -378,182 +290,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
     }
   }
   dependsOn: [
-    acrPullRoleAssignment
     keyVaultSecretsOfficerRoleAssignment
   ]
 }
 
-resource apiOriginGroup 'Microsoft.Cdn/profiles/originGroups@2024-02-01' = {
-  parent: frontDoorProfile
-  name: apiOriginGroupName
-  properties: {
-    loadBalancingSettings: {
-      sampleSize: 4
-      successfulSamplesRequired: 3
-      additionalLatencyInMilliseconds: 50
-    }
-    healthProbeSettings: {
-      probePath: '/health'
-      probeRequestType: 'GET'
-      probeProtocol: 'Https'
-      probeIntervalInSeconds: 100
-    }
-    sessionAffinityState: 'Disabled'
-  }
-}
-
-resource webOriginGroup 'Microsoft.Cdn/profiles/originGroups@2024-02-01' = {
-  parent: frontDoorProfile
-  name: webOriginGroupName
-  properties: {
-    loadBalancingSettings: {
-      sampleSize: 4
-      successfulSamplesRequired: 3
-      additionalLatencyInMilliseconds: 50
-    }
-    healthProbeSettings: {
-      probePath: '/'
-      probeRequestType: 'GET'
-      probeProtocol: 'Https'
-      probeIntervalInSeconds: 100
-    }
-    sessionAffinityState: 'Disabled'
-  }
-}
-
-resource apiOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2024-02-01' = {
-  parent: apiOriginGroup
-  name: apiOriginName
-  properties: {
-    enabledState: 'Enabled'
-    hostName: containerApp.properties.configuration.ingress.fqdn
-    httpPort: 80
-    httpsPort: 443
-    originHostHeader: containerApp.properties.configuration.ingress.fqdn
-    priority: 1
-    weight: 1000
-    enforceCertificateNameCheck: true
-  }
-}
-
-resource webOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2024-02-01' = {
-  parent: webOriginGroup
-  name: webOriginName
-  properties: {
-    enabledState: 'Enabled'
-    hostName: staticWebApp.properties.defaultHostname
-    httpPort: 80
-    httpsPort: 443
-    originHostHeader: staticWebApp.properties.defaultHostname
-    priority: 1
-    weight: 1000
-    enforceCertificateNameCheck: true
-  }
-}
-
-// FastAPI expone /health, /auth, /qa... sin prefijo: igual que el proxy de Vite en local,
-// Front Door retira /api antes de reenviar (/api/health -> /health).
-resource apiRuleSet 'Microsoft.Cdn/profiles/ruleSets@2024-02-01' = {
-  parent: frontDoorProfile
-  name: 'azrsapi${environmentName}'
-}
-
-resource stripApiPrefixRule 'Microsoft.Cdn/profiles/ruleSets/rules@2024-02-01' = {
-  parent: apiRuleSet
-  name: 'stripapiprefix'
-  properties: {
-    order: 1
-    conditions: [
-      {
-        name: 'UrlPath'
-        parameters: {
-          typeName: 'DeliveryRuleUrlPathMatchConditionParameters'
-          operator: 'BeginsWith'
-          matchValues: [
-            'api/'
-          ]
-          negateCondition: false
-          transforms: []
-        }
-      }
-    ]
-    actions: [
-      {
-        name: 'UrlRewrite'
-        parameters: {
-          typeName: 'DeliveryRuleUrlRewriteActionParameters'
-          sourcePattern: '/api/'
-          destination: '/'
-          preserveUnmatchedPath: true
-        }
-      }
-    ]
-    matchProcessingBehavior: 'Stop'
-  }
-}
-
-resource apiRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = {
-  parent: frontDoorEndpoint
-  name: apiRouteName
-  // Front Door rechaza la ruta si su grupo todavía no tiene un origen creado.
-  dependsOn: [
-    stripApiPrefixRule
-    apiOrigin
-  ]
-  properties: {
-    originGroup: {
-      id: apiOriginGroup.id
-    }
-    ruleSets: [
-      {
-        id: apiRuleSet.id
-      }
-    ]
-    originPath: '/'
-    supportedProtocols: [
-      'Http'
-      'Https'
-    ]
-    patternsToMatch: [
-      '/api/*'
-    ]
-    forwardingProtocol: 'HttpsOnly'
-    linkToDefaultDomain: 'Enabled'
-    httpsRedirect: 'Enabled'
-  }
-}
-
-resource webRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = {
-  parent: frontDoorEndpoint
-  name: webRouteName
-  dependsOn: [
-    webOrigin
-  ]
-  properties: {
-    originGroup: {
-      id: webOriginGroup.id
-    }
-    supportedProtocols: [
-      'Http'
-      'Https'
-    ]
-    patternsToMatch: [
-      '/*'
-    ]
-    forwardingProtocol: 'HttpsOnly'
-    linkToDefaultDomain: 'Enabled'
-    httpsRedirect: 'Enabled'
-  }
-}
-
 output environmentName string = environmentName
 output location string = location
-output containerRegistryLoginServer string = registry.properties.loginServer
 output containerAppName string = containerApp.name
 output containerAppUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
-output staticWebAppName string = staticWebApp.name
-output staticWebAppHostname string = staticWebApp.properties.defaultHostname
-output frontDoorHostname string = frontDoorEndpoint.properties.hostName
 output sqlServerFullyQualifiedDomainName string = sqlServer.properties.fullyQualifiedDomainName
 output sqlDatabaseName string = sqlDatabase.name
 output keyVaultName string = keyVault.name

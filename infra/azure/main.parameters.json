@@ -12,7 +12,7 @@
       "value": "qalabadmin"
     },
     "sqlLocation": {
-      "value": "centralus"
+      "value": "australiaeast"
     },
     "notificationsQueueUrl": {
       "value": "https://sqs.us-east-1.amazonaws.com/025232685372/qalabspbvi-lab-notifications"

@@ -1,7 +1,7 @@
 # QALabSPBVI
 
 <p>
-  <a href="https://azfdeys6cijfwmjqvi1-hvgvfchjh7htgmf7.z02.azurefd.net"><img src="docs/demo-badge.svg" alt="Abrir la demo en vivo" height="32"></a>
+  <a href="https://qalabspbvi.vercel.app"><img src="docs/demo-badge.svg" alt="Abrir la demo en vivo" height="32"></a>
   <!-- Activar al registrar el proyecto en portafolio-status (slug qalabspbvi):
   <a href="https://frontend-nine-topaz-99.vercel.app"><img src="https://portafolio-status.onrender.com/api/status/qalabspbvi/badge.svg" alt="Estado en vivo del proyecto" height="32"></a>
   <a href="https://d4i3vsgw7xwmh.cloudfront.net"><img src="https://portafolio-status.onrender.com/api/status/qalabspbvi/qa-badge.svg" alt="Fecha y resultado de la última prueba E2E" height="32"></a>
@@ -18,7 +18,8 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
 ![AWS Lambda](https://img.shields.io/badge/AWS_SQS_+_Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)
-![Google Cloud Run](https://img.shields.io/badge/Google_Cloud_Run-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
+![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)
 
 Laboratorio simulado de pagos inmediatos interoperables, inspirado en Bre-B (Banco de la República de Colombia). Sirve para practicar y mostrar aseguramiento de calidad automatizado: pruebas de API REST con JSON, mensajería ISO 20022 de laboratorio y recorridos E2E.
 
@@ -28,11 +29,11 @@ Es un proyecto de portafolio: **no se conecta a ninguna infraestructura real de 
 
 - **Qué hace:** simula el ecosistema Bre-B. Registra llaves (celular, correo, documento, alfanumérica `@` y código de comercio) en el directorio de cada SPBVI (DIFE) y en el central (DICE). Procesa pagos entre cuentas del mismo SPBVI o de SPBVI distintos, con idempotencia, límite de 1.000 UVB y mensajes pacs.008 / pacs.002 de laboratorio.
 - **Para el equipo QA:** una plataforma tipo Jira (épica → HU → CP, tareas, bugs y fixes). Cada CP es una solicitud REST con JSON que se ejecuta con un clic. El resultado muestra método, URL, solicitud, respuesta y veredicto. El sistema genera las llaves de prueba según su tipo, y las transacciones las toman de la lista de llaves de la épica.
-- **Cómo probarlo:** entra a la [demo](https://azfdeys6cijfwmjqvi1-hvgvfchjh7htgmf7.z02.azurefd.net) con una cuenta creada por un administrador (acceso con contraseña y código por correo). La épica `EPIC-00001` ya trae el programa ISO 20022 cargado. Para correrlo en tu equipo, ve a [Instalación](#instalación) y [Puesta en marcha](#puesta-en-marcha).
+- **Cómo probarlo:** entra a la [demo](https://qalabspbvi.vercel.app) con una cuenta creada por un administrador (acceso con contraseña y código por correo). La épica `EPIC-00001` ya trae el programa ISO 20022 cargado. Para correrlo en tu equipo, ve a [Instalación](#instalación) y [Puesta en marcha](#puesta-en-marcha).
 
 ## Demo en vivo
 
-**Aplicación:** [azfdeys6cijfwmjqvi1-hvgvfchjh7htgmf7.z02.azurefd.net](https://azfdeys6cijfwmjqvi1-hvgvfchjh7htgmf7.z02.azurefd.net)
+**Aplicación:** [qalabspbvi.vercel.app](https://qalabspbvi.vercel.app)
 
 **Documentación de la API:** `/api/docs` en la demo o `http://127.0.0.1:8000/docs` en local.
 
@@ -74,11 +75,11 @@ No hay cuentas públicas ni contraseñas por defecto: el acceso lo da un adminis
 | DIFE | SQL Server (Azure SQL Database) con pyodbc y ODBC Driver 18 |
 | DICE | Oracle Autonomous Database (OCI) con python-oracledb |
 | QA | MongoDB (Atlas) con pymongo |
-| ISO 20022 | lxml con XSD propios de laboratorio; gateway propio en Google Cloud Run |
+| ISO 20022 | lxml con XSD propios de laboratorio; gateway propio en Render |
 | Avisos | AWS SQS (con DLQ) y AWS Lambda que entrega por Brevo |
 | Pruebas | pytest con mongomock y SQLite en memoria; Playwright para E2E |
 | Infraestructura | Bicep (Azure) y CloudFormation (AWS) |
-| CI/CD | GitHub Actions con OIDC hacia Azure, AWS y Google Cloud |
+| CI/CD | GitHub Actions con OIDC hacia Azure y AWS; imágenes en GitHub Container Registry; Vercel con integración de Git |
 
 ## Conexiones externas
 
@@ -90,22 +91,22 @@ No hay cuentas públicas ni contraseñas por defecto: el acceso lo da un adminis
 | MongoDB | Artefactos QA: épicas, HU, CP, ejecuciones y llaves | Sí |
 | Brevo (API HTTP) | Código MFA, bienvenida y avisos QA | Sí para iniciar sesión (el MFA llega por correo) |
 | AWS SQS + Lambda | Cola y entrega de los avisos QA | No: sin `NOTIFICATIONS_QUEUE_URL` los avisos salen directo por Brevo |
-| Gateway ISO 20022 (Cloud Run) | Genera los pacs.008 / pacs.002 | No: sin `ISO_GATEWAY_URL` o si no responde, se generan en proceso |
+| Gateway ISO 20022 (Render) | Genera los pacs.008 / pacs.002 | No: sin `ISO_GATEWAY_URL` o si no responde, se generan en proceso |
 
 Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte ni reutiliza datos de otros proyectos.
 
 ## Arquitectura
 
 <p align="center">
-  <img src="docs/arquitectura.svg" alt="Diagrama de arquitectura: Azure Front Door publica el frontend React (Static Web Apps) y la API FastAPI (Container Apps); la API usa PostgreSQL en Neon, SQL Server en Azure SQL (DIFE), Oracle ADB en OCI (DICE), MongoDB Atlas (QA) y Brevo para correos; GitHub Actions despliega por OIDC" width="100%">
+  <img src="docs/arquitectura.svg" alt="Diagrama de arquitectura: Vercel publica el frontend React y reenvía /api a la API FastAPI en Azure Container Apps; la API usa PostgreSQL en Neon, SQL Server en Azure SQL (DIFE), Oracle ADB en OCI (DICE), MongoDB Atlas (QA), AWS SQS y Lambda para avisos, un gateway ISO 20022 en Render y Brevo para correos; GitHub Actions despliega por OIDC" width="100%">
 </p>
 
-- **Azure Front Door** es la única entrada pública: `/` va al frontend React en **Static Web Apps** y `/api/*` a la API en **Container Apps** (sin el prefijo).
+- **Vercel** publica el frontend React y reenvía `/api/*` a la API en **Azure Container Apps** (sin el prefijo). Para el navegador todo es el mismo dominio, así que las cookies siguen siendo `SameSite=Strict`.
 - La **API FastAPI** está organizada por dominios: autenticación, llaves (DIFE/DICE), pagos con MOL simulado, adaptador ISO 20022 y gestión QA con su ejecutor de CP.
 - Cada dominio persiste en su propia nube: pagos y autenticación en **Neon**, DIFE en **Azure SQL**, DICE en **Oracle ADB (OCI)** y QA en **MongoDB Atlas**.
 - Los avisos QA van a una cola **AWS SQS** y una **Lambda** los entrega por Brevo. Los mensajes que fallan cinco veces pasan a una cola de fallidos (DLQ). La API solo puede enviar a la cola.
 - El código MFA no usa la cola: sale directo por Brevo, para no sumarle demora al inicio de sesión.
-- Los mensajes pacs.008 / pacs.002 los genera un **gateway ISO 20022 en Google Cloud Run**, un servicio sin estado. La API vuelve a validar el XML que recibe. Si el gateway no responde, lo genera en proceso, así un pago ya liquidado siempre tiene su mensaje. La respuesta indica quién lo generó en `iso_gateway`.
+- Los mensajes pacs.008 / pacs.002 los genera un **gateway ISO 20022 en Render**, un servicio sin estado. La API vuelve a validar el XML que recibe. Si el gateway no responde, lo genera en proceso, así un pago ya liquidado siempre tiene su mensaje. La respuesta indica quién lo generó en `iso_gateway`.
 - El núcleo del dominio no depende del formato de mensaje: el adaptador ISO 20022 recibe datos neutrales del pago. Todos los montos son enteros en centavos.
 - Los secretos viven en **Key Vault** y la API los lee con identidad administrada. Las bases solo aceptan la IP de salida de la Container App y la de administración.
 
@@ -126,7 +127,7 @@ app/
 └── main.py           Punto de entrada FastAPI
 services/
 ├── notifier/         Lambda de AWS que entrega los avisos QA por Brevo
-└── iso20022_gateway/ Gateway ISO 20022 para Google Cloud Run (FastAPI + Dockerfile)
+└── iso20022_gateway/ Gateway ISO 20022 para Render (FastAPI + Dockerfile)
 qa_programs/
 ├── build_iso20022_breb.py        Generador del programa ISO 20022
 ├── iso20022-breb-rest-json.json  Programa importable
@@ -170,7 +171,7 @@ Completa `.env`. Los nombres deben coincidir exactamente: la configuración igno
 | `PAYMENT_LIMIT_UVB`, `UVB_VALUE_CENTS` | Límite por operación (1.000 UVB) y valor de la UVB en centavos (supuesto; actualizar al vigente) |
 | `QA_SECRET_…` | Secretos que un CP referencia como `{{secret:…}}`, sin guardarlos |
 | `NOTIFICATIONS_QUEUE_URL`, `AWS_REGION` | Cola SQS de avisos (opcional); credenciales en `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` |
-| `ISO_GATEWAY_URL`, `ISO_GATEWAY_TOKEN` | Gateway ISO 20022 en Cloud Run (opcional) |
+| `ISO_GATEWAY_URL`, `ISO_GATEWAY_TOKEN` | Gateway ISO 20022 en Render (opcional) |
 
 Ningún secreto va al repositorio: solo `.env` (ignorado por git) o el gestor de secretos de la nube.
 
@@ -352,29 +353,35 @@ Si Brevo falla, la acción queda guardada y el aviso se reintenta con `POST /qa/
 
 ## Despliegue
 
-El laboratorio reparte sus componentes entre varias nubes, cada uno con su base dedicada:
+El laboratorio reparte sus componentes entre varias nubes, cada uno con su base dedicada, y **todo corre en capas gratuitas**:
 
-| Componente | Proveedor |
-|---|---|
-| API FastAPI | Azure Container Apps (eastus2), imagen en Azure Container Registry |
-| Frontend React | Azure Static Web Apps detrás de Azure Front Door |
-| Pagos y autenticación | Neon PostgreSQL (us-east-2) |
-| DIFE | Azure SQL Database (centralus) |
-| DICE | OCI Autonomous Database (sa-bogota-1, Always Free) |
-| QA | MongoDB Atlas M0 (AWS us-east-1) |
-| Avisos QA | AWS SQS con DLQ y AWS Lambda (us-east-1), definidos en `infra/aws/notifications.yaml` |
-| Gateway ISO 20022 | Google Cloud Run (us-east1) |
-| Secretos | Azure Key Vault con identidad administrada; SSM Parameter Store para la Lambda |
+| Componente | Proveedor | Plan |
+|---|---|---|
+| Frontend React y proxy `/api` | Vercel | Hobby (gratuito) |
+| API FastAPI | Azure Container Apps (eastus2) | Concesión mensual gratuita, escala a cero |
+| Imágenes de la API y del gateway | GitHub Container Registry | Gratuito para paquetes públicos |
+| Pagos y autenticación | Neon PostgreSQL (us-east-2) | Free |
+| DIFE | Azure SQL Database (australiaeast) | Oferta gratuita; se pausa si se agota el cupo mensual |
+| DICE | OCI Autonomous Database (sa-bogota-1) | Always Free |
+| QA | MongoDB Atlas (AWS us-east-1) | M0 gratuito |
+| Avisos QA | AWS SQS con DLQ y AWS Lambda (us-east-1), en `infra/aws/notifications.yaml` | Capa gratuita permanente |
+| Gateway ISO 20022 | Render | Free (se suspende sin uso; la API usa el adaptador local mientras despierta) |
+| Correo | Brevo | 300 correos al día |
+| Secretos | Azure Key Vault; SSM Parameter Store para la Lambda | Uso mínimo / gratuito |
+
+La oferta gratuita de Azure SQL solo se pudo crear en australiaeast: eastus2 y eastus no admiten servidores nuevos, y en las demás regiones de América la creación falla. Por eso DIFE responde con algo más de latencia que el resto.
 
 El despliegue es continuo:
 
 1. Cada push a `main` ejecuta en GitHub Actions las pruebas del backend, la compilación de React y los E2E.
-2. Si pasan, se construye la imagen de la API, etiquetada con el commit. El build falla si al driver ODBC le falta alguna librería.
-3. Se crea una revisión nueva de la Container App y se publica `web/dist` en Static Web Apps.
-4. Se publica el código de la Lambda de avisos y la imagen del gateway ISO 20022 en Cloud Run.
-5. Al final se comprueba que la API responde y que el sitio publicado es la compilación.
+2. Si pasan, se construyen las imágenes de la API y del gateway ISO 20022, etiquetadas con el commit, y se publican en GHCR.
+   - El build falla si al driver ODBC le falta alguna librería.
+   - Antes de seguir se comprueba que la imagen se descarga sin credenciales.
+3. Se crea una revisión nueva de la Container App, se publica el código de la Lambda y se despliega el gateway en Render.
+4. Vercel publica la interfaz por su integración con el repositorio.
+5. Al final se comprueba que la API responde por la URL pública y que el sitio publicado es la compilación.
 
-GitHub entra a Azure, AWS y Google Cloud por OIDC con permisos mínimos, sin contraseñas guardadas en el repositorio. En AWS, el rol de GitHub solo puede actualizar el código de la Lambda.
+GitHub entra a Azure y AWS por OIDC con permisos mínimos, sin contraseñas guardadas en el repositorio. En AWS, el rol de GitHub solo puede actualizar el código de la Lambda.
 
 La infraestructura está en `infra/azure/main.bicep` y `infra/aws/notifications.yaml` y se aprovisiona por CLI.
 
@@ -393,6 +400,8 @@ Pendientes:
 - Mock server de latencia y fallos de red.
 - Validación con JSON Schema.
 - Pantalla de bugs y fixes.
+- Gateway ISO 20022 en Render: el código y la CD están listos, falta crear el servicio.
+- Avisos por correo: el plan gratuito de Brevo (300 por día) se agotó en las pruebas. Los avisos rechazados quedan en la DLQ de SQS y se pueden reenviar cuando se renueve el cupo.
 - Logs en Neon y entorno de producción.
 
 ## Autor
