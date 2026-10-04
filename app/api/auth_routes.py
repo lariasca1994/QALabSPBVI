@@ -2,7 +2,7 @@ import logging
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,6 +28,7 @@ from app.core.security import (
 from app.db.models import User, UserRole
 from app.db.session import get_db
 from app.db.wake import wake_key_stores
+from app.domains.auth.automation import code_for_pending_login
 from app.domains.auth.service import (
     InvalidChallengeError,
     LoginRateLimitError,
@@ -159,6 +160,26 @@ def resend_email_code(
             "asociado. El codigo anterior deja de funcionar."
         )
     }
+
+
+@router.post("/qa-automation/code")
+def qa_automation_code(
+    request: Request,
+    db: DbSession,
+    x_qa_automation_token: Annotated[str | None, Header()] = None,
+) -> dict[str, str]:
+    """Código MFA del login pendiente de una cuenta de automatización E2E.
+
+    Responde 404 ante cualquier dato inválido o si la función está apagada.
+    """
+    code = code_for_pending_login(
+        db,
+        token=x_qa_automation_token,
+        pending_token=request.cookies.get(PENDING_LOGIN_COOKIE),
+    )
+    if code is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
+    return {"code": code}
 
 
 @router.post("/verify-email-code")

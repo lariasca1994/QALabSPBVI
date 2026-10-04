@@ -45,6 +45,9 @@ param brevoSenderEmail string = ''
 @description('URL de la cola SQS de avisos QA (infra/aws/notifications.yaml). Vacía: los avisos salen directo por Brevo. Requiere los secretos aws-access-key-id y aws-secret-access-key en Key Vault.')
 param notificationsQueueUrl string = ''
 
+@description('Activa el login MFA automatizable para qa-evidencia. Requiere los secretos qa-automation-token y qa-automation-emails en Key Vault.')
+param enableQaAutomation bool = false
+
 @description('URL del gateway ISO 20022 en Render. Vacía: los mensajes se generan en proceso. Requiere el secreto iso-gateway-token en Key Vault.')
 param isoGatewayUrl string = ''
 
@@ -79,7 +82,12 @@ var appSecretMap = concat(
   ],
   empty(isoGatewayUrl) ? [] : [
     { name: 'iso-gateway-token', env: 'ISO_GATEWAY_TOKEN' }
-  ]
+  ],
+  // Cuenta de pruebas E2E cuyo código MFA queda en un registro protegido por token.
+  enableQaAutomation ? [
+    { name: 'qa-automation-token', env: 'QA_AUTOMATION_TOKEN' }
+    { name: 'qa-automation-emails', env: 'QA_AUTOMATION_EMAILS' }
+  ] : []
 )
 var appSecrets = [
   for s in appSecretMap: {

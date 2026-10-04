@@ -64,7 +64,7 @@ test("crea un pago intra-SPBVI idempotente y verifica su respuesta en móvil", a
   await page.locator("#payment-key-value").fill(keyValue);
   await page.getByLabel("Monto en centavos").fill("1250");
   await page.getByRole("button", { name: "Ejecutar pago" }).click();
-  await expect(page.getByRole("status")).toContainText("procesó en el entorno local");
+  await expect(page.getByRole("status")).toContainText("procesó correctamente");
   await expect(page.locator(".execution-card .method-pill")).toHaveText("POST");
   await expect(page.locator(".execution-card .request-summary")).toContainText("/payments");
   await expect(await responseJson(page)).toMatchObject({
@@ -109,7 +109,7 @@ test("liquida un pago inter-SPBVI con MOL local y presenta los mensajes ISO", as
   await page.getByLabel("Monto en centavos").fill("875");
   await page.getByRole("button", { name: "Ejecutar pago" }).click();
 
-  await expect(page.getByRole("status")).toContainText("procesó en el entorno local");
+  await expect(page.getByRole("status")).toContainText("procesó correctamente");
   await expect(page.locator(".execution-card .request-summary")).toContainText("/payments/inter-spbvi");
   const response = await responseJson(page);
   expect(response).toMatchObject({

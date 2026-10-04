@@ -1049,7 +1049,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
       const payment = response.data as Payment;
       setNotice(payment.replayed
         ? "Orden idempotente reconocida: se devolvió el pago existente, sin duplicar el abono."
-        : "El pago se procesó en el entorno local.");
+        : "El pago se procesó correctamente.");
     } catch (requestError) {
       setError(friendlyError(requestError));
     } finally {

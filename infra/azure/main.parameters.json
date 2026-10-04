@@ -19,6 +19,9 @@
     },
     "isoGatewayUrl": {
       "value": "https://qalabspbvi-iso20022-gateway.onrender.com"
+    },
+    "enableQaAutomation": {
+      "value": true
     }
   }
 }

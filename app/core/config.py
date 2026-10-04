@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # suspensión de Neon: las bases solo se activan cuando alguien usa la aplicación.
     database_pool: str = "queue"
     auth_secret_key: str = ""
+    # Automatización E2E del login con MFA (qa-evidencia). Desactivada si falta el token
+    # (mínimo 32 caracteres) o la lista de correos. Ver app/domains/auth/automation.py.
+    qa_automation_token: str = ""
+    qa_automation_emails: str = ""
     brevo_api_key: str = ""
     brevo_sender_email: str = ""
     brevo_sender_name: str = "QALabSPBVI"

@@ -518,3 +518,81 @@ def test_resend_requires_csrf(
     start_pending_login(client)
     del client.headers["x-csrf-token"]
     assert client.post("/auth/resend-code").status_code == 403
+
+
+AUTOMATION_TOKEN = "qa-automation-token-with-more-than-32-chars"
+
+
+@pytest.fixture
+def automation_environment(auth_environment, monkeypatch: pytest.MonkeyPatch):
+    from app.core import config
+
+    client, mailer, db = auth_environment
+    monkeypatch.setenv("QA_AUTOMATION_TOKEN", AUTOMATION_TOKEN)
+    monkeypatch.setenv("QA_AUTOMATION_EMAILS", "qa+e2e@example.com")
+    config.get_settings.cache_clear()
+    create_user(db, email="qa+e2e@example.com", display_name="QA", password="qa-password-for-e2e", role=UserRole.USUARIO)
+    return client, mailer
+
+
+def test_automation_account_gets_its_code_from_the_protected_log_and_by_email(automation_environment) -> None:
+    client, mailer = automation_environment
+    start_pending_login_as(client, "qa+e2e@example.com", "qa-password-for-e2e")
+    # La dueña de la cuenta sigue recibiendo el código por correo.
+    assert [recipient for recipient, _, _ in mailer.messages] == ["qa+e2e@example.com"]
+
+    assert client.post("/auth/qa-automation/code").status_code == 404
+    assert client.post("/auth/qa-automation/code", headers={"x-qa-automation-token": "otro-token-que-no-sirve-para-nada-123"}).status_code == 404
+    response = client.post("/auth/qa-automation/code", headers={"x-qa-automation-token": AUTOMATION_TOKEN})
+    assert response.status_code == 200
+    code = response.json()["code"]
+
+    token = client.cookies.get("qalab_csrf")
+    verified = client.post("/auth/verify-email-code", json={"email": "qa+e2e@example.com", "code": code}, headers={"x-csrf-token": token})
+    assert verified.status_code == 200
+    assert client.get("/auth/me").json()["role"] == "usuario"
+
+
+def test_other_accounts_keep_mfa_by_email_and_the_log_reveals_nothing(automation_environment) -> None:
+    client, mailer = automation_environment
+    start_pending_login_as(client, "admin@example.com", "correct horse battery staple")
+    assert len(mailer.messages) == 1
+    assert client.post("/auth/qa-automation/code", headers={"x-qa-automation-token": AUTOMATION_TOKEN}).status_code == 404
+
+
+def test_wrong_password_on_automation_account_yields_no_code(automation_environment) -> None:
+    client, _ = automation_environment
+    start_pending_login_as(client, "qa+e2e@example.com", "contrasena-incorrecta")
+    assert client.post("/auth/qa-automation/code", headers={"x-qa-automation-token": AUTOMATION_TOKEN}).status_code == 404
+
+
+def test_automation_is_off_without_a_strong_token(auth_environment, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core import config
+
+    client, mailer, db = auth_environment
+    monkeypatch.setenv("QA_AUTOMATION_TOKEN", "corto")
+    monkeypatch.setenv("QA_AUTOMATION_EMAILS", "qa+e2e@example.com")
+    config.get_settings.cache_clear()
+    create_user(db, email="qa+e2e@example.com", display_name="QA", password="qa-password-for-e2e", role=UserRole.USUARIO)
+    start_pending_login_as(client, "qa+e2e@example.com", "qa-password-for-e2e")
+    assert len(mailer.messages) == 1
+    assert client.post("/auth/qa-automation/code", headers={"x-qa-automation-token": "corto"}).status_code == 404
+
+
+def start_pending_login_as(client: TestClient, email: str, password: str) -> None:
+    token = prepare_csrf(client)
+    response = client.post("/auth/login", json={"email": email, "password": password}, headers={"x-csrf-token": token})
+    assert response.status_code == 202, response.text
+
+
+def test_automation_login_survives_a_mail_outage(automation_environment) -> None:
+    from app.core.mailer import MailDeliveryError
+
+    client, mailer = automation_environment
+
+    def broken(**kwargs):
+        raise MailDeliveryError("sin cupo")
+
+    mailer.send = broken
+    start_pending_login_as(client, "qa+e2e@example.com", "qa-password-for-e2e")
+    assert client.post("/auth/qa-automation/code", headers={"x-qa-automation-token": AUTOMATION_TOKEN}).status_code == 200

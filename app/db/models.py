@@ -125,6 +125,23 @@ class EmailLoginChallenge(Base):
     used_at_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class QaAutomationCode(Base):
+    """Código MFA vigente de una cuenta de automatización QA (lista cerrada en la config).
+
+    Solo para las cuentas de QA_AUTOMATION_EMAILS: su código no se envía por correo, se
+    registra aquí y qa-evidencia lo lee con el token de automatización para completar el
+    login E2E. Cada emisión reemplaza la anterior y vence con el mismo plazo del código.
+    """
+
+    __tablename__ = "qa_automation_codes"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    code: Mapped[str] = mapped_column(String(6), nullable=False)
+    expires_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class PendingLogin(Base):
     """Inicio de sesión con contraseña válida que espera el código MFA.
 

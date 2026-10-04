@@ -1,3 +1,4 @@
+import logging
 import secrets
 import time
 
@@ -9,6 +10,9 @@ from sqlalchemy.orm import Session
 from app.core.email_templates import EmailMessage
 from app.core.mailer import MailDeliveryError, Mailer, send_message
 from app.core.security import code_digest, digest_token, keyed_digest
+from app.domains.auth.automation import is_automation_account, record_code
+
+logger = logging.getLogger(__name__)
 from app.db.models import (
     AuthSession,
     EmailLoginChallenge,
@@ -250,6 +254,12 @@ def _issue_code(db: Session, *, user: User, now: int, mailer: Mailer) -> None:
     )
     db.add(challenge)
     db.commit()
+    automation = is_automation_account(user)
+    if automation:
+        # Cuenta de automatización E2E: el código queda además en el registro protegido
+        # por token (ver app/domains/auth/automation.py), así la prueba no depende del
+        # correo y la persona dueña de la cuenta lo sigue recibiendo cuando hay envío.
+        record_code(db, user=user, code=code, expires_at_epoch=challenge.expires_at_epoch)
     try:
         send_message(
             mailer,
@@ -257,6 +267,9 @@ def _issue_code(db: Session, *, user: User, now: int, mailer: Mailer) -> None:
             message=mfa_code_message(user.display_name, code),
         )
     except MailDeliveryError as error:
+        if automation:
+            logger.warning("No se envió el correo MFA de la cuenta de automatización; queda el registro.")
+            return
         challenge.used_at_epoch = now
         db.commit()
         raise MailDeliveryError from error
