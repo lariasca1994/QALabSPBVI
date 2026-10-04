@@ -48,9 +48,11 @@ test_accounts: dict[str, dict[str, str]] = {}
 
 
 class E2EMailer:
-    def send(self, *, recipient: str, subject: str, body: str) -> None:
+    def send(
+        self, *, recipient: str, subject: str, body: str, html: str | None = None
+    ) -> None:
         del recipient, subject
-        match = re.search(r"Tu codigo de acceso es:\s*(\d+)", body)
+        match = re.search(r"Código:\s*(\d{6})", body)
         if match:
             temporary_path = mfa_code_path.with_suffix(".tmp")
             temporary_path.write_text(match.group(1), encoding="utf-8")

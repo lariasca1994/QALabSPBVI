@@ -11,9 +11,11 @@ from app.api.schemas import (
     FixCreateRequest,
     FixTransitionRequest,
     StoryCreateRequest,
+    TaskAssignRequest,
     TaskCreateRequest,
     TaskTransitionRequest,
     TestCaseCreateRequest,
+    TestCaseDefinitionUpdateRequest,
 )
 from app.core.mailer import Mailer, get_mailer
 from app.core.security import AuthenticatedUser, require_roles
@@ -25,6 +27,7 @@ from app.domains.qa.service import (
     QaForbiddenError,
     QaNotFoundError,
     QaValidationError,
+    assign_task,
     create_bug,
     create_epic,
     create_fix,
@@ -39,6 +42,7 @@ from app.domains.qa.service import (
     transition_fix,
     transition_task,
     update_epic_members,
+    update_test_case_definition,
 )
 
 router = APIRouter(prefix="/qa", tags=["gestion-qa"])
@@ -211,7 +215,9 @@ def post_task(
     epic_key: str,
     payload: TaskCreateRequest,
     database: QaDatabase,
-    actor: Annotated[User, Depends(require_roles(UserRole.ADMINISTRADOR))],
+    actor: Annotated[
+        User, Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR))
+    ],
     mailer: MailerDependency,
 ) -> dict:
     try:
@@ -223,6 +229,53 @@ def post_task(
             title=payload.title,
             description=payload.description,
             assignee_id=payload.assignee_id,
+        )
+    except (QaNotFoundError, QaForbiddenError, QaConflictError, QaValidationError) as error:
+        _raise_http(error)
+
+
+@router.post("/tasks/{task_key}/assign")
+def post_task_assignment(
+    task_key: str,
+    payload: TaskAssignRequest,
+    database: QaDatabase,
+    actor: AuthenticatedUser,
+    mailer: MailerDependency,
+) -> dict:
+    try:
+        return assign_task(
+            database,
+            task_key=task_key,
+            assignee_id=payload.assignee_id,
+            actor=actor,
+            mailer=mailer,
+        )
+    except (QaNotFoundError, QaForbiddenError, QaConflictError, QaValidationError) as error:
+        _raise_http(error)
+
+
+@router.put("/cases/{case_key}")
+def put_case_definition(
+    case_key: str,
+    payload: TestCaseDefinitionUpdateRequest,
+    database: QaDatabase,
+    actor: AuthenticatedUser,
+    mailer: MailerDependency,
+) -> dict:
+    try:
+        return update_test_case_definition(
+            database,
+            case_key=case_key,
+            actor=actor,
+            mailer=mailer,
+            request_method=payload.request_method,
+            request_path=payload.request_path,
+            request_query=payload.request_query,
+            request_headers=payload.request_headers,
+            request_body=payload.request_body,
+            expected_status_codes=payload.expected_status_codes,
+            expected_response=payload.expected_response,
+            change_note=payload.change_note,
         )
     except (QaNotFoundError, QaForbiddenError, QaConflictError, QaValidationError) as error:
         _raise_http(error)
@@ -366,10 +419,8 @@ def post_bug_transition(
     bug_key: str,
     payload: BugTransitionRequest,
     database: QaDatabase,
-    actor: Annotated[
-        User,
-        Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR)),
-    ],
+    # El servicio decide: el usuario avanza el flujo; solo gestión asigna responsables.
+    actor: AuthenticatedUser,
     mailer: MailerDependency,
 ) -> dict:
     try:

@@ -16,7 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.mailer import MailDeliveryError, Mailer
+from app.core.email_templates import EmailMessage
+from app.core.mailer import MailDeliveryError, Mailer, send_message
 from app.db.models import User, UserRole
 
 logger = logging.getLogger(__name__)
@@ -155,6 +156,45 @@ def _new_notification(
     }
 
 
+# Texto visible de cada evento QA en los correos: (etiqueta superior, encabezado).
+QA_EVENT_LABELS: dict[str, tuple[str, str]] = {
+    "epic_created": ("Nueva épica", "Se creó una épica"),
+    "epic_members_updated": ("Integrantes de la épica", "Te asociaron a una épica"),
+    "story_created": ("Nueva historia de usuario", "Se creó una HU"),
+    "test_case_created": ("Nuevo caso de prueba", "Se creó un CP"),
+    "task_created": ("Nueva tarea", "Se creó una tarea"),
+    "test_case_executed": ("Ejecución", "Se ejecutó un caso de prueba"),
+    "bug_created": ("Nuevo bug", "Se registró un bug"),
+    "fix_created": ("Nuevo fix", "Se registró un fix"),
+    "fix_ready_for_retest": ("Fix listo", "Un fix quedó listo para retest"),
+    "bug_status_changed": ("Estado de bug", "Cambió el estado de un bug"),
+    "task_status_changed": ("Estado de tarea", "Cambió el estado de una tarea"),
+    "task_assigned": ("Asignación de tarea", "Te asignaron una tarea"),
+    "test_case_updated": ("CP actualizado", "Se actualizó el JSON de un CP"),
+}
+
+
+def qa_notification_message(notification: dict[str, Any]) -> EmailMessage:
+    eyebrow, heading = QA_EVENT_LABELS.get(
+        notification["event_type"], ("Gestión QA", "Hay una novedad en tu épica")
+    )
+    return EmailMessage(
+        subject=f"[{notification['epic_key']}] {notification['title']}",
+        eyebrow=eyebrow,
+        heading=heading,
+        greeting="Hola,",
+        paragraphs=[
+            f"{notification['title']}. Te llega este aviso porque sos integrante de la épica."
+        ],
+        details=[
+            ("Épica", notification["epic_key"]),
+            ("Elemento", notification["item_key"]),
+            ("Realizado por", notification["actor_email"]),
+        ],
+        notice="Ingresá a QALabSPBVI para ver el detalle completo.",
+    )
+
+
 def _notification_result(notification: dict[str, Any]) -> str:
     return (
         "sent"
@@ -206,16 +246,10 @@ def _deliver_event(
             continue
 
         try:
-            mailer.send(
+            send_message(
+                mailer,
                 recipient=recipient["email"],
-                subject=f"[{notification['epic_key']}] {notification['title']}",
-                body=(
-                    f"Evento: {notification['event_type']}\n"
-                    f"Epica: {notification['epic_key']}\n"
-                    f"Elemento: {notification['item_key']}\n"
-                    f"Accion realizada por: {notification['actor_email']}\n"
-                    f"Detalle: {notification['title']}\n"
-                ),
+                message=qa_notification_message(notification),
             )
         except MailDeliveryError:
             logger.exception(
@@ -422,18 +456,8 @@ def create_story(
     )
 
 
-def create_test_case(
-    database: Database,
+def _validate_case_request(
     *,
-    story_key: str,
-    actor: User,
-    mailer: Mailer,
-    title: str,
-    description: str,
-    priority: str,
-    preconditions: list[str],
-    steps: list[dict[str, str]],
-    expected_result: str,
     request_method: str,
     request_path: str,
     request_query: dict[str, Any],
@@ -441,11 +465,8 @@ def create_test_case(
     request_body: dict[str, Any] | list[Any] | None,
     expected_status_codes: list[int],
     expected_response: dict[str, Any] | list[Any] | None,
-) -> dict[str, Any]:
-    if actor.role is not UserRole.ADMINISTRADOR:
-        raise QaForbiddenError
-    story = _required_document(database, "work_items", story_key, "story")
-    epic = _required_document(database, "epics", story["epic_key"], "epic")
+) -> str:
+    """Valida el contrato HTTP de un CP (alta y edición) y devuelve el método normalizado."""
     method = request_method.strip().upper()
     if method not in ALLOWED_CASE_METHODS:
         raise QaValidationError("El metodo HTTP no esta permitido.")
@@ -500,6 +521,42 @@ def create_test_case(
         )
     if any(code < 100 or code > 599 for code in expected_status_codes):
         raise QaValidationError("Los codigos HTTP esperados deben estar entre 100 y 599.")
+    return method
+
+
+def create_test_case(
+    database: Database,
+    *,
+    story_key: str,
+    actor: User,
+    mailer: Mailer,
+    title: str,
+    description: str,
+    priority: str,
+    preconditions: list[str],
+    steps: list[dict[str, str]],
+    expected_result: str,
+    request_method: str,
+    request_path: str,
+    request_query: dict[str, Any],
+    request_headers: dict[str, str],
+    request_body: dict[str, Any] | list[Any] | None,
+    expected_status_codes: list[int],
+    expected_response: dict[str, Any] | list[Any] | None,
+) -> dict[str, Any]:
+    if actor.role is not UserRole.ADMINISTRADOR:
+        raise QaForbiddenError
+    story = _required_document(database, "work_items", story_key, "story")
+    epic = _required_document(database, "epics", story["epic_key"], "epic")
+    method = _validate_case_request(
+        request_method=request_method,
+        request_path=request_path,
+        request_query=request_query,
+        request_headers=request_headers,
+        request_body=request_body,
+        expected_status_codes=expected_status_codes,
+        expected_response=expected_response,
+    )
 
     return _create_work_item(
         database,
@@ -542,7 +599,7 @@ def create_task(
     description: str,
     assignee_id: int | None,
 ) -> dict[str, Any]:
-    if actor.role is not UserRole.ADMINISTRADOR:
+    if actor.role not in {UserRole.ADMIN, UserRole.ADMINISTRADOR}:
         raise QaForbiddenError
     epic = _required_document(database, "epics", epic_key, "epic")
     assignee = next(
@@ -572,6 +629,134 @@ def create_task(
             "assignee": assignee,
         },
     )
+
+
+def assign_task(
+    database: Database,
+    *,
+    task_key: str,
+    assignee_id: int,
+    actor: User,
+    mailer: Mailer,
+) -> dict[str, Any]:
+    if actor.role not in {UserRole.ADMIN, UserRole.ADMINISTRADOR}:
+        raise QaForbiddenError
+    task = _required_document(database, "work_items", task_key, "task")
+    epic = _required_document(database, "epics", task["epic_key"], "epic")
+    if actor.id not in {member["user_id"] for member in epic["members"]}:
+        raise QaForbiddenError
+    assignee = next(
+        (member for member in epic["members"] if member["user_id"] == assignee_id), None
+    )
+    if assignee is None:
+        raise QaValidationError("La persona asignada debe pertenecer a la epica.")
+    notification = _new_notification(
+        event_type="task_assigned",
+        epic=epic,
+        actor=actor,
+        recipients=epic["members"],
+        item_key=task_key,
+        title=f"{task_key} asignada a {assignee['display_name']}",
+    )
+    database.work_items.update_one(
+        {"_id": task["_id"]},
+        {
+            "$set": {
+                "assignee": assignee,
+                f"notifications.{notification['id']}": notification,
+            },
+            "$push": {
+                "assignment_history": {
+                    "assignee": assignee["email"],
+                    "by": actor.email,
+                    "at_epoch": int(time.time()),
+                }
+            },
+        },
+    )
+    task = database.work_items.find_one({"_id": task["_id"]})
+    task["notification_status"] = _deliver_event(
+        database, "work_items", task, notification, mailer
+    )
+    return _response_document(task)
+
+
+def update_test_case_definition(
+    database: Database,
+    *,
+    case_key: str,
+    actor: User,
+    mailer: Mailer,
+    request_method: str,
+    request_path: str,
+    request_query: dict[str, Any],
+    request_headers: dict[str, str],
+    request_body: dict[str, Any] | list[Any] | None,
+    expected_status_codes: list[int],
+    expected_response: dict[str, Any] | list[Any] | None,
+    change_note: str,
+) -> dict[str, Any]:
+    """Reemplaza el JSON ejecutable del CP y guarda la versión anterior en el historial."""
+    case = _required_document(database, "work_items", case_key, "test_case")
+    epic = _required_document(database, "epics", case["epic_key"], "epic")
+    if actor.id not in {member["user_id"] for member in epic["members"]}:
+        raise QaForbiddenError
+    method = _validate_case_request(
+        request_method=request_method,
+        request_path=request_path,
+        request_query=request_query,
+        request_headers=request_headers,
+        request_body=request_body,
+        expected_status_codes=expected_status_codes,
+        expected_response=expected_response,
+    )
+    current_version = case.get("version", 1)
+    previous = {
+        "version": current_version,
+        "request": case["request"],
+        "expected_status_codes": case["expected_status_codes"],
+        "expected_response": case.get("expected_response"),
+        "replaced_by": _actor(actor),
+        "replaced_at_epoch": int(time.time()),
+        "change_note": change_note.strip(),
+    }
+    notification = _new_notification(
+        event_type="test_case_updated",
+        epic=epic,
+        actor=actor,
+        recipients=epic["members"],
+        item_key=case_key,
+        title=f"{case_key} actualizado a la versión {current_version + 1}",
+    )
+    updated = database.work_items.update_one(
+        # Concurrencia optimista: si otra edición se guardó primero, no se pisa.
+        {"_id": case["_id"], "version": case.get("version")},
+        {
+            "$set": {
+                "version": current_version + 1,
+                "request": {
+                    "method": method,
+                    "path": request_path,
+                    "query": request_query,
+                    "headers": request_headers,
+                    "body": request_body,
+                },
+                "expected_status_codes": expected_status_codes,
+                "expected_response": expected_response,
+                "updated_by": _actor(actor),
+                "updated_at_epoch": int(time.time()),
+                f"notifications.{notification['id']}": notification,
+            },
+            "$push": {"versions": previous},
+        },
+    )
+    if updated.modified_count != 1:
+        raise QaConflictError
+    case = database.work_items.find_one({"_id": case["_id"]})
+    case["notification_status"] = _deliver_event(
+        database, "work_items", case, notification, mailer
+    )
+    return _response_document(case)
 
 
 def _contains_sensitive_field(value: Any) -> bool:
@@ -1031,9 +1216,16 @@ def transition_bug(
     actor: User,
     mailer: Mailer,
 ) -> dict[str, Any]:
-    if actor.role not in {UserRole.ADMIN, UserRole.ADMINISTRADOR}:
-        raise QaForbiddenError
     bug = _required_document(database, "issues", bug_key, "bug")
+    if actor.role is UserRole.USUARIO:
+        # El usuario avanza el flujo (en fix, retest); asignar responsables es de gestión.
+        if target_status == "assigned":
+            raise QaForbiddenError
+        bug_epic = _required_document(database, "epics", bug["epic_key"], "epic")
+        if actor.id not in {member["user_id"] for member in bug_epic["members"]}:
+            raise QaForbiddenError
+    elif actor.role not in {UserRole.ADMIN, UserRole.ADMINISTRADOR}:
+        raise QaForbiddenError
     if target_status not in BUG_TRANSITIONS.get(bug["status"], set()):
         raise QaConflictError
     if target_status == "assigned":

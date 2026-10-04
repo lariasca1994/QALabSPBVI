@@ -43,6 +43,8 @@ class UserResponse(BaseModel):
     display_name: str
     role: UserRole
     is_active: bool
+    # Solo en el alta: "sent" o "failed" según la entrega del correo de bienvenida.
+    notification_status: str | None = None
 
 
 class CsrfResponse(BaseModel):
@@ -89,6 +91,23 @@ class TestCaseCreateRequest(BaseModel):
         max_length=20,
     )
     expected_response: dict[str, Any] | list[Any] | None = None
+
+
+class TestCaseDefinitionUpdateRequest(BaseModel):
+    """JSON ejecutable del CP: reemplaza la versión vigente y deja la anterior en historial."""
+
+    request_method: str = Field(min_length=3, max_length=10)
+    request_path: str = Field(min_length=1, max_length=500)
+    request_query: dict[str, Any] = Field(default_factory=dict)
+    request_headers: dict[str, str] = Field(default_factory=dict, max_length=50)
+    request_body: dict[str, Any] | list[Any] | None = None
+    expected_status_codes: list[int] = Field(min_length=1, max_length=20)
+    expected_response: dict[str, Any] | list[Any] | None = None
+    change_note: str = Field(min_length=1, max_length=500)
+
+
+class TaskAssignRequest(BaseModel):
+    assignee_id: int
 
 
 class TaskCreateRequest(BaseModel):

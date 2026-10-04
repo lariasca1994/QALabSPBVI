@@ -6,7 +6,8 @@ from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatc
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.mailer import MailDeliveryError, Mailer
+from app.core.email_templates import EmailMessage
+from app.core.mailer import MailDeliveryError, Mailer, send_message
 from app.core.security import code_digest, digest_token, keyed_digest
 from app.db.models import AuthSession, EmailLoginChallenge, LoginAttempt, User, UserRole
 
@@ -62,6 +63,53 @@ def create_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+def mfa_code_message(display_name: str, code: str) -> EmailMessage:
+    return EmailMessage(
+        subject="Código de acceso a QALabSPBVI",
+        eyebrow="Acceso seguro",
+        heading="Tu código de acceso",
+        greeting=f"Hola {display_name},",
+        paragraphs=["Usá este código para completar el inicio de sesión en QALabSPBVI."],
+        code=code,
+        code_caption=f"Vence en {OTP_TTL_SECONDS // 60} minutos y sirve una sola vez.",
+        notice=(
+            "No compartas este código con nadie: el equipo de QALabSPBVI nunca te lo va a "
+            "pedir. Si no intentaste iniciar sesión, ignorá este correo."
+        ),
+    )
+
+
+ROLE_LABELS = {
+    UserRole.ADMIN: "Admin",
+    UserRole.ADMINISTRADOR: "Administrador",
+    UserRole.USUARIO: "Usuario",
+}
+
+
+def welcome_message(user: User, created_by: User) -> EmailMessage:
+    # Nunca incluir la contraseña: quien creó la cuenta la entrega por un canal seguro.
+    return EmailMessage(
+        subject="Te damos la bienvenida a QALabSPBVI",
+        eyebrow="Nueva cuenta",
+        heading="Tu cuenta está lista",
+        greeting=f"Hola {user.display_name},",
+        paragraphs=[
+            "Se creó tu cuenta en QALabSPBVI, el laboratorio de pruebas de pagos inmediatos.",
+            "Para ingresar usá tu correo y la contraseña que te compartió quien creó la cuenta. "
+            "En cada inicio de sesión te enviaremos un código de un solo uso a este correo.",
+        ],
+        details=[
+            ("Correo", user.email),
+            ("Rol", ROLE_LABELS[user.role]),
+            ("Creada por", created_by.email),
+        ],
+        notice=(
+            "Si no esperabas esta cuenta, avisale al administrador de QALabSPBVI. "
+            "Nunca te pediremos tu contraseña por correo."
+        ),
+    )
 
 
 def _email_hash(email: str) -> str:
@@ -155,15 +203,10 @@ def start_login(
     db.add(challenge)
     db.commit()
     try:
-        mailer.send(
+        send_message(
+            mailer,
             recipient=user.email,
-            subject="Codigo de acceso a QALabSPBVI",
-            body=(
-                f"Hola {user.display_name},\n\n"
-                f"Tu codigo de acceso es: {code}\n"
-                "Vence en 5 minutos y solo puede usarse una vez. "
-                "Si no solicitaste este acceso, ignora este correo."
-            ),
+            message=mfa_code_message(user.display_name, code),
         )
     except MailDeliveryError as error:
         challenge.used_at_epoch = now

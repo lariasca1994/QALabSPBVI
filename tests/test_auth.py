@@ -1,3 +1,4 @@
+import re
 from collections.abc import Iterator
 
 import pytest
@@ -16,11 +17,19 @@ from app.domains.auth.service import create_user
 from app.main import app
 
 
+def extract_code(body: str) -> str:
+    match = re.search(r"Código:\s*(\d{6})", body)
+    assert match, "El correo MFA no contiene el código"
+    return match.group(1)
+
+
 class FakeMailer:
     def __init__(self) -> None:
         self.messages: list[tuple[str, str, str]] = []
 
-    def send(self, *, recipient: str, subject: str, body: str) -> None:
+    def send(
+        self, *, recipient: str, subject: str, body: str, html: str | None = None
+    ) -> None:
         self.messages.append((recipient, subject, body))
 
 
@@ -88,7 +97,7 @@ def sign_in(
     )
     assert login.status_code == 202
     assert len(mailer.messages) == message_count + 1
-    code = mailer.messages[-1][2].split("Tu codigo de acceso es: ")[1].splitlines()[0]
+    code = extract_code(mailer.messages[-1][2])
     verified = client.post(
         "/auth/verify-email-code",
         json={"email": email, "code": code},
@@ -116,8 +125,8 @@ def test_login_requires_password_then_single_use_email_code(
     assert len(mailer.messages) == 1
     recipient, subject, body = mailer.messages[0]
     assert recipient == "admin@example.com"
-    assert "codigo de acceso" in subject.lower()
-    code = body.split("Tu codigo de acceso es: ")[1].splitlines()[0]
+    assert "código de acceso" in subject.lower()
+    code = extract_code(body)
     assert len(code) == 6
     assert not client.cookies.get("qalab_session")
 
@@ -206,9 +215,7 @@ def test_bad_email_code_is_limited_and_session_requires_authentication(
         },
     )
     actual_code = (
-        mailer.messages[0][2]
-        .split("Tu codigo de acceso es: ")[1]
-        .splitlines()[0]
+        extract_code(mailer.messages[0][2])
     )
     wrong_code = "000000" if actual_code != "000000" else "000001"
 
@@ -320,3 +327,91 @@ def test_administrator_can_create_non_admin_users_but_admin_cannot(
         password="another secure password",
     )
     assert client.get("/auth/users").status_code == 403
+
+
+def test_only_admin_creates_administrators_and_new_users_get_welcome_email(
+    auth_environment: tuple[TestClient, FakeMailer, Session],
+) -> None:
+    client, mailer, _ = auth_environment
+    sign_in(client, mailer)
+    created_by_admin = client.post(
+        "/auth/users",
+        json={
+            "email": "manager@example.com",
+            "display_name": "Manager",
+            "password": "a different secure password",
+            "role": "administrador",
+        },
+    )
+    assert created_by_admin.status_code == 201
+    assert created_by_admin.json()["notification_status"] == "sent"
+    recipient, subject, body = mailer.messages[-1]
+    assert recipient == "manager@example.com"
+    assert "bienvenida" in subject.lower()
+    assert "Administrador" in body
+    assert "admin@example.com" in body
+    assert "a different secure password" not in body
+
+    user_by_admin = client.post(
+        "/auth/users",
+        json={
+            "email": "analyst@example.com",
+            "display_name": "Analyst",
+            "password": "analyst secure password",
+            "role": "usuario",
+        },
+    )
+    assert user_by_admin.status_code == 201
+
+    client.post("/auth/logout")
+    client.cookies.delete("qalab_session")
+    sign_in(client, mailer, email="manager@example.com", password="a different secure password")
+
+    second_administrator = client.post(
+        "/auth/users",
+        json={
+            "email": "manager2@example.com",
+            "display_name": "Manager 2",
+            "password": "yet another secure password",
+            "role": "administrador",
+        },
+    )
+    assert second_administrator.status_code == 403
+
+    tester = client.post(
+        "/auth/users",
+        json={
+            "email": "tester@example.com",
+            "display_name": "Tester",
+            "password": "another secure password",
+            "role": "usuario",
+        },
+    )
+    assert tester.status_code == 201
+    assert mailer.messages[-1][0] == "tester@example.com"
+    assert "another secure password" not in mailer.messages[-1][2]
+
+
+def test_user_is_created_even_if_welcome_email_fails(
+    auth_environment: tuple[TestClient, FakeMailer, Session],
+) -> None:
+    from app.core.mailer import MailDeliveryError
+
+    client, mailer, _ = auth_environment
+    sign_in(client, mailer)
+
+    def failing_send(**_: object) -> None:
+        raise MailDeliveryError("Brevo no disponible en la prueba.")
+
+    mailer.send = failing_send  # type: ignore[method-assign]
+    created = client.post(
+        "/auth/users",
+        json={
+            "email": "manager@example.com",
+            "display_name": "Manager",
+            "password": "a different secure password",
+            "role": "administrador",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["notification_status"] == "failed"

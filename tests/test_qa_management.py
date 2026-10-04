@@ -25,7 +25,9 @@ class FakeMailer:
         self.messages: list[tuple[str, str, str]] = []
         self.requests: list[httpx.Request] = []
 
-    def send(self, *, recipient: str, subject: str, body: str) -> None:
+    def send(
+        self, *, recipient: str, subject: str, body: str, html: str | None = None
+    ) -> None:
         if self.fail:
             raise MailDeliveryError("Local test mailer unavailable.")
         self.messages.append((recipient, subject, body))
@@ -517,3 +519,133 @@ def test_task_is_created_by_manager_and_only_assignee_can_execute(
     assert completed.status_code == 200
     assert database.work_items.find_one({"key": task_key})["status"] == "done"
     assert any("TASK-" in message[1] for message in mailer.messages)
+
+
+def test_admin_and_manager_assign_tasks_but_user_cannot(
+    qa_environment: tuple[TestClient, mongomock.database.Database, FakeMailer],
+) -> None:
+    client, database, mailer = qa_environment
+    epic_key = create_epic(client)
+    created = client.post(
+        f"/qa/epics/{epic_key}/tasks",
+        json={"title": "Revisar llaves", "description": "Validar el ciclo.", "assignee_id": 3},
+    )
+    assert created.status_code == 201
+    task_key = created.json()["key"]
+    assert created.json()["assignee"]["user_id"] == 3
+
+    user_assign = client.post(
+        f"/qa/tasks/{task_key}/assign",
+        headers={"x-test-role": "usuario"},
+        json={"assignee_id": 2},
+    )
+    assert user_assign.status_code == 403
+
+    outsider = client.post(
+        f"/qa/tasks/{task_key}/assign",
+        headers={"x-test-role": "administrador"},
+        json={"assignee_id": 4},
+    )
+    assert outsider.status_code == 422
+
+    mailer.messages.clear()
+    reassigned = client.post(
+        f"/qa/tasks/{task_key}/assign",
+        headers={"x-test-role": "administrador"},
+        json={"assignee_id": 2},
+    )
+    assert reassigned.status_code == 200
+    assert database.work_items.find_one({"key": task_key})["assignee"]["user_id"] == 2
+    assert {message[0] for message in mailer.messages} == {
+        "admin@example.com",
+        "manager@example.com",
+        "tester@example.com",
+    }
+    assert any("Te asignaron una tarea" in message[2] or task_key in message[1] for message in mailer.messages)
+
+
+def test_user_manages_bug_flow_but_only_managers_assign_it(
+    qa_environment: tuple[TestClient, mongomock.database.Database, FakeMailer],
+) -> None:
+    client, _, _ = qa_environment
+    epic_key = create_epic(client)
+    case_key = create_story_and_case(client, epic_key)
+    client.headers["x-test-role"] = "usuario"
+    execution = client.post(f"/qa/cases/{case_key}/execute").json()
+    bug_key = client.post(
+        "/qa/bugs",
+        json={
+            "case_key": case_key,
+            "execution_key": execution["key"],
+            "title": "Saldo",
+            "description": "No cambia.",
+            "severity": "major",
+        },
+    ).json()["key"]
+
+    assign_by_user = client.post(
+        f"/qa/bugs/{bug_key}/transition", json={"status": "assigned", "assignee_id": 3}
+    )
+    assert assign_by_user.status_code == 403
+
+    in_fix = client.post(f"/qa/bugs/{bug_key}/transition", json={"status": "in_fix"})
+    assert in_fix.status_code == 200
+    assert in_fix.json()["status"] == "in_fix"
+
+
+def test_epic_member_updates_case_json_with_version_history(
+    qa_environment: tuple[TestClient, mongomock.database.Database, FakeMailer],
+) -> None:
+    client, database, mailer = qa_environment
+    epic_key = create_epic(client)
+    case_key = create_story_and_case(client, epic_key)
+    new_definition = {
+        "request_method": "GET",
+        "request_path": "/health",
+        "request_query": {},
+        "request_headers": {},
+        "request_body": None,
+        "expected_status_codes": [200],
+        "expected_response": {"status": "ok"},
+        "change_note": "Apuntar al chequeo de salud.",
+    }
+
+    outsider = client.put(
+        f"/qa/cases/{case_key}", headers={"x-test-role": "externo"}, json=new_definition
+    )
+    assert outsider.status_code == 403
+
+    external = client.put(
+        f"/qa/cases/{case_key}",
+        headers={"x-test-role": "usuario"},
+        json={**new_definition, "request_path": "https://example.com/x"},
+    )
+    assert external.status_code == 422
+
+    mailer.messages.clear()
+    updated = client.put(
+        f"/qa/cases/{case_key}", headers={"x-test-role": "usuario"}, json=new_definition
+    )
+    assert updated.status_code == 200
+    body = updated.json()
+    assert body["version"] == 2
+    assert body["request"] == {
+        "method": "GET",
+        "path": "/health",
+        "query": {},
+        "headers": {},
+        "body": None,
+    }
+    assert body["expected_response"] == {"status": "ok"}
+    stored = database.work_items.find_one({"key": case_key})
+    assert stored["versions"][0]["version"] == 1
+    assert stored["versions"][0]["request"]["path"] == "/api/payments"
+    assert stored["versions"][0]["replaced_by"]["email"] == "tester@example.com"
+    assert stored["versions"][0]["change_note"] == "Apuntar al chequeo de salud."
+    assert len(mailer.messages) == 3
+
+    execution = client.post(
+        f"/qa/cases/{case_key}/execute", headers={"x-test-role": "usuario"}
+    ).json()
+    assert execution["request"]["method"] == "GET"
+    assert execution["request"]["url"].endswith("/health")

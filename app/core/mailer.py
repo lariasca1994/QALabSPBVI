@@ -3,6 +3,7 @@ from typing import Protocol
 import httpx
 
 from app.core.config import get_settings
+from app.core.email_templates import EmailMessage, render_email
 
 
 class MailDeliveryError(RuntimeError):
@@ -10,11 +11,15 @@ class MailDeliveryError(RuntimeError):
 
 
 class Mailer(Protocol):
-    def send(self, *, recipient: str, subject: str, body: str) -> None: ...
+    def send(
+        self, *, recipient: str, subject: str, body: str, html: str | None = None
+    ) -> None: ...
 
 
 class BrevoMailer:
-    def send(self, *, recipient: str, subject: str, body: str) -> None:
+    def send(
+        self, *, recipient: str, subject: str, body: str, html: str | None = None
+    ) -> None:
         settings = get_settings()
         if not settings.brevo_api_key or not settings.brevo_sender_email:
             raise MailDeliveryError("Brevo no esta configurado.")
@@ -28,6 +33,8 @@ class BrevoMailer:
             "subject": subject,
             "textContent": body,
         }
+        if html:
+            payload["htmlContent"] = html
         try:
             response = httpx.post(
                 "https://api.brevo.com/v3/smtp/email",
@@ -44,6 +51,17 @@ class BrevoMailer:
             raise MailDeliveryError(
                 "Brevo no pudo aceptar el mensaje."
             ) from error
+
+
+def send_message(mailer: Mailer, *, recipient: str, message: EmailMessage) -> None:
+    """Envía un correo con la plantilla común: HTML con CSS inline y texto plano."""
+    content = render_email(message)
+    mailer.send(
+        recipient=recipient,
+        subject=content.subject,
+        body=content.text,
+        html=content.html,
+    )
 
 
 def get_mailer() -> Mailer:

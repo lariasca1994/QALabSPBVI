@@ -15,7 +15,7 @@ from app.api.schemas import (
     VerifyEmailCodeRequest,
 )
 from app.core.config import get_settings
-from app.core.mailer import MailDeliveryError, Mailer, get_mailer
+from app.core.mailer import MailDeliveryError, Mailer, get_mailer, send_message
 from app.core.security import (
     CSRF_COOKIE,
     SESSION_ABSOLUTE_SECONDS,
@@ -35,6 +35,7 @@ from app.domains.auth.service import (
     normalize_email,
     revoke_session,
     start_login,
+    welcome_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -189,6 +190,7 @@ def create_user_account(
     payload: UserCreateRequest,
     db: DbSession,
     actor: AuthenticatedUser,
+    mailer: MailerDependency,
 ) -> UserResponse:
     if actor.role not in {UserRole.ADMIN, UserRole.ADMINISTRADOR}:
         raise HTTPException(
@@ -200,10 +202,10 @@ def create_user_account(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="El rol admin solo puede asignarse durante el bootstrap seguro.",
         )
-    if actor.role is UserRole.ADMIN and payload.role is not UserRole.ADMINISTRADOR:
+    if actor.role is UserRole.ADMINISTRADOR and payload.role is not UserRole.USUARIO:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="El admin inicial solo puede crear administradores.",
+            detail="Solo el admin puede crear administradores.",
         )
     try:
         user = create_user(
@@ -219,12 +221,19 @@ def create_user_account(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un usuario con ese correo.",
         ) from error
+    try:
+        send_message(mailer, recipient=user.email, message=welcome_message(user, actor))
+        notification_status = "sent"
+    except MailDeliveryError:
+        logger.exception("No se pudo enviar el correo de bienvenida.")
+        notification_status = "failed"
     return UserResponse(
         id=user.id,
         email=user.email,
         display_name=user.display_name,
         role=user.role,
         is_active=user.is_active,
+        notification_status=notification_status,
     )
 
 
