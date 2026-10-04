@@ -732,7 +732,7 @@ def create_inter_spbvi_payment_route(
             created_at=created_at,
         )
     )
-    # Solo se reporta cloud-run si ambos mensajes salieron del gateway.
+    # Solo se reporta render si ambos mensajes salieron del gateway.
     iso_gateway = gateway008 if gateway008 == gateway002 else "local"
     return InterSpbviPaymentResponse(
         id=payment.id,

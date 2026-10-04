@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Avisos QA por AWS SQS + Lambda (vacío: se envían directo por Brevo).
     notifications_queue_url: str = ""
     aws_region: str = "us-east-1"
-    # Gateway ISO 20022 en Google Cloud Run (vacío: el adaptador corre en proceso).
+    # Gateway ISO 20022 en Render (vacío: el adaptador corre en proceso).
     iso_gateway_url: str = ""
     iso_gateway_token: str = ""
 

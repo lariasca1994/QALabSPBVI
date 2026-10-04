@@ -106,6 +106,6 @@ Implementado y desplegado en el laboratorio multinube (ver README): llaves DIFE/
 
 El programa `qa_programs/iso20022-breb-rest-json.json` (adaptado del documento de pruebas ISO 20022 Bre-B) se importa en una épica y sus 35 CP pasan en la prueba de integración y en el laboratorio. Las llaves de los CP se generan según el tipo Bre-B ({{key:new:TIPO}}) y las transacciones las toman de la lista de llaves de la épica ({{key:TIPO:SPBVI}}). Plantillas en qa_programs/plantillas/.
 
-Pendientes: endpoints pacs.004, camt.056, camt.029, camt.054 y pain.002 independiente; mock server de fallos de red; validación JSON Schema; pantalla de bugs/fixes; logs en Neon y entorno de producción con aprobación. Gateway en Cloud Run pendiente de facturación activa en el proyecto GCP.
+Pendientes: endpoints pacs.004, camt.056, camt.029, camt.054 y pain.002 independiente; mock server de fallos de red; validación JSON Schema; pantalla de bugs/fixes; logs en Neon y entorno de producción con aprobación.
 
 Diagrama de referencia de los flujos intra e inter: https://claude.ai/artifact/VzbGmnH3VLvvogB9hwDjJW (privado; si no abre, no es crítico).

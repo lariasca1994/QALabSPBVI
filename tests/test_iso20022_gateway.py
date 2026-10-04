@@ -1,4 +1,4 @@
-"""Gateway ISO 20022 (Cloud Run) y su cliente con respaldo local en la API."""
+"""Gateway ISO 20022 (Render) y su cliente con respaldo local en la API."""
 
 import sys
 from datetime import UTC, datetime

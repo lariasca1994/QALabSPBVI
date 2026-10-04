@@ -1,4 +1,4 @@
-"""Cliente del gateway ISO 20022 desplegado en Google Cloud Run.
+"""Cliente del gateway ISO 20022 desplegado en Render (plan gratuito).
 
 Con `ISO_GATEWAY_URL` configurada, los mensajes pacs.008 y pacs.002 los genera el
 servicio `services/iso20022_gateway` (otra nube, otro proceso). La API vuelve a validar
@@ -6,7 +6,8 @@ el XML recibido contra los mismos XSD de laboratorio antes de devolverlo.
 
 Si el gateway no responde a tiempo o devuelve algo inválido, el mensaje se genera en
 proceso con el mismo adaptador: un pago ya liquidado nunca queda sin su XML. La
-respuesta indica quién lo generó (`cloud-run` o `local`).
+respuesta indica quién lo generó (`render` o `local`). El plan gratuito de Render
+suspende el servicio sin uso: mientras despierta, responde el adaptador local.
 """
 
 import logging
@@ -27,7 +28,7 @@ from app.domains.iso20022.messages import (
 
 logger = logging.getLogger(__name__)
 GATEWAY_TIMEOUT_SECONDS = 5.0
-REMOTE = "cloud-run"
+REMOTE = "render"
 LOCAL = "local"
 
 

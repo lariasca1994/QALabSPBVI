@@ -293,7 +293,7 @@ class PaymentResponse(BaseModel):
 class InterSpbviPaymentResponse(PaymentResponse):
     pacs008_xml: str
     pacs002_xml: str
-    # Quién generó los mensajes: "cloud-run" (gateway en GCP) o "local" (en proceso).
+    # Quién generó los mensajes: "render" (gateway ISO 20022) o "local" (en proceso).
     iso_gateway: str = "local"
 
 

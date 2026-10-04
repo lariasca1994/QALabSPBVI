@@ -1,4 +1,4 @@
-"""Gateway ISO 20022 de laboratorio (Google Cloud Run).
+"""Gateway ISO 20022 de laboratorio (Render, plan gratuito).
 
 Genera y valida los mensajes pacs.008.001.08 y pacs.002.001.10 con el mismo adaptador
 y los mismos XSD propios del monolito (app/domains/iso20022). Es un servicio sin

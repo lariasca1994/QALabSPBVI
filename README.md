@@ -110,6 +110,24 @@ Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte n
 - El núcleo del dominio no depende del formato de mensaje: el adaptador ISO 20022 recibe datos neutrales del pago. Todos los montos son enteros en centavos.
 - Los secretos viven en **Key Vault** y la API los lee con identidad administrada. Las bases solo aceptan la IP de salida de la Container App y la de administración.
 
+## Plataformas
+
+Cada plataforma cumple una función distinta; ninguna concentra todo el sistema y todas se usan en su capa gratuita.
+
+| Plataforma | Qué hace en QALabSPBVI | Plan |
+|---|---|---|
+| **Vercel** | Publica la interfaz React y reenvía `/api/*` a la API, de modo que el navegador ve un solo dominio y las cookies siguen siendo `SameSite=Strict`. Se publica sola en cada push. | Hobby |
+| **Azure Container Apps** | Ejecuta la API FastAPI: autenticación con MFA, llaves DIFE/DICE, pagos intra e inter-SPBVI, MOL simulado, gestión QA y el ejecutor de CP. Escala a cero sin uso. | Concesión mensual gratuita |
+| **Azure SQL Database** | DIFE: directorio federado de llaves de cada SPBVI y auditoría de su ciclo de vida. Resuelve las llaves de los pagos **intra-SPBVI**. | Oferta gratuita (pausa automática) |
+| **Azure Key Vault** | Guarda las cadenas de conexión y claves de la API, que las lee con identidad administrada. | Uso mínimo |
+| **Oracle Cloud (OCI)** | DICE en Autonomous Database: índice central de llaves con unicidad global. Resuelve las llaves de los pagos **inter-SPBVI**. | Always Free |
+| **Neon** | PostgreSQL de cuentas, ledger, pagos, usuarios y sesiones; ahí liquidan los pagos intra e inter. | Free |
+| **MongoDB Atlas** | Artefactos QA: épicas, HU, CP con su JSON versionado, ejecuciones, bugs, fixes y la lista de llaves de cada épica. | M0 |
+| **AWS** | Cola SQS con DLQ y Lambda que entrega por Brevo los avisos QA. La API solo puede enviar a la cola; la API key de Brevo vive en SSM Parameter Store. | Capa gratuita permanente |
+| **Render** | Gateway ISO 20022: servicio aparte que genera los pacs.008 / pacs.002 de laboratorio. Se suspende sin uso; mientras despierta, la API los genera en proceso. | Free |
+| **Brevo** | Envía el código MFA, la bienvenida y los avisos QA. | 300 correos al día |
+| **GitHub** | Código, CI/CD con Actions (OIDC hacia Azure y AWS, sin claves guardadas) e imágenes públicas en Container Registry. | Gratuito (repo público) |
+
 ## Estructura
 
 ```
@@ -353,21 +371,14 @@ Si Brevo falla, la acción queda guardada y el aviso se reintenta con `POST /qa/
 
 ## Despliegue
 
-El laboratorio reparte sus componentes entre varias nubes, cada uno con su base dedicada, y **todo corre en capas gratuitas**:
+El laboratorio reparte sus componentes entre varias nubes, cada uno con su base dedicada, y **todo corre en capas gratuitas** (ver [Plataformas](#plataformas)). Las regiones son:
 
-| Componente | Proveedor | Plan |
-|---|---|---|
-| Frontend React y proxy `/api` | Vercel | Hobby (gratuito) |
-| API FastAPI | Azure Container Apps (eastus2) | Concesión mensual gratuita, escala a cero |
-| Imágenes de la API y del gateway | GitHub Container Registry | Gratuito para paquetes públicos |
-| Pagos y autenticación | Neon PostgreSQL (us-east-2) | Free |
-| DIFE | Azure SQL Database (australiaeast) | Oferta gratuita; se pausa si se agota el cupo mensual |
-| DICE | OCI Autonomous Database (sa-bogota-1) | Always Free |
-| QA | MongoDB Atlas (AWS us-east-1) | M0 gratuito |
-| Avisos QA | AWS SQS con DLQ y AWS Lambda (us-east-1), en `infra/aws/notifications.yaml` | Capa gratuita permanente |
-| Gateway ISO 20022 | Render | Free (se suspende sin uso; la API usa el adaptador local mientras despierta) |
-| Correo | Brevo | 300 correos al día |
-| Secretos | Azure Key Vault; SSM Parameter Store para la Lambda | Uso mínimo / gratuito |
+- **eastus2:** API (Azure Container Apps).
+- **australiaeast:** DIFE (Azure SQL).
+- **sa-bogota-1:** DICE (OCI).
+- **us-east-2:** pagos (Neon).
+- **AWS us-east-1:** QA (Atlas) y avisos.
+- **Virginia:** gateway (Render).
 
 **Las bases duermen sin uso y se activan al entrar:**
 
@@ -406,7 +417,6 @@ Pendientes:
 - Mock server de latencia y fallos de red.
 - Validación con JSON Schema.
 - Pantalla de bugs y fixes.
-- Gateway ISO 20022 en Render: el código y la CD están listos, falta crear el servicio.
 - Avisos por correo: el plan gratuito de Brevo (300 por día) se agotó en las pruebas. Los avisos rechazados quedan en la DLQ de SQS y se pueden reenviar cuando se renueve el cupo.
 - Logs en Neon y entorno de producción.
 

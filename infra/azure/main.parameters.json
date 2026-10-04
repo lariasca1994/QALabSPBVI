@@ -16,6 +16,9 @@
     },
     "notificationsQueueUrl": {
       "value": "https://sqs.us-east-1.amazonaws.com/025232685372/qalabspbvi-lab-notifications"
+    },
+    "isoGatewayUrl": {
+      "value": "https://qalabspbvi-iso20022-gateway.onrender.com"
     }
   }
 }

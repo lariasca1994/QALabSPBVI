@@ -45,7 +45,7 @@ param brevoSenderEmail string = ''
 @description('URL de la cola SQS de avisos QA (infra/aws/notifications.yaml). Vacía: los avisos salen directo por Brevo. Requiere los secretos aws-access-key-id y aws-secret-access-key en Key Vault.')
 param notificationsQueueUrl string = ''
 
-@description('URL del gateway ISO 20022 en Cloud Run. Vacía: los mensajes se generan en proceso. Requiere el secreto iso-gateway-token en Key Vault.')
+@description('URL del gateway ISO 20022 en Render. Vacía: los mensajes se generan en proceso. Requiere el secreto iso-gateway-token en Key Vault.')
 param isoGatewayUrl string = ''
 
 var resourceToken = '${uniqueString(subscription().id, resourceGroup().id, location, environmentName)}1'
@@ -102,7 +102,7 @@ var appPlainEnv = [
   // El ejecutor QA llama a la API por su propio dominio: Front Door reenvía con ese Host,
   // y la sesión del usuario solo se reenvía cuando el host destino coincide con el entrante.
   { name: 'QA_TARGET_BASE_URL', value: 'https://${containerAppName}.${managedEnvironment.properties.defaultDomain}' }
-  // Multinube: avisos QA por AWS SQS + Lambda y mensajes ISO 20022 por Google Cloud Run.
+  // Multinube: avisos QA por AWS SQS + Lambda y mensajes ISO 20022 por el gateway en Render.
   { name: 'NOTIFICATIONS_QUEUE_URL', value: notificationsQueueUrl }
   { name: 'AWS_REGION', value: 'us-east-1' }
   // Sin pool de conexiones: las bases (Neon, Azure SQL gratuito, OCI) solo se activan con
