@@ -8,7 +8,14 @@ from app.core.config import get_settings
 database_url = get_settings().database_url
 connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
 
-engine = create_engine(database_url, connect_args=connect_args)
+# pool_pre_ping descarta conexiones cortadas por el servidor (p. ej. Neon suspende el
+# cómputo por inactividad y termina las conexiones abiertas); pool_recycle las renueva antes.
+engine = create_engine(
+    database_url,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    pool_recycle=240,
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
