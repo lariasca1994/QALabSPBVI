@@ -270,6 +270,23 @@ El workflow `.github/workflows/ci.yml` ejecuta en cada push y pull request las p
 
 El job `Desplegar laboratorio` está preparado, pero queda omitido por defecto: solo se activa en un `push` a `main` si `LAB_DEPLOY_ENABLED` vale `true` en GitHub. Antes de activarlo hay que aprovisionar y revisar la infraestructura, configurar el environment protegido `lab`, el principal OIDC de Azure y sus permisos mínimos, las variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `LAB_ACR_NAME`, `LAB_ACR_LOGIN_SERVER`, `LAB_RESOURCE_GROUP`, `LAB_CONTAINER_APP_NAME`, `LAB_PUBLIC_APP_URL`, y el secreto `LAB_STATIC_WEB_APPS_DEPLOYMENT_TOKEN`. No cargues valores de `.env` a GitHub.
 
-La configuración del job por sí sola no habilita despliegues: `LAB_DEPLOY_ENABLED` no está activado. Producción no tiene todavía un job de publicación; requiere el mismo artefacto validado, un environment `prod` protegido con aprobación y una aprobación específica antes de incorporarlo.
+`LAB_DEPLOY_ENABLED` está activado: cada `push` a `main` que pasa la CI publica la API (imagen etiquetada con el SHA del commit) y el frontend en el laboratorio. GitHub se autentica en Azure por OIDC con una identidad dedicada (`qalabspbvi-github-lab`) limitada a `AcrPush` sobre el registro, `Contributor` sobre la Container App y `Reader` sobre el grupo; no hay credenciales de larga duración en GitHub salvo el token de despliegue de Static Web Apps, guardado como secreto del environment `lab`. Producción no tiene todavía un job de publicación; requiere el mismo artefacto validado, un environment `prod` protegido con aprobación y una aprobación específica antes de incorporarlo.
 
-El borrador de infraestructura está en `infra/azure/` y el plan en `.azure/plan.copilotmd`. No ejecutes Bicep ni actives el CD hasta revisar y aprobar la infraestructura y completar la configuración de PostgreSQL/Neon, Atlas, Oracle/OCI, el correo MFA y DIFE. El Dockerfile actual tampoco instala todavía el controlador ODBC del sistema requerido para que `pyodbc` se conecte a Azure SQL; esto debe corregirse y validarse en local antes de desplegar.
+### Laboratorio desplegado (multinube)
+
+El entorno `lab` reparte sus componentes entre proveedores, cada uno con bases nuevas y dedicadas:
+
+| Componente | Proveedor | Recurso |
+|---|---|---|
+| API FastAPI | Azure Container Apps (eastus2) | Imagen en Azure Container Registry |
+| Frontend React | Azure Static Web Apps | Publicado tras Azure Front Door |
+| Entrada pública | Azure Front Door | `/` → React; `/api/*` → API sin el prefijo `/api` |
+| Pagos y autenticación | Neon (PostgreSQL, us-east-2) | Proyecto dedicado |
+| DIFE | Azure SQL Database (centralus) | Base dedicada; eastus2 no admitía servidores SQL nuevos |
+| DICE | OCI Autonomous Database (sa-bogota-1) | Base Always Free nueva, compartimento `qalabspbvi-lab`, usuario `QALABDICE`, TLS |
+| QA | MongoDB Atlas (AWS us-east-1) | Proyecto `QALabSPBVI-lab`, cluster M0, usuario limitado a `qalabspbvi_qa_lab` |
+| Secretos de runtime | Azure Key Vault | La API los lee con identidad administrada |
+
+La aplicación es pública por la URL de Front Door. Las bases no: OCI y Atlas solo aceptan la IP de salida de la Container App y la IP de administración, y Azure SQL solo servicios de Azure y la IP de administración. Si Azure cambia la IP de salida del entorno de Container Apps, hay que actualizar esas listas. Las cadenas de conexión del laboratorio viven solo en Key Vault y en un `.env.lab` local ignorado por git; nunca en el repositorio. AWS SQS y los logs en Neon siguen pendientes de implementación.
+
+El primer administrador del laboratorio se crea con `python -m app.cli create-initial-admin`, ejecutado con las variables de `.env.lab` cargadas solo en esa terminal.
