@@ -2,10 +2,8 @@
 
 <p>
   <a href="https://qalabspbvi.vercel.app"><img src="docs/demo-badge.svg" alt="Abrir la demo en vivo" height="32"></a>
-  <!-- Activar al registrar el proyecto en portafolio-status (slug qalabspbvi):
   <a href="https://frontend-nine-topaz-99.vercel.app"><img src="https://portafolio-status.onrender.com/api/status/qalabspbvi/badge.svg" alt="Estado en vivo del proyecto" height="32"></a>
   <a href="https://d4i3vsgw7xwmh.cloudfront.net"><img src="https://portafolio-status.onrender.com/api/status/qalabspbvi/qa-badge.svg" alt="Fecha y resultado de la última prueba E2E" height="32"></a>
-  -->
 </p>
 
 ![Python](https://img.shields.io/badge/Python_3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)
