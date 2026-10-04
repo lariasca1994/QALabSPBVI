@@ -28,6 +28,7 @@ from sqlalchemy.orm import (
 )
 
 from app.core.config import engine_options, get_settings
+from app.db.wake import retry_transient_connect
 from app.db.models import KeyStatus
 
 KeyValueType = String(255, collation="Latin1_General_100_BIN2").with_variant(
@@ -146,7 +147,8 @@ def _required_url(value: str, store_name: str) -> str:
 @lru_cache
 def get_dife_engine():
     url = _required_url(get_settings().dife_database_url, "DIFE")
-    return create_engine(url, **engine_options(url))
+    # Azure SQL gratuito se pausa sin uso: la primera conexión reintenta mientras se reanuda.
+    return retry_transient_connect(create_engine(url, **engine_options(url)))
 
 
 @lru_cache

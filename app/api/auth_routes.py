@@ -2,7 +2,7 @@ import logging
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,6 +27,7 @@ from app.core.security import (
 )
 from app.db.models import User, UserRole
 from app.db.session import get_db
+from app.db.wake import wake_key_stores
 from app.domains.auth.service import (
     InvalidChallengeError,
     LoginRateLimitError,
@@ -203,7 +204,11 @@ def verify_email_code(
 
 
 @router.get("/me", response_model=UserResponse)
-def me(user: AuthenticatedUser) -> UserResponse:
+def me(user: AuthenticatedUser, background_tasks: BackgroundTasks) -> UserResponse:
+    # La interfaz llama a /auth/me al cargar: es el momento de despertar las bases que
+    # duermen sin uso (DIFE en Azure SQL gratuito, DICE en OCI), sin demorar la respuesta.
+    if get_settings().dife_database_url:
+        background_tasks.add_task(wake_key_stores)
     return UserResponse(
         id=user.id,
         email=user.email,

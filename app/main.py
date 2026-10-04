@@ -5,6 +5,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
+from sqlalchemy.exc import DBAPIError
 
 from app.api.auth_routes import router as auth_router
 from app.api.qa_routes import router as qa_router
@@ -37,6 +38,18 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=503,
             content={"detail": "El almacenamiento QA no esta disponible."},
+        )
+
+    @application.exception_handler(DBAPIError)
+    async def sql_unavailable(_, error: DBAPIError) -> JSONResponse:
+        # Las bases gratuitas se pausan sin uso; al reanudarse pueden rechazar conexiones.
+        logger.error("Base relacional no disponible (%s).", type(error.orig).__name__)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "La base de datos se está activando. Reintenta en unos segundos."
+            },
+            headers={"Retry-After": "15"},
         )
 
     application.include_router(auth_router)

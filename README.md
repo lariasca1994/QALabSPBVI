@@ -369,6 +369,12 @@ El laboratorio reparte sus componentes entre varias nubes, cada uno con su base 
 | Correo | Brevo | 300 correos al día |
 | Secretos | Azure Key Vault; SSM Parameter Store para la Lambda | Uso mínimo / gratuito |
 
+**Las bases duermen sin uso y se activan al entrar:**
+
+- La API escala a cero y no usa pool de conexiones en la nube (`DATABASE_POOL=null`): no quedan sesiones abiertas que mantengan despiertas a Azure SQL (pausa a los 60 minutos) o a Neon (suspensión a los 5 minutos).
+- `/health` no toca ninguna base, así que los monitores no las despiertan.
+- Al abrir la aplicación con sesión válida, `/auth/me` despierta DIFE y DICE en segundo plano. Mientras Azure SQL se reanuda (cerca de un minuto), la conexión se reintenta, y si aún no está lista la API responde `503` con "La base de datos se está activando".
+
 La oferta gratuita de Azure SQL solo se pudo crear en australiaeast: eastus2 y eastus no admiten servidores nuevos, y en las demás regiones de América la creación falla. Por eso DIFE responde con algo más de latencia que el resto.
 
 El despliegue es continuo:
