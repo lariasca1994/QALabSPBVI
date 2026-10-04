@@ -84,24 +84,39 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: write
+    # Todo el despliegue usa capas gratuitas: imágenes en GHCR (repo público), API en
+    # Azure Container Apps, interfaz en Vercel (se publica sola con la integración de Git),
+    # avisos en AWS Lambda y gateway ISO 20022 en Render.
     steps:
       - name: Descargar el codigo
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
+      - name: Iniciar sesion en GitHub Container Registry
+        shell: bash
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Instalar dependencias React
-        working-directory: web
-        run: npm ci
+      - name: Publicar imágenes inmutables (API y gateway ISO 20022)
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          api="ghcr.io/$owner/qalabspbvi-api:$GITHUB_SHA"
+          gateway="ghcr.io/$owner/qalabspbvi-iso20022-gateway:$GITHUB_SHA"
+          docker build --pull --tag "$api" .
+          docker build --pull --file services/iso20022_gateway/Dockerfile --tag "$gateway" .
+          docker push "$api"
+          docker push "$gateway"
+          echo "IMAGE=$api" >> "$GITHUB_ENV"
+          echo "GATEWAY_IMAGE=$gateway" >> "$GITHUB_ENV"
 
-      - name: Compilar React
-        working-directory: web
-        run: npm run build
+      - name: Comprobar que la imagen se descarga sin credenciales
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker logout ghcr.io
+          docker pull --quiet "$IMAGE" > /dev/null
+          echo "La imagen es pública: Azure la puede descargar sin registro configurado."
 
       - name: Iniciar sesion en Azure con OIDC
         uses: azure/login@v2
@@ -110,19 +125,6 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Publicar imagen inmutable de la API
-        shell: bash
-        env:
-          ACR_NAME: ${{ vars.LAB_ACR_NAME }}
-          ACR_LOGIN_SERVER: ${{ vars.LAB_ACR_LOGIN_SERVER }}
-        run: |
-          set -euo pipefail
-          az acr login --name "$ACR_NAME"
-          image="$ACR_LOGIN_SERVER/qalabspbvi-api:$GITHUB_SHA"
-          docker build --pull --tag "$image" .
-          docker push "$image"
-          echo "IMAGE=$image" >> "$GITHUB_ENV"
-
       - name: Actualizar Azure Container App
         shell: bash
         env:
@@ -130,10 +132,7 @@ jobs:
           CONTAINER_APP_NAME: ${{ vars.LAB_CONTAINER_APP_NAME }}
         run: |
           set -euo pipefail
-          az containerapp update \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$CONTAINER_APP_NAME" \
-            --image "$IMAGE"
+          az containerapp update             --resource-group "$RESOURCE_GROUP"             --name "$CONTAINER_APP_NAME"             --image "$IMAGE"
 
       - name: Iniciar sesion en AWS con OIDC
         if: vars.AWS_DEPLOY_ROLE_ARN != ''
@@ -150,49 +149,22 @@ jobs:
           cd services/notifier
           zip -q ../../notifier.zip handler.py
           cd ../..
-          aws lambda update-function-code --function-name qalabspbvi-notifier \
-            --zip-file fileb://notifier.zip --query LastUpdateStatus --output text
+          aws lambda update-function-code --function-name qalabspbvi-notifier             --zip-file fileb://notifier.zip --query LastUpdateStatus --output text
           aws lambda wait function-updated --function-name qalabspbvi-notifier
 
-      - name: Iniciar sesion en Google Cloud con Workload Identity
-        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
-
-      - name: Configurar gcloud
-        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Publicar el gateway ISO 20022 en Cloud Run
-        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+      - name: Publicar el gateway ISO 20022 en Render
         shell: bash
         env:
-          GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
-          GCP_REGION: ${{ vars.GCP_REGION }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
           set -euo pipefail
-          image="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/qalabspbvi/iso20022-gateway:$GITHUB_SHA"
-          gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
-          docker build --pull --file services/iso20022_gateway/Dockerfile --tag "$image" .
-          docker push "$image"
-          gcloud run deploy iso20022-gateway --project "$GCP_PROJECT" --region "$GCP_REGION" \
-            --image "$image" --quiet
-          url="$(gcloud run services describe iso20022-gateway --project "$GCP_PROJECT" \
-            --region "$GCP_REGION" --format 'value(status.url)')"
-          curl --fail --silent --show-error --retry 6 --retry-delay 5 "$url/health"
-
-      - name: Publicar React en Azure Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.LAB_STATIC_WEB_APPS_DEPLOYMENT_TOKEN }}
-          action: upload
-          # Con skip_app_build la acción sube app_location tal cual: debe ser la carpeta compilada.
-          app_location: web/dist
-          api_location: ""
-          output_location: ""
-          skip_app_build: true
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Sin RENDER_DEPLOY_HOOK_URL: se omite el gateway."
+            exit 0
+          fi
+          # El hook despliega la imagen indicada; la URL del hook es un secreto.
+          curl --fail --silent --show-error -X POST             "$RENDER_DEPLOY_HOOK_URL&imgURL=$(printf %s "$GATEWAY_IMAGE" | jq -sRr @uri)" > /dev/null
+          echo "Despliegue del gateway solicitado a Render."
 
       - name: Comprobar la ruta publica de la API
         shell: bash
@@ -200,8 +172,7 @@ jobs:
           PUBLIC_APP_URL: ${{ vars.LAB_PUBLIC_APP_URL }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 12 --retry-delay 10 --retry-all-errors \
-            "$PUBLIC_APP_URL/api/health"
+          curl --fail --silent --show-error --retry 12 --retry-delay 10 --retry-all-errors             "$PUBLIC_APP_URL/api/health"
 
       - name: Comprobar que el frontend publicado es la compilación
         shell: bash

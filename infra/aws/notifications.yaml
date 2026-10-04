@@ -17,7 +17,8 @@ Parameters:
     Description: Proveedor OIDC de GitHub Actions de la cuenta (token.actions.githubusercontent.com).
   GitHubSubject:
     Type: String
-    Default: repo:lariasca1994/QALabSPBVI:environment:lab
+    # El repo usa el formato inmutable del sub de OIDC (dueño@id/repo@id).
+    Default: repo:lariasca1994@49419170/QALabSPBVI@1403869375:environment:lab
 
 Resources:
   DeadLetterQueue:

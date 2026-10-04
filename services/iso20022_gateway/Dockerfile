@@ -1,5 +1,8 @@
-# Gateway ISO 20022 para Google Cloud Run. Contexto de build: la raíz del repositorio.
+# Gateway ISO 20022 (Render, plan gratuito). Contexto de build: la raíz del repositorio.
 FROM python:3.13-slim-bookworm
+
+LABEL org.opencontainers.image.source="https://github.com/lariasca1994/QALabSPBVI" \
+      org.opencontainers.image.description="Gateway ISO 20022 de laboratorio de QALabSPBVI"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

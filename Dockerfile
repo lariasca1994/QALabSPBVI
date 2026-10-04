@@ -1,5 +1,8 @@
 FROM python:3.13-slim-bookworm
 
+LABEL org.opencontainers.image.source="https://github.com/lariasca1994/QALabSPBVI" \
+      org.opencontainers.image.description="API de QALabSPBVI (FastAPI)"
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
