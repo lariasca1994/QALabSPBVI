@@ -1,5 +1,7 @@
 import getpass
+import json
 import sys
+from pathlib import Path
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import func, select
@@ -10,7 +12,16 @@ from app.db import models  # noqa: F401
 from app.db.base import Base
 from app.db.models import User, UserRole
 from app.db.session import SessionLocal, engine
-from app.domains.auth.service import create_user
+from app.api.schemas import ProgramImportRequest
+from app.core.mailer import get_mailer
+from app.domains.auth.service import create_user, normalize_email
+from app.domains.qa.mongo import get_qa_database
+from app.domains.qa.service import (
+    QaForbiddenError,
+    QaValidationError,
+    create_epic,
+    import_program,
+)
 from app.domains.keys.persistence import create_key_store_tables
 
 
@@ -100,6 +111,77 @@ def create_admin_account() -> int:
     return 0
 
 
+def seed_program(program_path: str, admin_email: str, manager_email: str) -> int:
+    """Crea la épica del programa (si no existe) y carga sus HU, CP y tareas.
+
+    Usa las mismas reglas de la plataforma: la épica la crea un admin y la importación
+    la hace un administrador integrante. La épica asocia a todos los usuarios activos.
+    Es idempotente: reejecutarlo reutiliza la épica por título y omite lo ya cargado.
+    """
+    try:
+        raw_program = json.loads(Path(program_path).read_text(encoding="utf-8"))
+        program = ProgramImportRequest.model_validate(raw_program).model_dump()
+    except (OSError, ValueError) as error:
+        print(f"No se pudo leer el programa: {error}")
+        return 1
+    epic_info = raw_program.get("epic") or {}
+    if not epic_info.get("title") or not epic_info.get("description"):
+        print("El programa no trae el bloque 'epic' con título y descripción.")
+        return 1
+
+    database = get_qa_database()
+    mailer = get_mailer()
+    with SessionLocal() as db:
+        users = db.scalars(select(User).where(User.is_active.is_(True))).all()
+        by_email = {user.email: user for user in users}
+        admin = by_email.get(normalize_email(admin_email))
+        manager = by_email.get(normalize_email(manager_email))
+        if admin is None or admin.role is not UserRole.ADMIN:
+            print("El primer correo debe ser de un admin activo.")
+            return 1
+        if manager is None or manager.role is not UserRole.ADMINISTRADOR:
+            print("El segundo correo debe ser de un administrador activo.")
+            return 1
+
+        epic = database.epics.find_one({"title": epic_info["title"].strip()})
+        if epic is None:
+            epic = create_epic(
+                database,
+                db,
+                title=epic_info["title"],
+                description=epic_info["description"],
+                member_ids=[user.id for user in users],
+                actor=admin,
+                mailer=mailer,
+            )
+            print(f"Épica {epic['key']} creada con {len(epic['members'])} integrantes.")
+        else:
+            print(f"Épica {epic['key']} ya existía; se reutiliza.")
+
+        try:
+            summary = import_program(
+                database,
+                epic_key=epic["key"],
+                actor=manager,
+                mailer=mailer,
+                program=program,
+            )
+        except QaForbiddenError:
+            print("El administrador no es integrante de la épica; asócialo y reintenta.")
+            return 1
+        except QaValidationError as error:
+            print(f"El programa no es válido: {error}")
+            return 1
+
+    created, skipped = summary["created"], summary["skipped"]
+    print(
+        f"Creados: {created['stories']} HU, {created['test_cases']} CP, {created['tasks']} tareas. "
+        f"Omitidos por existir: {skipped['stories']} HU, {skipped['test_cases']} CP, "
+        f"{skipped['tasks']} tareas. Aviso por correo: {summary['notification_status']}."
+    )
+    return 0
+
+
 def main() -> int:
     arguments = sys.argv[1:]
     if arguments == ["create-initial-admin"]:
@@ -117,10 +199,13 @@ def main() -> int:
             return 1
         print("Tablas dedicadas de DIFE (SQL Server) y DICE (Oracle) listas.")
         return 0
+    if len(arguments) == 4 and arguments[0] == "seed-program":
+        return seed_program(*arguments[1:])
     print(
         "Uso: python -m app.cli create-initial-admin | "
         "python -m app.cli create-admin | "
-        "python -m app.cli init-key-stores"
+        "python -m app.cli init-key-stores | "
+        "python -m app.cli seed-program RUTA CORREO_ADMIN CORREO_ADMINISTRADOR"
     )
     return 2
 

@@ -231,7 +231,15 @@ Cómo cargarlo y ejecutarlo:
 1. El `admin` crea la épica (título y descripción en el bloque `epic` del archivo) y asocia al equipo.
 2. Un `administrador` integrante abre la épica en **Calidad y pruebas → Importar programa** y sube el archivo (o usa `POST /qa/epics/{epic_key}/import`). Todo se valida antes de guardar; lo que ya existe con la misma `ref` se omite y el equipo recibe un solo correo resumen.
 3. Un `administrador` ejecuta los CP de `LAB-HU-000` (crear cuentas y llaves es administrativo).
-4. Cualquier integrante ejecuta el resto en orden de HU. `tests/test_qa_program.py` importa el programa y comprueba que los 30 CP aprueban en dos rondas seguidas.
+4. Cualquier integrante ejecuta cada CP desde su detalle, uno a uno, según el que necesite probar; los que dependen de datos previos indican en sus precondiciones que primero se ejecute la preparación. `tests/test_qa_program.py` importa el programa y comprueba que los 30 CP aprueban en dos rondas seguidas.
+
+Como alternativa a los pasos 1 y 2, un operador con acceso a las bases puede cargarlo por CLI:
+
+```bash
+python -m app.cli seed-program qa_programs/iso20022-breb-rest-json.json CORREO_ADMIN CORREO_ADMINISTRADOR
+```
+
+Crea la épica con todos los usuarios activos como integrantes (o reutiliza la que tenga el mismo título) e importa el programa con las mismas reglas y avisos que la interfaz. Se puede reejecutar sin duplicar nada. En el laboratorio se corre con las variables de `.env.lab` cargadas solo en esa terminal; así quedó cargada la épica `EPIC-00001`.
 
 ## Correos transaccionales
 

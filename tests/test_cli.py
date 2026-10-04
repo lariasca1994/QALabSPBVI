@@ -56,3 +56,50 @@ def test_create_admin_account_rejects_password_mismatch_without_creating_user(
     finally:
         Base.metadata.drop_all(engine)
         engine.dispose()
+
+
+def test_seed_program_creates_epic_imports_program_and_is_idempotent(tmp_path, monkeypatch) -> None:
+    import mongomock
+
+    from app.cli import seed_program
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'seed.db'}")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add_all([
+            User(email="admin@example.com", display_name="Admin", password_hash="x", role=UserRole.ADMIN),
+            User(email="manager@example.com", display_name="Manager", password_hash="x", role=UserRole.ADMINISTRADOR),
+            User(email="tester@example.com", display_name="Tester", password_hash="x", role=UserRole.USUARIO),
+        ])
+        db.commit()
+    database = mongomock.MongoClient()["seed_test"]
+    sent: list[str] = []
+
+    class Mailer:
+        def send(self, *, recipient: str, subject: str, body: str, html: str | None = None) -> None:
+            sent.append(recipient)
+
+    monkeypatch.setattr("app.cli.SessionLocal", lambda: Session(engine))
+    monkeypatch.setattr("app.cli.get_qa_database", lambda: database)
+    monkeypatch.setattr("app.cli.get_mailer", Mailer)
+    program = "qa_programs/iso20022-breb-rest-json.json"
+
+    try:
+        assert seed_program(program, "tester@example.com", "manager@example.com") == 1
+        assert database.epics.count_documents({}) == 0
+
+        assert seed_program(program, "admin@example.com", "manager@example.com") == 0
+        epic = database.epics.find_one()
+        assert len(epic["members"]) == 3
+        assert database.work_items.count_documents({"kind": "story"}) == 19
+        assert database.work_items.count_documents({"kind": "test_case"}) == 30
+        assert database.work_items.count_documents({"kind": "task"}) == 22
+        # Un aviso de épica y un resumen de importación, a los tres integrantes.
+        assert len(sent) == 6
+
+        assert seed_program(program, "admin@example.com", "manager@example.com") == 0
+        assert database.epics.count_documents({}) == 1
+        assert database.work_items.count_documents({}) == 71
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
