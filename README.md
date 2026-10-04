@@ -140,9 +140,32 @@ Las llaves legacy no tienen titular por defecto. Un `admin` o `administrador` de
 
 ## Acceso seguro y roles
 
-El backend usa tres roles (`admin`, `administrador`, `usuario`): el admin crea epicas; el administrador crea HU, otros elementos y usuarios, y puede asociar integrantes a epicas; los usuarios ejecutan CP/tareas y registran bugs/fixes. El admin tambien puede asociar integrantes y crear administradores para el arranque, pero no puede asignar el rol admin por API. La creacion de usuarios comunes queda en manos del administrador.
+El backend usa tres roles y valida cada permiso en el servidor (la interfaz solo oculta lo que el backend igual rechazaría):
 
-El acceso requiere contrasena y un codigo MFA de seis digitos enviado por correo. Las contrasenas se almacenan con Argon2id, el codigo vence a los cinco minutos, tiene maximo cinco intentos y solo se puede usar una vez. Hay limitacion de intentos de contrasena/correo y de envios MFA. Las sesiones usan tokens aleatorios opacos, guardados como digest en SQL, revocables en logout, con vencimiento por inactividad (30 minutos) y absoluto (8 horas). La cookie de sesion es `HttpOnly`, `SameSite=Strict` y `Secure` fuera del modo local; las operaciones que cambian estado requieren token CSRF.
+| Acción | `admin` | `administrador` | `usuario` |
+|---|---|---|---|
+| Crear administradores | Sí | No | No |
+| Crear usuarios | Sí | Sí | No |
+| Crear épicas | Sí (único) | No | No |
+| Asociar integrantes a épicas | Sí | Sí | No |
+| Crear HU y CP | No | Sí | No |
+| Crear, asignar y reasignar tareas | Sí | Sí | No |
+| Editar el JSON de un CP, ejecutarlo y avanzar tareas | Sí, si integra la épica | Sí, si integra la épica | Sí, si integra la épica |
+| Registrar bugs y fixes | No | No | Sí |
+| Avanzar el flujo de bugs (en fix, retest) | Sí | Sí | Sí, sin asignar responsables |
+| Asignar responsables de bugs | Sí | Sí | No |
+
+El rol `admin` nunca se asigna por API: solo por los comandos CLI de bootstrap.
+
+El acceso requiere contrasena y un codigo MFA de seis digitos enviado por correo. Las contrasenas se almacenan con Argon2id, el codigo vence a los cinco minutos, tiene maximo cinco intentos y solo se puede usar una vez. Hay limitacion de intentos de contrasena/correo y de envios MFA.
+
+#### Reenvío del código MFA
+
+1. `POST /auth/login` valida la contraseña y envía el código. La respuesta es siempre la misma (no revela si la cuenta existe) y siempre emite la cookie `HttpOnly` `qalab_pending_login`, que vence en 15 minutos.
+2. Solo si la contraseña era válida, el servidor registra ese token (como digest) en la tabla `pending_logins`. Con contraseña incorrecta la cookie existe pero no corresponde a nada.
+3. `POST /auth/resend-code` (con CSRF) usa esa cookie para generar un código nuevo **sin volver a pedir la contraseña**. El código anterior queda invalidado.
+4. Límites: 60 segundos entre envíos (`429` con `Retry-After`) y un máximo de 3 códigos cada 15 minutos por usuario, contando el primero. Al alcanzar el máximo hay que esperar e iniciar sesión de nuevo.
+5. Al verificar el código (`/auth/verify-email-code`) se elimina el inicio pendiente. La pantalla del código muestra "Reenviar código" con la cuenta regresiva. Las sesiones usan tokens aleatorios opacos, guardados como digest en SQL, revocables en logout, con vencimiento por inactividad (30 minutos) y absoluto (8 horas). La cookie de sesion es `HttpOnly`, `SameSite=Strict` y `Secure` fuera del modo local; las operaciones que cambian estado requieren token CSRF.
 
 El correo como segundo factor es la decision del MVP, no equivale a una llave FIDO/passkey ni a una app TOTP y depende de proteger bien la cuenta de correo. El modo local HTTP deja `Secure` desactivado solo para desarrollo; nunca publiques ese modo.
 
@@ -165,7 +188,7 @@ El servicio MongoDB se mantiene local, ligado a localhost, hasta configurar su a
    python -m app.cli create-initial-admin
    ```
 
-   No hay usuario, contrasena ni clave MFA por defecto. El admin inicial puede crear administradores; un administrador puede crear usuarios y administradores. Los usuarios autentican con `/auth/login`, obtienen el codigo por correo y completan MFA en `/auth/verify-email-code`. Antes de cada POST desde una interfaz, solicita `/auth/csrf` y envia el token recibido en `X-CSRF-Token`. La cookie de sesion no se expone a JavaScript.
+   No hay usuario, contrasena ni clave MFA por defecto. El admin crea administradores y usuarios; un administrador crea solo usuarios. Cada cuenta nueva recibe un correo de bienvenida con su rol y quién la creó, nunca con la contraseña: quien crea la cuenta la entrega por un canal seguro. Si el correo falla, la cuenta igual queda creada y la respuesta lo indica con `notification_status: "failed"`. Los usuarios autentican con `/auth/login`, obtienen el codigo por correo y completan MFA en `/auth/verify-email-code`. Antes de cada POST desde una interfaz, solicita `/auth/csrf` y envia el token recibido en `X-CSRF-Token`. La cookie de sesion no se expone a JavaScript.
 
    Para crear una cuenta administrativa adicional y visible, ejecutá `python -m app.cli create-admin`. Solicita correo, nombre y contraseña nueva de forma interactiva, almacena solo el hash Argon2id y rechaza duplicados; no uses contraseñas que hayan sido compartidas en chats.
 
@@ -173,23 +196,60 @@ El servicio MongoDB se mantiene local, ligado a localhost, hasta configurar su a
 
 El servicio `MongoDB` se instala y ejecuta en este equipo; el backend usa `MONGODB_URL` y `MONGODB_DATABASE` de `.env.example`. Los documentos de epicas, HU, CP, tareas, ejecuciones, bugs y fixes se guardan en la base Mongo local nueva y dedicada `qalabspbvi_qa`. No apuntes la URI a `cluster0` ni a una base con datos de otros proyectos. Usuarios, hashes de contrasena y sesiones siguen en la base SQL exclusiva de QALabSPBVI.
 
-Permisos:
+Los permisos siguen la tabla de "Acceso seguro y roles". Al asociar integrantes, quien guarda queda incluido automáticamente.
 
-- Solo `admin` crea epicas.
-- `admin` y `administrador` pueden asociar integrantes. El creador queda incluido automaticamente.
-- `administrador` crea HU, CP, tareas y usuarios.
-- `usuario` miembro de la epica ejecuta casos/tareas y registra bugs/fixes.
-- `administrador` gestiona asignacion y transiciones de bugs.
+Jerarquía: **épica → HU → CP**, con **tareas** a nivel de épica y **ejecuciones**, **bugs** y **fixes** colgando de cada CP. La interfaz muestra primero esa planeación y después la ejecución.
 
-Un CP almacena su contrato HTTP (metodo, ruta local, query, cabeceras, body, estados y respuesta esperados) junto con sus criterios Jira. Al invocar `POST /qa/cases/{case_key}/execute`, se ejecuta esa definicion contra `QA_TARGET_BASE_URL`; se compara la respuesta con los estados y el JSON esperado, y se guarda metodo, URL, request/response redactados, resultado y duracion.
+#### Casos de prueba: solo API REST con JSON
+
+Por decisión del proyecto, todo CP ejecutable es una solicitud HTTP a la API REST con cuerpo JSON; no se usan otros esquemas (XML, SOAP, colas) mientras no haga falta. Un CP almacena su contrato junto con sus criterios tipo Jira (descripción, precondiciones, pasos, resultado esperado):
+
+```json
+{
+  "request_method": "POST",
+  "request_path": "/payments",
+  "request_query": {},
+  "request_headers": {},
+  "request_body": {"operation_id": "op-001", "amount_cents": 1250},
+  "expected_status_codes": [201],
+  "expected_response": {"status": "completed"}
+}
+```
+
+Los JSON no son fijos: cualquier integrante de la épica los actualiza desde **Calidad y pruebas → JSON** en cada CP, o con `PUT /qa/cases/{case_key}` (mismo contrato más `change_note`). Cada guardado:
+
+- vuelve a aplicar las mismas validaciones de seguridad que el alta (ruta relativa, sin credenciales en campos, cabeceras permitidas);
+- incrementa `version` y guarda la versión anterior en `versions`, con autor, fecha y motivo (visible en "Historial");
+- usa concurrencia optimista: si dos personas editan a la vez, la segunda recibe `409` en vez de pisar el cambio;
+- notifica por correo a la épica. Al invocar `POST /qa/cases/{case_key}/execute`, se ejecuta esa definicion contra `QA_TARGET_BASE_URL`; se compara la respuesta con los estados y el JSON esperado, y se guarda metodo, URL, request/response redactados, resultado y duracion.
 
 El runner solo permite rutas relativas, metodos HTTP permitidos y un destino base configurado por el operador; en modo local obliga a usar `localhost`, no sigue redirecciones y no acepta URLs absolutas. Los campos con nombres de credenciales se rechazan salvo referencias declarativas como `{{secret:PAYMENTS_API_TOKEN}}`, resueltas solo desde `QA_SECRET_PAYMENTS_API_TOKEN` en el entorno o en `.env` y nunca guardadas en la ejecucion. Las cabeceras sensibles, por ejemplo `Authorization`, solo aceptan referencias a secretos. La cookie de sesion y el CSRF del ejecutor se reenvian unicamente cuando el host destino coincide exactamente con el host de la solicitud entrante. La respuesta registrada tambien se limpia de esos valores y se omite si supera 1 MB.
 
 La gestion de bug sigue `open → assigned → in_fix → ready_for_retest → closed`, o `reopened` si el retest falla. Al asignar, el responsable debe ser integrante de la epica; quien implementa el fix lo marca listo para retest y el administrador mueve el bug a retest. El cierre exige el resultado aprobado; si falla, se reabre y se puede registrar otro fix.
 
+#### Correos transaccionales
+
+Todos los correos (código MFA, bienvenida, avisos QA) usan una sola plantilla (`app/core/email_templates.py`): HTML con CSS inline, una columna adaptable a móvil y escritorio, paleta de la interfaz, sin JavaScript, imágenes, fuentes ni hojas externas, más una alternativa en texto plano. Todo valor dinámico se escapa. El código MFA es el único dato sensible permitido y se muestra con su vencimiento y el aviso de no compartirlo.
+
+Avisan por correo a todos los integrantes de la épica, incluido quien hizo la acción: creación de épica, cambio de integrantes, HU, CP, tareas, asignación de tareas, edición del JSON de un CP, ejecuciones, bugs, fixes y cambios de estado. El alta de usuarios avisa a la cuenta nueva.
+
 Cada alta, ejecucion o cambio relevante crea el aviso dentro del mismo documento Mongo que la accion y lo envia por la API HTTPS de Brevo a los integrantes de la epica, incluyendo al autor. Si Brevo no acepta el envio, la accion queda guardada y el aviso se conserva como pendiente; `POST /qa/notifications/retry` permite reintentar con rol `admin` o `administrador`. Los avisos pendientes se eliminan del documento al entregarse para evitar crecimiento sin limite; por eso Mongo no funciona como historial de correos. La entrega es de mejor esfuerzo y al menos una vez: si la conexion cae despues de que Brevo acepta el correo, podria recibirse duplicado.
 
 El listado de usuarios activos para asociarlos a epicas esta disponible en `GET /auth/users` para `admin` y `administrador`; el listado de bugs/fixes de una epica se obtiene en `GET /qa/epics/{epic_key}/bugs`. Las respuestas de Mongo incluyen solo la epica a la que pertenece el usuario autenticado.
+
+## Tipos de llave Bre-B
+
+Según la página pública de Banrep ("¿Cuáles tipos de Llave puedo tener?"), una persona puede registrar número de documento, celular, correo y una llave alfanumérica que inicia con `@`; los comercios usan además el código de comercio (y el NIT como documento). `GET /keys/types` publica el catálogo y los formularios de llaves y pagos lo usan.
+
+| Código | Tipo | Ejemplo | Forma canónica (supuesto del laboratorio) |
+|---|---|---|---|
+| `document` | Documento de identidad | `1023456789` | 5 a 15 dígitos; se quitan puntos y guiones |
+| `phone` | Celular | `3001234567` | 10 dígitos que inician en 3; se acepta `+57` |
+| `email` | Correo electrónico | `nombre@dominio.com` | En minúsculas |
+| `alias` | Llave alfanumérica | `@ana2026` | `@` + 3 a 20 letras o números, en minúsculas |
+| `merchant_code` | Código de comercio | `0012345` | 4 a 10 dígitos |
+
+Banrep no publica longitudes ni formatos exactos: esas reglas son **supuestos** y deben ajustarse cuando se tenga la especificación. La API valida y normaliza la llave en alta, ciclo de vida, resolución y pagos, así que `+57 300 123 4567` y `3001234567` son la misma llave.
 
 ## Cuentas y pagos intra-SPBVI
 

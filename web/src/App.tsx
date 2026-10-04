@@ -29,7 +29,9 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { api, ApiError, type Epic, type Execution, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
+import { friendlyError, formatDate, Modal, PageHeading } from "./ui";
+import { QualityWorkspace } from "./QualityWorkspace";
+import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
 type View = "overview" | "keys" | "payments" | "quality" | "users";
@@ -46,20 +48,6 @@ function readTheme(): Theme {
   const saved = localStorage.getItem("qalab-theme");
   if (saved === "light" || saved === "dark") return saved;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function friendlyError(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
-  return "No se pudo conectar con la API local. Verificá que FastAPI esté iniciado.";
-}
-
-function formatDate(epoch?: number): string {
-  if (!epoch) return "Reciente";
-  return new Intl.DateTimeFormat("es-CO", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(epoch * 1000));
 }
 
 function Brand({ compact = false }: { compact?: boolean }) {
@@ -365,9 +353,6 @@ function App() {
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedEpic, setSelectedEpic] = useState("");
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
-  const [execution, setExecution] = useState<Execution | null>(null);
-  const [executingKey, setExecutingKey] = useState("");
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userNotice, setUserNotice] = useState("");
   const [userError, setUserError] = useState("");
@@ -477,29 +462,6 @@ function App() {
     }
   }
 
-  async function openEpic(epicKey: string) {
-    setSelectedEpic(epicKey);
-    setExecution(null);
-    setLoadError("");
-    try {
-      setWorkItems(await api.workItems(epicKey));
-    } catch (error) {
-      setLoadError(friendlyError(error));
-    }
-  }
-
-  async function runCase(caseKey: string) {
-    setExecutingKey(caseKey);
-    setLoadError("");
-    try {
-      setExecution(await api.executeCase(caseKey));
-    } catch (error) {
-      setLoadError(friendlyError(error));
-    } finally {
-      setExecutingKey("");
-    }
-  }
-
   async function createUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setUserError("");
@@ -515,7 +477,12 @@ function App() {
         role,
       });
       setUsers((current) => [...current, created].sort((a, b) => a.email.localeCompare(b.email)));
-      setUserNotice(`Cuenta ${created.email} creada con rol ${created.role}.`);
+      setUserNotice(
+        `Cuenta ${created.email} creada con rol ${created.role}. ` +
+        (created.notification_status === "failed"
+          ? "No se pudo enviar el correo de bienvenida; compartile el acceso por otro canal."
+          : "Le enviamos un correo de bienvenida (sin la contraseña)."),
+      );
       formElement.reset();
       setUserModalOpen(false);
     } catch (error) {
@@ -611,20 +578,18 @@ function App() {
               apiHealthy={apiHealthy}
               epics={epics}
               loading={loading}
-              onOpenEpic={(key) => { void openEpic(key); setView("quality"); }}
+              onOpenEpic={(key) => { setSelectedEpic(key); setView("quality"); }}
               onRefresh={() => void loadDashboard()}
               user={user}
             />
           )}
-          {view === "quality" && (
-            <Quality
+          {view === "quality" && user && (
+            <QualityWorkspace
               epics={epics}
-              execution={execution}
-              executingKey={executingKey}
-              onOpenEpic={(key) => void openEpic(key)}
-              onRunCase={(key) => void runCase(key)}
+              onEpicsChanged={loadDashboard}
+              onSelectEpic={setSelectedEpic}
               selectedEpic={selectedEpic}
-              workItems={workItems}
+              user={user}
             />
           )}
           {view === "keys" && user && <KeysPage role={user.role} />}
@@ -657,10 +622,7 @@ function App() {
             <label className="field-label" htmlFor="new-user-role">Rol</label>
             <select className="text-input select-input" id="new-user-role" name="role">
               {user.role === "admin" && <option value="administrador">Administrador</option>}
-              {user.role === "administrador" && <>
-                <option value="administrador">Administrador</option>
-                <option value="usuario">Usuario</option>
-              </>}
+              <option value="usuario">Usuario</option>
             </select>
             {userError && <div className="alert alert--error" role="alert">{userError}</div>}
             <div className="modal-actions">
@@ -674,24 +636,7 @@ function App() {
   );
 }
 
-function PageHeading({
-  eyebrow,
-  title,
-  description,
-  actions,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  actions?: ReactNode;
-}) {
-  return (
-    <div className="page-heading">
-      <div><div className="eyebrow eyebrow--muted">{eyebrow}</div><h1>{title}</h1><p>{description}</p></div>
-      {actions && <div className="heading-actions">{actions}</div>}
-    </div>
-  );
-}
+type EpicProgress = { stories: number; cases: number; openTasks: number };
 
 function Overview({
   apiHealthy,
@@ -708,19 +653,96 @@ function Overview({
   onRefresh: () => void;
   user: User | null;
 }) {
+  const [progress, setProgress] = useState<Record<string, EpicProgress>>({});
+  const [myTasks, setMyTasks] = useState<Array<WorkItem & { epic_key?: string }>>([]);
+  const visibleEpics = epics.slice(0, 6);
+
+  useEffect(() => {
+    let active = true;
+    // Resumen de la jerarquía QA: HU, CP y tareas por épica, y las tareas propias.
+    void Promise.all(visibleEpics.map(async (epic) => [epic.key, await api.workItems(epic.key).catch(() => [])] as const))
+      .then((results) => {
+        if (!active) return;
+        const nextProgress: Record<string, EpicProgress> = {};
+        const nextTasks: Array<WorkItem & { epic_key?: string }> = [];
+        for (const [epicKey, items] of results) {
+          nextProgress[epicKey] = {
+            stories: items.filter((item) => item.kind === "story").length,
+            cases: items.filter((item) => item.kind === "test_case").length,
+            openTasks: items.filter((item) => item.kind === "task" && item.status !== "done").length,
+          };
+          nextTasks.push(...items.filter((item) => item.kind === "task" && item.status !== "done" && item.assignee?.user_id === user?.id).map((item) => ({ ...item, epic_key: epicKey })));
+        }
+        setProgress(nextProgress);
+        setMyTasks(nextTasks);
+      });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [epics, user?.id]);
+
   return (
     <>
       <PageHeading
         eyebrow="PANEL DE CONTROL"
         title={`Buen día, ${user?.display_name.split(" ")[0] ?? "equipo"}.`}
-        description="Este es el estado de tu laboratorio y el trabajo reciente."
+        description="Tu trabajo de calidad primero: épicas, historias, tareas y casos de prueba."
         actions={<button className="button button--quiet" onClick={onRefresh} type="button"><RefreshCw className={loading ? "spin" : ""} size={16} /> Actualizar</button>}
       />
+
+      <section className="lower-grid">
+        <div className="surface-card epic-card">
+          <div className="card-heading"><div><h2>Épicas</h2><p>Avance de cada espacio de trabajo QA.</p></div><Command size={18} className="muted-icon" /></div>
+          {epics.length === 0 ? (
+            <div className="empty-state"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>No hay épicas asignadas</strong><p>{user?.role === "admin" ? "Creá la primera épica desde Calidad y pruebas." : "Cuando te asocien a una épica, aparecerá en este espacio."}</p></div>
+          ) : (
+            <div className="epic-list">
+              {visibleEpics.map((epic) => {
+                const counts = progress[epic.key];
+                return (
+                  <button className="epic-row" key={epic.key} onClick={() => onOpenEpic(epic.key)} type="button">
+                    <div className="epic-icon"><ClipboardCheck size={17} /></div>
+                    <div className="epic-row-copy"><strong>{epic.title}</strong><small>{epic.key} · {counts ? `${counts.stories} HU · ${counts.cases} CP · ${counts.openTasks} tareas abiertas` : "Cargando avance…"} · {epic.members?.length ?? 0} integrantes</small></div>
+                    <span className="epic-date">{formatDate(epic.created_at_epoch)}</span>
+                    <ArrowUpRight size={16} className="epic-arrow" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="surface-card health-card">
+          <div className="card-heading"><div><h2>Mis tareas</h2><p>Pendientes asignadas a vos.</p></div><span className="updated-label">{myTasks.length} ABIERTAS</span></div>
+          {myTasks.length === 0 ? (
+            <div className="empty-state"><div className="empty-icon"><Check size={19} /></div><strong>Sin pendientes</strong><p>No tenés tareas abiertas asignadas.</p></div>
+          ) : (
+            <div className="task-list">
+              {myTasks.slice(0, 6).map((task) => (
+                <button className="epic-row" key={task.key} onClick={() => onOpenEpic(task.epic_key ?? "")} type="button">
+                  <div className="epic-row-copy"><strong>{task.title}</strong><small>{task.key} · {task.epic_key} · {task.status === "in_progress" ? "En curso" : "Abierta"}</small></div>
+                  <ArrowUpRight size={16} className="epic-arrow" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div className="section-heading">
+        <div><h2>Estado del entorno</h2><p>Servicios conectados a la plataforma.</p></div>
+        <span className="updated-label">ACTUALIZADO AHORA</span>
+      </div>
+      <section className="metric-grid">
+        <MetricCard icon={<Activity size={18} />} label="API" value={apiHealthy ? "Operativa" : apiHealthy === false ? "Sin conexión" : "Verificando"} detail="FastAPI · REST/JSON" tone={apiHealthy ? "green" : "neutral"} />
+        <MetricCard icon={<ClipboardCheck size={18} />} label="Épicas asignadas" value={String(epics.length).padStart(2, "0")} detail="Espacios de trabajo QA" tone="blue" />
+        <MetricCard icon={<KeyRound size={18} />} label="Directorios" value="DIFE + DICE" detail="Llaves interoperables" tone="gold" />
+        <MetricCard icon={<CreditCard size={18} />} label="Liquidación" value="MOL simulado" detail="Entorno sin dinero real" tone="violet" />
+      </section>
+
       <section className="welcome-banner">
         <div className="welcome-copy">
           <span className="banner-overline">LABORATORIO INTEROPERABLE</span>
           <h2>Probá con confianza.<br /><span>Mejorá con evidencia.</span></h2>
-          <p>Orquestá tus escenarios de prueba en un entorno local, dedicado y controlado.</p>
+          <p>Orquestá tus escenarios de prueba en un entorno dedicado y controlado.</p>
           <button className="button button--banner" onClick={() => onOpenEpic(epics[0]?.key ?? "")} disabled={epics.length === 0} type="button">
             Explorar calidad <ArrowUpRight size={16} />
           </button>
@@ -733,50 +755,6 @@ function Overview({
           <div className="banner-chip banner-chip--top"><ShieldCheck size={14} /> ATÓMICO</div>
           <div className="banner-chip banner-chip--bottom"><Activity size={14} /> TRAZABLE</div>
         </div>
-        <div className="banner-index">01 / 04</div>
-      </section>
-
-      <div className="section-heading">
-        <div><h2>Estado del entorno</h2><p>Servicios locales conectados a la plataforma.</p></div>
-        <span className="updated-label">ACTUALIZADO AHORA</span>
-      </div>
-      <section className="metric-grid">
-        <MetricCard icon={<Activity size={18} />} label="API local" value={apiHealthy ? "Operativa" : apiHealthy === false ? "Sin conexión" : "Verificando"} detail="FastAPI · puerto 8000" tone={apiHealthy ? "green" : "neutral"} />
-        <MetricCard icon={<ClipboardCheck size={18} />} label="Épicas asignadas" value={String(epics.length).padStart(2, "0")} detail="Espacios de trabajo QA" tone="blue" />
-        <MetricCard icon={<KeyRound size={18} />} label="Directorios" value="DIFE + DICE" detail="Llaves interoperables" tone="gold" />
-        <MetricCard icon={<CreditCard size={18} />} label="Liquidación" value="MOL simulado" detail="Entorno sin dinero real" tone="violet" />
-      </section>
-
-      <section className="lower-grid">
-        <div className="surface-card epic-card">
-          <div className="card-heading"><div><h2>Espacios de trabajo</h2><p>Tus épicas recientes y asignadas.</p></div><Command size={18} className="muted-icon" /></div>
-          {epics.length === 0 ? (
-            <div className="empty-state"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>No hay épicas asignadas</strong><p>Cuando te asocien a una épica, aparecerá en este espacio.</p></div>
-          ) : (
-            <div className="epic-list">
-              {epics.slice(0, 5).map((epic) => (
-                <button className="epic-row" key={epic.key} onClick={() => onOpenEpic(epic.key)} type="button">
-                  <div className="epic-icon"><ClipboardCheck size={17} /></div>
-                  <div className="epic-row-copy"><strong>{epic.title}</strong><small>{epic.key} · {epic.members?.length ?? 0} integrantes</small></div>
-                  <span className="epic-date">{formatDate(epic.created_at_epoch)}</span>
-                  <ArrowUpRight size={16} className="epic-arrow" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="surface-card health-card">
-          <div className="card-heading"><div><h2>Conectividad</h2><p>Estado del backend de laboratorio.</p></div><span className={`health-indicator ${apiHealthy ? "health-indicator--ok" : ""}`}><span />{apiHealthy ? "EN LÍNEA" : "LOCAL"}</span></div>
-          <div className="health-visual"><div className={`health-pulse ${apiHealthy ? "health-pulse--ok" : ""}`}><Activity size={25} /></div><div className="health-line" /></div>
-          <div className="health-detail"><span>API · FastAPI</span><strong>{apiHealthy ? "Respondiendo" : "Sin confirmar"}</strong></div>
-          <div className="health-detail"><span>Modo de ejecución</span><strong>Solo local</strong></div>
-          <div className="health-note"><ShieldCheck size={15} /> No se realizan operaciones en redes financieras.</div>
-        </div>
-      </section>
-      <section className="workflow-strip">
-        <div className="workflow-mark"><ArrowLeftRight size={18} /></div>
-        <div><strong>Tu próximo flujo de calidad</strong><p>Seleccioná una épica, elegí un caso y ejecutá la solicitud automatizada.</p></div>
-        <button className="button button--quiet" onClick={() => onOpenEpic(epics[0]?.key ?? "")} disabled={!epics.length} type="button">Ver casos <ArrowUpRight size={15} /></button>
       </section>
     </>
   );
@@ -796,69 +774,6 @@ function MetricCard({
   tone: string;
 }) {
   return <article className="metric-card"><div className={`metric-icon metric-icon--${tone}`}>{icon}</div><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
-}
-
-function Quality({
-  epics,
-  execution,
-  executingKey,
-  onOpenEpic,
-  onRunCase,
-  selectedEpic,
-  workItems,
-}: {
-  epics: Epic[];
-  execution: Execution | null;
-  executingKey: string;
-  onOpenEpic: (key: string) => void;
-  onRunCase: (key: string) => void;
-  selectedEpic: string;
-  workItems: WorkItem[];
-}) {
-  const cases = workItems.filter((item) => item.kind === "test_case");
-  const selected = epics.find((epic) => epic.key === selectedEpic);
-  return (
-    <>
-      <PageHeading eyebrow="ASEGURAMIENTO DE CALIDAD" title="Calidad y pruebas" description="Elegí un espacio de trabajo para consultar y ejecutar sus casos automatizados." />
-      <section className="surface-card quality-toolbar">
-        <div className="select-wrap"><label htmlFor="epic-select">ÉPICA</label><select className="text-input select-input" id="epic-select" value={selectedEpic} onChange={(event) => onOpenEpic(event.target.value)}><option value="">Seleccioná una épica</option>{epics.map((epic) => <option key={epic.key} value={epic.key}>{epic.key} · {epic.title}</option>)}</select></div>
-        {selected && <div className="epic-context"><span className="epic-key">{selected.key}</span><span>{selected.members?.length ?? 0} integrantes</span></div>}
-      </section>
-      {!selectedEpic ? (
-        <div className="surface-card empty-state quality-empty"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>Elegí una épica para empezar</strong><p>Se cargarán sus historias, tareas y casos de prueba desde el backend local.</p></div>
-      ) : (
-        <section className="surface-card cases-card">
-          <div className="card-heading"><div><h2>{selected?.title ?? "Casos de prueba"}</h2><p>{cases.length} casos automatizables en este espacio.</p></div><span className="updated-label">{selectedEpic}</span></div>
-          {cases.length === 0 ? <div className="empty-state"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>Todavía no hay casos de prueba</strong><p>Las historias y casos se crean desde el flujo de gestión QA.</p></div> : (
-            <div className="case-list">
-              {cases.map((testCase) => (
-                <article className="case-row" key={testCase.key}>
-                  <div className="case-status-icon"><ClipboardCheck size={17} /></div>
-                  <div className="case-copy"><strong>{testCase.title}</strong><small>{testCase.key} · {testCase.request?.method ?? "HTTP"} {testCase.request?.path ?? ""}</small></div>
-                  <span className="priority-tag">{testCase.priority ?? "media"}</span>
-                  <button className="button button--small button--primary" disabled={executingKey === testCase.key} onClick={() => onRunCase(testCase.key)} type="button">
-                    {executingKey === testCase.key ? <LoaderCircle className="spin" size={14} /> : <Activity size={14} />}
-                    {executingKey === testCase.key ? "Ejecutando" : "Ejecutar"}
-                  </button>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-      {execution && <ExecutionResult execution={execution} />}
-    </>
-  );
-}
-
-function ExecutionResult({ execution }: { execution: Execution }) {
-  return (
-    <section className={`surface-card execution-card ${execution.passed ? "execution-card--passed" : "execution-card--failed"}`}>
-      <div className="card-heading"><div><h2>Resultado de ejecución</h2><p>{execution.key} · {execution.passed ? "Aprobado" : "Fallido"}</p></div><span className={`result-pill ${execution.passed ? "result-pill--passed" : "result-pill--failed"}`}>{execution.passed ? "APROBADO" : "FALLIDO"}</span></div>
-      <div className="request-summary"><span className="method-pill">{execution.request?.method ?? "HTTP"}</span><code>{execution.request?.url ?? "Solicitud ejecutada"}</code><strong>{execution.result?.status_code ?? "—"}</strong><small>{execution.result?.duration_ms ?? "—"} ms</small></div>
-      <details className="response-details"><summary>Ver respuesta registrada</summary><pre>{JSON.stringify(execution.result?.body ?? execution.result ?? {}, null, 2)}</pre></details>
-    </section>
-  );
 }
 
 function ActionResultCard({ result }: { result: ActionResult }) {
@@ -1216,7 +1131,7 @@ function UsersPage({
         description="Cuentas visibles del equipo y permisos asignados desde el backend."
         actions={<button className="button button--primary" onClick={onCreate} type="button"><Plus size={16} /> Crear cuenta</button>}
       />
-      <div className="role-policy"><ShieldCheck size={17} /><span><strong>Privilegios verificados por el servidor.</strong> {currentRole === "admin" ? "Como admin podés crear administradores visibles, no asignar el rol admin por API." : "Como administrador podés gestionar cuentas de administrador y usuario."} La interfaz no crea cuentas ocultas ni define contraseñas predeterminadas.</span></div>
+      <div className="role-policy"><ShieldCheck size={17} /><span><strong>Privilegios verificados por el servidor.</strong> {currentRole === "admin" ? "Como admin podés crear administradores y usuarios; el rol admin no se asigna por API." : "Como administrador podés crear cuentas con rol usuario; solo el admin crea administradores."} La interfaz no crea cuentas ocultas ni define contraseñas predeterminadas.</span></div>
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
       {error && <div className="alert alert--error" role="alert">{error}</div>}
       <section className="surface-card users-card">
@@ -1229,17 +1144,6 @@ function UsersPage({
       </section>
       <div className="security-footnote"><ShieldCheck size={15} /> El primer admin se crea únicamente mediante el bootstrap CLI seguro; no se crean cuentas de acceso ocultas.</div>
     </>
-  );
-}
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return (
-    <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }} role="presentation">
-      <section aria-labelledby="modal-title" aria-modal="true" className="modal-card" role="dialog">
-        <div className="modal-heading"><div><span className="eyebrow eyebrow--muted">GESTIÓN DE ACCESO</span><h2 id="modal-title">{title}</h2></div><button className="icon-button" onClick={onClose} aria-label="Cerrar"><X size={18} /></button></div>
-        {children}
-      </section>
-    </div>
   );
 }
 

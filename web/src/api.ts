@@ -38,6 +38,17 @@ async function requestWithMetadata<T>(
         typeof body.detail === "string"
       ) {
         message = body.detail;
+      } else if (
+        typeof body === "object" &&
+        body !== null &&
+        "detail" in body &&
+        Array.isArray(body.detail)
+      ) {
+        // Errores de validación 422: se muestran los mensajes legibles de cada campo.
+        message = body.detail
+          .map((item: { msg?: string }) => (item.msg ?? "").replace(/^Value error, /, ""))
+          .filter(Boolean)
+          .join(" ");
       }
     } catch {
       message = `El servidor respondió con el estado ${response.status}.`;
@@ -66,14 +77,42 @@ export interface User {
   display_name: string;
   role: "admin" | "administrador" | "usuario";
   is_active: boolean;
+  notification_status?: "sent" | "failed" | null;
+}
+
+export interface EpicMember {
+  user_id: number;
+  email?: string;
+  display_name?: string;
 }
 
 export interface Epic {
   key: string;
   title: string;
   description?: string;
-  members: Array<{ user_id: number; email?: string }>;
+  members: EpicMember[];
   created_at_epoch?: number;
+}
+
+/** Contrato REST/JSON ejecutable de un CP: lo que se envía y lo que se espera recibir. */
+export interface CaseDefinition {
+  request_method: string;
+  request_path: string;
+  request_query: Record<string, unknown>;
+  request_headers: Record<string, string>;
+  request_body: unknown;
+  expected_status_codes: number[];
+  expected_response: unknown;
+}
+
+export interface CaseVersion {
+  version: number;
+  request: { method: string; path: string; query?: unknown; headers?: unknown; body?: unknown };
+  expected_status_codes: number[];
+  expected_response?: unknown;
+  replaced_by?: { email?: string; display_name?: string };
+  replaced_at_epoch?: number;
+  change_note?: string;
 }
 
 export interface WorkItem {
@@ -83,15 +122,31 @@ export interface WorkItem {
   description?: string;
   priority?: string;
   status?: string;
+  story_key?: string;
+  acceptance_criteria?: string[];
+  preconditions?: string[];
+  steps?: Array<{ action: string; expected: string }>;
+  expected_result?: string;
+  assignee?: EpicMember | null;
+  version?: number;
+  versions?: CaseVersion[];
+  expected_status_codes?: number[];
+  expected_response?: unknown;
+  created_by?: { email?: string; display_name?: string };
   request?: {
     method?: string;
     path?: string;
+    query?: Record<string, unknown>;
+    headers?: Record<string, string>;
+    body?: unknown;
   };
 }
 
 export interface Execution {
   key: string;
   passed: boolean;
+  created_at_epoch?: number;
+  actor?: { email?: string; display_name?: string };
   request?: { method?: string; url?: string };
   result?: { status_code?: number; duration_ms?: number; body?: unknown };
 }
@@ -136,6 +191,15 @@ export type KeyTypeInfo = {
   example: string;
   hint: string;
 };
+
+async function mutate<T>(path: string, method: "POST" | "PUT", body: unknown): Promise<T> {
+  const token = await csrfToken();
+  return request<T>(path, {
+    method,
+    headers: { "X-CSRF-Token": token },
+    body: JSON.stringify(body),
+  });
+}
 
 export const api = {
   keyTypes(): Promise<KeyTypeInfo[]> {
@@ -192,6 +256,45 @@ export const api = {
   },
   users(): Promise<User[]> {
     return request("/auth/users");
+  },
+  async createEpic(payload: { title: string; description: string; member_ids: number[] }): Promise<Epic> {
+    return mutate<Epic>("/qa/epics", "POST", payload);
+  },
+  async updateEpicMembers(epicKey: string, memberIds: number[]): Promise<Epic> {
+    return mutate<Epic>(`/qa/epics/${encodeURIComponent(epicKey)}/members`, "PUT", { member_ids: memberIds });
+  },
+  async createStory(epicKey: string, payload: {
+    title: string;
+    description: string;
+    priority: string;
+    acceptance_criteria: string[];
+  }): Promise<WorkItem> {
+    return mutate<WorkItem>(`/qa/epics/${encodeURIComponent(epicKey)}/stories`, "POST", payload);
+  },
+  async createTestCase(storyKey: string, payload: CaseDefinition & {
+    title: string;
+    description: string;
+    priority: string;
+    preconditions: string[];
+    steps: Array<{ action: string; expected: string }>;
+    expected_result: string;
+  }): Promise<WorkItem> {
+    return mutate<WorkItem>(`/qa/stories/${encodeURIComponent(storyKey)}/test-cases`, "POST", payload);
+  },
+  async updateCaseDefinition(caseKey: string, payload: CaseDefinition & { change_note: string }): Promise<WorkItem> {
+    return mutate<WorkItem>(`/qa/cases/${encodeURIComponent(caseKey)}`, "PUT", payload);
+  },
+  async createTask(epicKey: string, payload: { title: string; description: string; assignee_id: number | null }): Promise<WorkItem> {
+    return mutate<WorkItem>(`/qa/epics/${encodeURIComponent(epicKey)}/tasks`, "POST", payload);
+  },
+  async assignTask(taskKey: string, assigneeId: number): Promise<WorkItem> {
+    return mutate<WorkItem>(`/qa/tasks/${encodeURIComponent(taskKey)}/assign`, "POST", { assignee_id: assigneeId });
+  },
+  async transitionTask(taskKey: string, status: string): Promise<WorkItem> {
+    return mutate<WorkItem>(`/qa/tasks/${encodeURIComponent(taskKey)}/transition`, "POST", { status });
+  },
+  caseExecutions(caseKey: string): Promise<Execution[]> {
+    return request(`/qa/cases/${encodeURIComponent(caseKey)}/executions`);
   },
   async createUser(payload: {
     email: string;

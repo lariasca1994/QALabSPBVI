@@ -31,4 +31,23 @@ test("rechaza una clave inválida, autentica con MFA y ejecuta un caso QA en mó
   await expect(page.locator(".execution-card .method-pill")).toHaveText("GET");
   await expect(page.locator(".execution-card .request-summary")).toContainText("200");
   await expectNoHorizontalOverflow(page);
+
+  // El JSON del CP se edita desde la plataforma y queda versionado.
+  await expect(page.getByText("Salud de la API")).toBeVisible();
+  await page.getByRole("button", { name: "JSON", exact: true }).click();
+  const editor = page.getByLabel("Contrato REST del CP (JSON)");
+  const definition = JSON.parse(await editor.inputValue());
+  definition.expected_status_codes = [200, 204];
+  await editor.fill(JSON.stringify(definition, null, 2));
+  await expect(page.getByText("JSON válido.")).toBeVisible();
+  await page.getByLabel("Motivo del cambio").fill("Aceptar también 204 en la prueba E2E");
+  await page.getByRole("button", { name: "Guardar nueva versión" }).click();
+  await expect(page.getByText(/quedó en la versión 2/)).toBeVisible();
+  await expect(page.locator(".case-row")).toContainText("v2");
+  await page.getByRole("button", { name: "Historial de E2E-CP-001" }).click();
+  await expect(page.locator(".version-row")).toHaveCount(2);
+  await page.getByRole("button", { name: "Cerrar" }).click();
+  await page.getByRole("button", { name: "Ejecutar", exact: true }).click();
+  await expect(page.locator(".execution-card")).toContainText("APROBADO");
+  await expectNoHorizontalOverflow(page);
 });

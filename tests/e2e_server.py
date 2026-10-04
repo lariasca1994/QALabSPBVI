@@ -109,8 +109,21 @@ async def e2e_lifespan(application: FastAPI):
         )
         qa_database.work_items.insert_one(
             {
+                "key": "E2E-HU-001",
+                "kind": "story",
+                "epic_key": "E2E-EPIC",
+                "title": "Salud de la API",
+                "description": "Como operador quiero confirmar que la API responde.",
+                "priority": "high",
+                "acceptance_criteria": ["El endpoint de salud responde 200."],
+                "created_at_epoch": int(time.time()),
+            }
+        )
+        qa_database.work_items.insert_one(
+            {
                 "key": "E2E-CP-001",
                 "kind": "test_case",
+                "story_key": "E2E-HU-001",
                 "epic_key": "E2E-EPIC",
                 "title": "Consultar salud local",
                 "description": "Confirma el endpoint de salud del servidor aislado.",

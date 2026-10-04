@@ -394,3 +394,66 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
   cursor: not-allowed;
   opacity: .6;
 }
+
+/* Espacio de trabajo QA: épica → HU → CP, tareas y ejecuciones */
+.epic-summary { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 18px; margin-top: 14px; padding: 18px; }
+.epic-summary-copy { flex: 1 1 320px; min-width: 0; }
+.epic-summary-copy h2 { margin: 6px 0 4px; color: var(--text-strong); font-size: 17px; }
+.epic-summary-copy p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.member-chip { padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--surface-2); font-size: 9px; }
+.epic-stats { display: grid; grid-template-columns: repeat(3, minmax(70px, 1fr)); gap: 8px; }
+.epic-stats div { display: flex; flex-direction: column; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.epic-stats strong { color: var(--text-strong); font-size: 18px; }
+.epic-stats span { color: var(--muted); font-size: 9px; text-align: center; }
+.hierarchy-card, .tasks-card { margin-top: 14px; padding: 18px; }
+.story-block { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.story-head { display: flex; align-items: center; gap: 10px; }
+.story-icon { display: grid; width: 29px; height: 29px; flex: 0 0 auto; place-items: center; border-radius: 7px; color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.story-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.story-copy strong { overflow: hidden; color: var(--text-strong); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.story-copy small { color: var(--muted); font-size: 9px; }
+.story-criteria { margin: 8px 0 0 39px; color: var(--muted); font-size: 10px; }
+.story-criteria summary { cursor: pointer; }
+.story-criteria ul { margin: 6px 0 0; padding-left: 16px; line-height: 1.6; }
+.case-list--nested { margin: 8px 0 0 39px; }
+.case-list--nested .case-row { padding: 9px 0; }
+.method-tag { padding: 1px 5px; border-radius: 3px; color: var(--blue); background: var(--blue-soft); font-weight: 700; }
+.case-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.task-list { margin-top: 10px; }
+.task-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.task-copy { display: flex; min-width: 0; flex: 1 1 200px; flex-direction: column; gap: 3px; }
+.task-copy strong { color: var(--text); font-size: 10px; }
+.task-copy small { color: var(--muted); font-size: 9px; }
+.status-tag { padding: 4px 7px; border-radius: 4px; font-size: 8px; font-weight: 700; }
+.status-tag--open { color: var(--muted); background: var(--surface-2); }
+.status-tag--in_progress { color: var(--blue); background: var(--blue-soft); }
+.status-tag--done { color: var(--green); background: var(--green-soft); }
+.select-input--small { width: auto; min-height: 32px; padding: 0 28px 0 9px; font-size: 10px; }
+.definition-editor { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
+.definition-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.json-input { min-height: 260px; padding: 11px 13px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 11px; line-height: 1.55; resize: vertical; white-space: pre; }
+textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical; }
+.field-hint--error { color: var(--red); }
+.field-hint--ok { color: var(--green); }
+.field-hint code { padding: 1px 4px; border-radius: 3px; background: var(--surface-2); }
+.member-picker { display: flex; max-height: 220px; flex-direction: column; gap: 6px; margin: 0; padding: 10px; overflow-y: auto; border: 1px solid var(--line); border-radius: 7px; }
+.check-row { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 11px; }
+.check-row small { margin-left: auto; color: var(--muted); font-size: 9px; }
+.form-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; }
+.modal-card--wide { width: min(100%, 880px); }
+.version-list { display: flex; flex-direction: column; gap: 8px; }
+.version-row { padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--text); font-size: 11px; }
+.version-row--current { border-color: color-mix(in srgb, var(--green) 35%, transparent); background: var(--green-soft); }
+.version-row small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+.version-row summary { cursor: pointer; }
+.version-row pre { overflow-x: auto; margin: 8px 0 0; padding: 10px; border-radius: 6px; background: var(--surface-2); font-size: 10px; }
+.my-tasks { margin-top: 14px; padding: 18px; }
+
+@media (max-width: 760px) {
+  .form-columns { grid-template-columns: 1fr; }
+  .epic-stats { width: 100%; }
+  .story-criteria, .case-list--nested { margin-left: 0; }
+  .case-actions { width: 100%; justify-content: flex-start; }
+  .json-input { min-height: 220px; }
+}
