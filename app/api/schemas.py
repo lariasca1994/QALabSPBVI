@@ -293,6 +293,8 @@ class PaymentResponse(BaseModel):
 class InterSpbviPaymentResponse(PaymentResponse):
     pacs008_xml: str
     pacs002_xml: str
+    # Quién generó los mensajes: "cloud-run" (gateway en GCP) o "local" (en proceso).
+    iso_gateway: str = "local"
 
 
 class InterSpbviPaymentRejectionResponse(BaseModel):
@@ -300,6 +302,7 @@ class InterSpbviPaymentRejectionResponse(BaseModel):
     operation_id: str
     status: Literal["rejected"]
     pacs002_xml: str
+    iso_gateway: str = "local"
 
 
 class KeyRegistrationRequest(BaseModel):

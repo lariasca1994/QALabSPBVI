@@ -150,6 +150,7 @@ def _new_notification(
         "item_key": item_key,
         "title": title,
         "actor_email": actor.email,
+        "actor_name": actor.display_name,
         "created_at_epoch": now,
         "recipients": [
             {
@@ -186,18 +187,23 @@ def qa_notification_message(notification: dict[str, Any]) -> EmailMessage:
     eyebrow, heading = QA_EVENT_LABELS.get(
         notification["event_type"], ("Gestión QA", "Hay una novedad en tu épica")
     )
+    verb = "Ejecutado por" if notification["event_type"] == "test_case_executed" else "Realizado por"
+    actor_name = notification.get("actor_name")
+    actor = (
+        f"{actor_name} ({notification['actor_email']})"
+        if actor_name and actor_name != notification["actor_email"]
+        else notification["actor_email"]
+    )
     return EmailMessage(
         subject=f"[{notification['epic_key']}] {notification['title']}",
         eyebrow=eyebrow,
         heading=heading,
         greeting="Hola,",
-        paragraphs=[
-            f"{notification['title']}. Te llega este aviso porque eres integrante de la épica."
-        ],
+        paragraphs=[f"{notification['title']}.", f"{verb} {actor}."],
         details=[
             ("Épica", notification["epic_key"]),
             ("Elemento", notification["item_key"]),
-            ("Realizado por", notification["actor_email"]),
+            (verb, actor),
         ],
         notice="Ingresa a QALabSPBVI para ver el detalle completo.",
     )

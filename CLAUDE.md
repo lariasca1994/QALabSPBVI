@@ -81,7 +81,8 @@ El pago inter-SPBVI genera y valida `pacs.008.001.08` y `pacs.002.001.10` de lab
 - Plataforma QA (HU, casos tipo Jira, JSON, ejecuciones, solicitudes, respuestas y evidencias): base MongoDB nueva, limpia y dedicada a QALabSPBVI; no reutilizar el cluster `cluster0` ni bases de otros proyectos.
 - Oracle Autonomous DB en OCI queda como posibilidad separada, únicamente mediante una base nueva, limpia y aislada; nunca reutilizar una base existente. No es el repositorio canónico de los artefactos QA mientras MongoDB cumpla ese rol.
 - Logs: Postgres en Neon (falta confirmar que sirva).
-- Cola de eventos: SQS en la cuenta AWS actual, us-east-1.
+- Cola de avisos QA: SQS + DLQ y Lambda `qalabspbvi-notifier` en AWS us-east-1 (infra/aws/notifications.yaml, implementado). La API solo envía a la cola con un usuario IAM limitado; el MFA sigue directo por Brevo.
+- Gateway ISO 20022 en Google Cloud Run (services/iso20022_gateway), proyecto GCP `qalabsspbvi` (cuenta lufearca7). La API cae al adaptador en proceso si el gateway no responde.
 - Frontend: React + TypeScript + Vite en `web/`, solo local durante la fase actual. Evaluar despliegue después de estabilizar y validar la experiencia local.
 - Proyectos propios para reutilizar ideas: gestor-casos-qa, qa-evidencia (CodeBuild + Playwright + correo), verificador-api.
 
@@ -105,6 +106,6 @@ Implementado y desplegado en el laboratorio multinube (ver README): llaves DIFE/
 
 El programa `qa_programs/iso20022-breb-rest-json.json` (adaptado del documento de pruebas ISO 20022 Bre-B) se importa en una épica y sus 35 CP pasan en la prueba de integración y en el laboratorio. Las llaves de los CP se generan según el tipo Bre-B ({{key:new:TIPO}}) y las transacciones las toman de la lista de llaves de la épica ({{key:TIPO:SPBVI}}). Plantillas en qa_programs/plantillas/.
 
-Pendientes: endpoints pacs.004, camt.056, camt.029, camt.054 y pain.002 independiente; mock server de fallos de red; validación JSON Schema; pantalla de bugs/fixes; SQS, logs en Neon y entorno de producción con aprobación.
+Pendientes: endpoints pacs.004, camt.056, camt.029, camt.054 y pain.002 independiente; mock server de fallos de red; validación JSON Schema; pantalla de bugs/fixes; logs en Neon y entorno de producción con aprobación. Gateway en Cloud Run pendiente de facturación activa en el proyecto GCP.
 
 Diagrama de referencia de los flujos intra e inter: https://claude.ai/artifact/VzbGmnH3VLvvogB9hwDjJW (privado; si no abre, no es crítico).

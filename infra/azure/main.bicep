@@ -42,6 +42,12 @@ param mongoDatabaseName string = 'qalabspbvi_qa_${environmentName}'
 @description('Remitente verificado en Brevo para MFA y notificaciones.')
 param brevoSenderEmail string = ''
 
+@description('URL de la cola SQS de avisos QA (infra/aws/notifications.yaml). Vacía: los avisos salen directo por Brevo. Requiere los secretos aws-access-key-id y aws-secret-access-key en Key Vault.')
+param notificationsQueueUrl string = ''
+
+@description('URL del gateway ISO 20022 en Cloud Run. Vacía: los mensajes se generan en proceso. Requiere el secreto iso-gateway-token en Key Vault.')
+param isoGatewayUrl string = ''
+
 var resourceToken = '${uniqueString(subscription().id, resourceGroup().id, location, environmentName)}1'
 var logAnalyticsName = 'azla${resourceToken}'
 var identityName = 'azid${resourceToken}'
@@ -72,14 +78,24 @@ var keyVaultSecretsOfficerRoleDefinitionId = subscriptionResourceId(
 )
 // Secretos de runtime: nombre en Key Vault -> variable de entorno de la API.
 // Los valores se cargan por CLI (az keyvault secret set), nunca en este archivo ni en Git.
-var appSecretMap = [
-  { name: 'database-url', env: 'DATABASE_URL' }
-  { name: 'dife-database-url', env: 'DIFE_DATABASE_URL' }
-  { name: 'dice-database-url', env: 'DICE_DATABASE_URL' }
-  { name: 'mongodb-url', env: 'MONGODB_URL' }
-  { name: 'auth-secret-key', env: 'AUTH_SECRET_KEY' }
-  { name: 'brevo-api-key', env: 'BREVO_API_KEY' }
-]
+var appSecretMap = concat(
+  [
+    { name: 'database-url', env: 'DATABASE_URL' }
+    { name: 'dife-database-url', env: 'DIFE_DATABASE_URL' }
+    { name: 'dice-database-url', env: 'DICE_DATABASE_URL' }
+    { name: 'mongodb-url', env: 'MONGODB_URL' }
+    { name: 'auth-secret-key', env: 'AUTH_SECRET_KEY' }
+    { name: 'brevo-api-key', env: 'BREVO_API_KEY' }
+  ],
+  // Usuario IAM de AWS que solo puede enviar a la cola de avisos.
+  empty(notificationsQueueUrl) ? [] : [
+    { name: 'aws-access-key-id', env: 'AWS_ACCESS_KEY_ID' }
+    { name: 'aws-secret-access-key', env: 'AWS_SECRET_ACCESS_KEY' }
+  ],
+  empty(isoGatewayUrl) ? [] : [
+    { name: 'iso-gateway-token', env: 'ISO_GATEWAY_TOKEN' }
+  ]
+)
 var appSecrets = [
   for s in appSecretMap: {
     name: s.name
@@ -101,6 +117,10 @@ var appPlainEnv = [
   // El ejecutor QA llama a la API por su propio dominio: Front Door reenvía con ese Host,
   // y la sesión del usuario solo se reenvía cuando el host destino coincide con el entrante.
   { name: 'QA_TARGET_BASE_URL', value: 'https://${containerAppName}.${managedEnvironment.properties.defaultDomain}' }
+  // Multinube: avisos QA por AWS SQS + Lambda y mensajes ISO 20022 por Google Cloud Run.
+  { name: 'NOTIFICATIONS_QUEUE_URL', value: notificationsQueueUrl }
+  { name: 'AWS_REGION', value: 'us-east-1' }
+  { name: 'ISO_GATEWAY_URL', value: isoGatewayUrl }
 ]
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {

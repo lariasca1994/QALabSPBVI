@@ -19,7 +19,7 @@ from app.api.schemas import (
     TestCaseCreateRequest,
     TestCaseDefinitionUpdateRequest,
 )
-from app.core.mailer import Mailer, get_mailer
+from app.core.mailer import Mailer, get_notification_mailer
 from app.core.security import AuthenticatedUser, require_roles
 from app.db.models import User, UserRole
 from app.db.session import get_db
@@ -51,7 +51,7 @@ from app.domains.qa.service import (
 
 router = APIRouter(prefix="/qa", tags=["gestion-qa"])
 DbSession = Annotated[Session, Depends(get_db)]
-MailerDependency = Annotated[Mailer, Depends(get_mailer)]
+MailerDependency = Annotated[Mailer, Depends(get_notification_mailer)]
 
 
 def _raise_http(error: Exception) -> None:

@@ -59,11 +59,10 @@ from app.domains.payments.service import (
     create_inter_spbvi_payment,
 )
 from app.domains.payments.mol import MolInsufficientFundsError, MolSettlementError
+from app.domains.iso20022.gateway import pacs002_xml, pacs008_xml
 from app.domains.iso20022.messages import (
     Pacs002Data,
     Pacs008Data,
-    build_pacs002,
-    build_pacs008,
     pacs002_group_status_for_payment,
 )
 
@@ -668,7 +667,7 @@ def create_inter_spbvi_payment_route(
     except AmountLimitExceededError as error:
         return _inter_rejection(request.operation_id, str(error), "AMOUNT_LIMIT_EXCEEDED", 422)
     except MolInsufficientFundsError as error:
-        pacs002 = build_pacs002(
+        pacs002, iso_gateway = pacs002_xml(
             Pacs002Data(
                 message_id=f"pacs002-{request.operation_id}",
                 original_message_id=f"pacs008-{request.operation_id}",
@@ -683,6 +682,7 @@ def create_inter_spbvi_payment_route(
             operation_id=request.operation_id,
             status="rejected",
             pacs002_xml=pacs002,
+            iso_gateway=iso_gateway,
         )
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -711,7 +711,7 @@ def create_inter_spbvi_payment_route(
     created_at = payment.created_at
     if created_at.tzinfo is None or created_at.utcoffset() is None:
         created_at = created_at.replace(tzinfo=UTC)
-    pacs008 = build_pacs008(
+    pacs008, gateway008 = pacs008_xml(
         Pacs008Data(
             message_id=f"pacs008-{payment.operation_id}",
             operation_id=payment.operation_id,
@@ -723,7 +723,7 @@ def create_inter_spbvi_payment_route(
             created_at=created_at,
         )
     )
-    pacs002 = build_pacs002(
+    pacs002, gateway002 = pacs002_xml(
         Pacs002Data(
             message_id=f"pacs002-{payment.operation_id}",
             original_message_id=f"pacs008-{payment.operation_id}",
@@ -732,6 +732,8 @@ def create_inter_spbvi_payment_route(
             created_at=created_at,
         )
     )
+    # Solo se reporta cloud-run si ambos mensajes salieron del gateway.
+    iso_gateway = gateway008 if gateway008 == gateway002 else "local"
     return InterSpbviPaymentResponse(
         id=payment.id,
         operation_id=payment.operation_id,
@@ -743,12 +745,13 @@ def create_inter_spbvi_payment_route(
         replayed=not created,
         pacs008_xml=pacs008,
         pacs002_xml=pacs002,
+        iso_gateway=iso_gateway,
     )
 
 
 def _inter_rejection(operation_id: str, detail: str, reason: str, status_code: int) -> JSONResponse:
     """Rechazo de negocio inter-SPBVI con pacs.002 RJCT y su razón propietaria."""
-    pacs002 = build_pacs002(
+    pacs002, iso_gateway = pacs002_xml(
         Pacs002Data(
             message_id=f"pacs002-{operation_id}",
             original_message_id=f"pacs008-{operation_id}",
@@ -763,5 +766,6 @@ def _inter_rejection(operation_id: str, detail: str, reason: str, status_code: i
         operation_id=operation_id,
         status="rejected",
         pacs002_xml=pacs002,
+        iso_gateway=iso_gateway,
     )
     return JSONResponse(status_code=status_code, content=rejection.model_dump())

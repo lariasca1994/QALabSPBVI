@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115,<1.0",
     "argon2-cffi>=23.1,<26.0",
+    "boto3>=1.35,<2.0",
     "email-validator>=2.2,<3.0",
     "httpx>=0.27,<1.0",
     "lxml>=5.3,<7.0",

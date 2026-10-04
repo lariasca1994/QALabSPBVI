@@ -13,7 +13,7 @@ from app.db.base import Base
 from app.db.models import User, UserRole
 from app.db.session import SessionLocal, engine
 from app.api.schemas import ProgramImportRequest
-from app.core.mailer import get_mailer
+from app.core.mailer import get_mailer, get_notification_mailer
 from app.domains.auth.service import create_user, normalize_email
 from app.domains.qa.mongo import get_qa_database
 from app.domains.qa.service import (
@@ -136,7 +136,7 @@ def seed_program(
         return 1
 
     database = get_qa_database()
-    mailer = get_mailer()
+    mailer = get_notification_mailer(get_mailer())
     with SessionLocal() as db:
         users = db.scalars(select(User).where(User.is_active.is_(True))).all()
         by_email = {user.email: user for user in users}

@@ -17,6 +17,8 @@
 ![Oracle](https://img.shields.io/badge/Oracle_ADB-F80000?style=for-the-badge&logo=oracle&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![AWS Lambda](https://img.shields.io/badge/AWS_SQS_+_Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)
+![Google Cloud Run](https://img.shields.io/badge/Google_Cloud_Run-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)
 
 Laboratorio simulado de pagos inmediatos interoperables, inspirado en Bre-B (Banco de la República de Colombia). Sirve para practicar y mostrar aseguramiento de calidad automatizado: pruebas de API REST con JSON, mensajería ISO 20022 de laboratorio y recorridos E2E.
 
@@ -72,10 +74,11 @@ No hay cuentas públicas ni contraseñas por defecto: el acceso lo da un adminis
 | DIFE | SQL Server (Azure SQL Database) con pyodbc y ODBC Driver 18 |
 | DICE | Oracle Autonomous Database (OCI) con python-oracledb |
 | QA | MongoDB (Atlas) con pymongo |
-| ISO 20022 | lxml con XSD propios de laboratorio |
+| ISO 20022 | lxml con XSD propios de laboratorio; gateway propio en Google Cloud Run |
+| Avisos | AWS SQS (con DLQ) y AWS Lambda que entrega por Brevo |
 | Pruebas | pytest con mongomock y SQLite en memoria; Playwright para E2E |
-| Infraestructura | Bicep, Azure Container Apps, Static Web Apps, Front Door, Key Vault y Container Registry |
-| CI/CD | GitHub Actions con OIDC hacia Azure |
+| Infraestructura | Bicep (Azure) y CloudFormation (AWS) |
+| CI/CD | GitHub Actions con OIDC hacia Azure, AWS y Google Cloud |
 
 ## Conexiones externas
 
@@ -86,6 +89,8 @@ No hay cuentas públicas ni contraseñas por defecto: el acceso lo da un adminis
 | Oracle | DICE: índice central de llaves | Sí |
 | MongoDB | Artefactos QA: épicas, HU, CP, ejecuciones y llaves | Sí |
 | Brevo (API HTTP) | Código MFA, bienvenida y avisos QA | Sí para iniciar sesión (el MFA llega por correo) |
+| AWS SQS + Lambda | Cola y entrega de los avisos QA | No: sin `NOTIFICATIONS_QUEUE_URL` los avisos salen directo por Brevo |
+| Gateway ISO 20022 (Cloud Run) | Genera los pacs.008 / pacs.002 | No: sin `ISO_GATEWAY_URL` o si no responde, se generan en proceso |
 
 Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte ni reutiliza datos de otros proyectos.
 
@@ -98,6 +103,9 @@ Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte n
 - **Azure Front Door** es la única entrada pública: `/` va al frontend React en **Static Web Apps** y `/api/*` a la API en **Container Apps** (sin el prefijo).
 - La **API FastAPI** está organizada por dominios: autenticación, llaves (DIFE/DICE), pagos con MOL simulado, adaptador ISO 20022 y gestión QA con su ejecutor de CP.
 - Cada dominio persiste en su propia nube: pagos y autenticación en **Neon**, DIFE en **Azure SQL**, DICE en **Oracle ADB (OCI)** y QA en **MongoDB Atlas**.
+- Los avisos QA van a una cola **AWS SQS** y una **Lambda** los entrega por Brevo. Los mensajes que fallan cinco veces pasan a una cola de fallidos (DLQ). La API solo puede enviar a la cola.
+- El código MFA no usa la cola: sale directo por Brevo, para no sumarle demora al inicio de sesión.
+- Los mensajes pacs.008 / pacs.002 los genera un **gateway ISO 20022 en Google Cloud Run**, un servicio sin estado. La API vuelve a validar el XML que recibe. Si el gateway no responde, lo genera en proceso, así un pago ya liquidado siempre tiene su mensaje. La respuesta indica quién lo generó en `iso_gateway`.
 - El núcleo del dominio no depende del formato de mensaje: el adaptador ISO 20022 recibe datos neutrales del pago. Todos los montos son enteros en centavos.
 - Los secretos viven en **Key Vault** y la API los lee con identidad administrada. Las bases solo aceptan la IP de salida de la Container App y la de administración.
 
@@ -116,6 +124,9 @@ app/
 │   └── qa/           Gestión tipo Jira, ejecutor HTTP, marcadores, importación y avisos
 ├── cli.py            Comandos de operación (admin inicial, tablas de llaves, seed-program)
 └── main.py           Punto de entrada FastAPI
+services/
+├── notifier/         Lambda de AWS que entrega los avisos QA por Brevo
+└── iso20022_gateway/ Gateway ISO 20022 para Google Cloud Run (FastAPI + Dockerfile)
 qa_programs/
 ├── build_iso20022_breb.py        Generador del programa ISO 20022
 ├── iso20022-breb-rest-json.json  Programa importable
@@ -123,6 +134,7 @@ qa_programs/
 tests/                Pruebas del backend y servidor aislado para E2E
 web/                  Interfaz React/TypeScript y pruebas Playwright (web/e2e)
 infra/azure/          Bicep del laboratorio
+infra/aws/            CloudFormation de la cola, la DLQ, la Lambda y sus permisos
 docs/                 Diagrama e insignias del README
 ```
 
@@ -157,6 +169,8 @@ Completa `.env`. Los nombres deben coincidir exactamente: la configuración igno
 | `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` | Envío de correos por la API de Brevo |
 | `PAYMENT_LIMIT_UVB`, `UVB_VALUE_CENTS` | Límite por operación (1.000 UVB) y valor de la UVB en centavos (supuesto; actualizar al vigente) |
 | `QA_SECRET_…` | Secretos que un CP referencia como `{{secret:…}}`, sin guardarlos |
+| `NOTIFICATIONS_QUEUE_URL`, `AWS_REGION` | Cola SQS de avisos (opcional); credenciales en `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` |
+| `ISO_GATEWAY_URL`, `ISO_GATEWAY_TOKEN` | Gateway ISO 20022 en Cloud Run (opcional) |
 
 Ningún secreto va al repositorio: solo `.env` (ignorado por git) o el gestor de secretos de la nube.
 
@@ -325,7 +339,12 @@ Todos los correos (código MFA, bienvenida y avisos QA) usan una sola plantilla 
 - **Sin recursos externos:** no usan JavaScript, imágenes, fuentes ni hojas de estilo externas.
 - **Contenido:** nunca incluyen credenciales, tokens ni datos de pagos. La única excepción es el código MFA, que se muestra con su vencimiento y el aviso de no compartirlo.
 
-Salen por la API HTTP de Brevo. El remitente (`BREVO_SENDER_EMAIL`) debe estar verificado.
+Salen por la API HTTP de Brevo y el remitente (`BREVO_SENDER_EMAIL`) debe estar verificado:
+
+- **Código MFA y bienvenida:** salen directo desde la API.
+- **Avisos QA:** cuando `NOTIFICATIONS_QUEUE_URL` está configurada, la API los encola en AWS SQS y la Lambda `qalabspbvi-notifier` los entrega. La Lambda lee la API key de Brevo desde SSM Parameter Store.
+
+Cada aviso indica quién hizo la acción; en las ejecuciones dice "Ejecutado por" con el nombre y el correo.
 
 Los avisos QA llegan a todos los integrantes de la épica, incluido quien hizo la acción. Las importaciones y actualizaciones de programas envían un solo resumen.
 
@@ -343,16 +362,21 @@ El laboratorio reparte sus componentes entre varias nubes, cada uno con su base 
 | DIFE | Azure SQL Database (centralus) |
 | DICE | OCI Autonomous Database (sa-bogota-1, Always Free) |
 | QA | MongoDB Atlas M0 (AWS us-east-1) |
-| Secretos | Azure Key Vault con identidad administrada |
+| Avisos QA | AWS SQS con DLQ y AWS Lambda (us-east-1), definidos en `infra/aws/notifications.yaml` |
+| Gateway ISO 20022 | Google Cloud Run (us-east1) |
+| Secretos | Azure Key Vault con identidad administrada; SSM Parameter Store para la Lambda |
 
 El despliegue es continuo:
 
 1. Cada push a `main` ejecuta en GitHub Actions las pruebas del backend, la compilación de React y los E2E.
 2. Si pasan, se construye la imagen de la API, etiquetada con el commit. El build falla si al driver ODBC le falta alguna librería.
 3. Se crea una revisión nueva de la Container App y se publica `web/dist` en Static Web Apps.
-4. Al final se comprueba que la API responde y que el sitio publicado es la compilación.
+4. Se publica el código de la Lambda de avisos y la imagen del gateway ISO 20022 en Cloud Run.
+5. Al final se comprueba que la API responde y que el sitio publicado es la compilación.
 
-GitHub entra a Azure por OIDC con permisos mínimos, sin contraseñas guardadas en el repositorio. La infraestructura de Azure está en `infra/azure/main.bicep` y se aprovisiona por CLI.
+GitHub entra a Azure, AWS y Google Cloud por OIDC con permisos mínimos, sin contraseñas guardadas en el repositorio. En AWS, el rol de GitHub solo puede actualizar el código de la Lambda.
+
+La infraestructura está en `infra/azure/main.bicep` y `infra/aws/notifications.yaml` y se aprovisiona por CLI.
 
 ### Supuestos y pendientes
 
@@ -369,7 +393,7 @@ Pendientes:
 - Mock server de latencia y fallos de red.
 - Validación con JSON Schema.
 - Pantalla de bugs y fixes.
-- Cola SQS, logs en Neon y entorno de producción.
+- Logs en Neon y entorno de producción.
 
 ## Autor
 

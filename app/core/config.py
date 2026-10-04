@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     brevo_api_key: str = ""
     brevo_sender_email: str = ""
     brevo_sender_name: str = "QALabSPBVI"
+    # Avisos QA por AWS SQS + Lambda (vacío: se envían directo por Brevo).
+    notifications_queue_url: str = ""
+    aws_region: str = "us-east-1"
+    # Gateway ISO 20022 en Google Cloud Run (vacío: el adaptador corre en proceso).
+    iso_gateway_url: str = ""
+    iso_gateway_token: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

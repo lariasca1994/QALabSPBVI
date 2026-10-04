@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  QALabSPBVI (lab) - Avisos QA por AWS: cola SQS con DLQ y Lambda que entrega los correos
+  por Brevo. La API (Azure) solo puede enviar a la cola; GitHub Actions solo puede
+  actualizar el código de la Lambda. Todos los recursos son nuevos y dedicados.
+
+Parameters:
+  BrevoSenderEmail:
+    Type: String
+    Description: Remitente verificado en Brevo.
+  BrevoApiKeyParameterName:
+    Type: String
+    Default: /qalabspbvi/lab/brevo-api-key
+    Description: Parámetro SecureString de SSM con la API key de Brevo (se crea por CLI, fuera de la plantilla).
+  GitHubOidcProviderArn:
+    Type: String
+    Description: Proveedor OIDC de GitHub Actions de la cuenta (token.actions.githubusercontent.com).
+  GitHubSubject:
+    Type: String
+    Default: repo:lariasca1994/QALabSPBVI:environment:lab
+
+Resources:
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: qalabspbvi-lab-notifications-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  NotificationsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: qalabspbvi-lab-notifications
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 5
+
+  NotifierRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: qalabspbvi-lab-notifier
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: consume-queue-and-read-brevo-key
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [sqs:ReceiveMessage, sqs:DeleteMessage, sqs:GetQueueAttributes, sqs:ChangeMessageVisibility]
+                Resource: !GetAtt NotificationsQueue.Arn
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${BrevoApiKeyParameterName}
+
+  NotifierFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: qalabspbvi-notifier
+      Description: Entrega por Brevo los avisos QA encolados por la API de QALabSPBVI.
+      Runtime: python3.13
+      Handler: handler.handler
+      Role: !GetAtt NotifierRole.Arn
+      Timeout: 30
+      MemorySize: 128
+      Environment:
+        Variables:
+          BREVO_SENDER_EMAIL: !Ref BrevoSenderEmail
+          BREVO_SENDER_NAME: QALabSPBVI
+          BREVO_API_KEY_PARAMETER: !Ref BrevoApiKeyParameterName
+      # Código inicial mínimo: deploy.sh y la CD lo reemplazan por services/notifier/handler.py.
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              raise RuntimeError("Código pendiente de publicar")
+
+  NotifierLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/qalabspbvi-notifier
+      RetentionInDays: 14
+
+  QueueToNotifier:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt NotificationsQueue.Arn
+      FunctionName: !Ref NotifierFunction
+      BatchSize: 10
+      MaximumBatchingWindowInSeconds: 2
+      FunctionResponseTypes: [ReportBatchItemFailures]
+
+  ApiSenderUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: qalabspbvi-lab-api-sqs
+      Policies:
+        - PolicyName: send-to-notifications-queue
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt NotificationsQueue.Arn
+
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: qalabspbvi-lab-github-deploy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Federated: !Ref GitHubOidcProviderArn }
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Ref GitHubSubject
+      Policies:
+        - PolicyName: update-notifier-code
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [lambda:UpdateFunctionCode, lambda:GetFunction, lambda:GetFunctionConfiguration]
+                Resource: !GetAtt NotifierFunction.Arn
+
+Outputs:
+  QueueUrl:
+    Value: !Ref NotificationsQueue
+  DeadLetterQueueUrl:
+    Value: !Ref DeadLetterQueue
+  ApiSenderUserName:
+    Value: !Ref ApiSenderUser
+  GitHubDeployRoleArn:
+    Value: !GetAtt GitHubDeployRole.Arn

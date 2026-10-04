@@ -135,6 +135,54 @@ jobs:
             --name "$CONTAINER_APP_NAME" \
             --image "$IMAGE"
 
+      - name: Iniciar sesion en AWS con OIDC
+        if: vars.AWS_DEPLOY_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Publicar la Lambda de avisos en AWS
+        if: vars.AWS_DEPLOY_ROLE_ARN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd services/notifier
+          zip -q ../../notifier.zip handler.py
+          cd ../..
+          aws lambda update-function-code --function-name qalabspbvi-notifier \
+            --zip-file fileb://notifier.zip --query LastUpdateStatus --output text
+          aws lambda wait function-updated --function-name qalabspbvi-notifier
+
+      - name: Iniciar sesion en Google Cloud con Workload Identity
+        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Configurar gcloud
+        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Publicar el gateway ISO 20022 en Cloud Run
+        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        shell: bash
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+        run: |
+          set -euo pipefail
+          image="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/qalabspbvi/iso20022-gateway:$GITHUB_SHA"
+          gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
+          docker build --pull --file services/iso20022_gateway/Dockerfile --tag "$image" .
+          docker push "$image"
+          gcloud run deploy iso20022-gateway --project "$GCP_PROJECT" --region "$GCP_REGION" \
+            --image "$image" --quiet
+          url="$(gcloud run services describe iso20022-gateway --project "$GCP_PROJECT" \
+            --region "$GCP_REGION" --format 'value(status.url)')"
+          curl --fail --silent --show-error --retry 6 --retry-delay 5 "$url/health"
+
       - name: Publicar React en Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
