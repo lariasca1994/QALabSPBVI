@@ -25,7 +25,7 @@ python -m uvicorn app.main:app --reload
 
 La API queda disponible en `http://127.0.0.1:8000` y el chequeo de salud en `http://127.0.0.1:8000/health`.
 
-Por ahora, el entorno local sin Docker usa SQLite como base temporal configurable. PostgreSQL es la base prevista para pagos/autenticacion cuando se habilite en local; debe ser una base nueva, vacia y exclusiva de QALabSPBVI, nunca una base existente. DIFE y DICE se alojaran en bases independientes nuevas de SQL Server y Oracle, respectivamente. QA usa una base MongoDB nueva y dedicada: no se conecta a `cluster0` ni reutiliza datos de otros proyectos. No se requiere crear una base remota ni compartir credenciales para este esqueleto.
+Pagos y autenticacion usan `DATABASE_URL`, que en local apunta a una base PostgreSQL nueva y exclusiva de QALabSPBVI, nunca a una base existente. Si no hay PostgreSQL disponible, SQLite queda como base temporal (valor por defecto de `.env.example`). Los nombres de variables del `.env` deben coincidir exactamente con los de `.env.example`: la configuracion ignora variables desconocidas, por lo que un nombre distinto deja la conexion en su valor por defecto sin avisar. DIFE y DICE se alojaran en bases independientes nuevas de SQL Server y Oracle, respectivamente. QA usa una base MongoDB nueva y dedicada: no se conecta a `cluster0` ni reutiliza datos de otros proyectos. No se requiere crear una base remota ni compartir credenciales para este esqueleto.
 
 ## Registro de llaves en motores independientes
 
@@ -268,4 +268,8 @@ El backend local incluye pagos intra e inter-SPBVI con MOL simulado y emisión d
 
 El workflow `.github/workflows/ci.yml` ejecuta en cada push y pull request las pruebas del backend, la compilación TypeScript/React y los recorridos E2E con Chromium. También se puede iniciar manualmente desde GitHub Actions. Los E2E usan persistencias temporales y simuladas; el workflow no requiere ni configura secretos o conexiones a bases cloud.
 
-Esto es CI: comprueba los cambios, pero todavía no despliega la aplicación. El despliegue continuo se agregará después de definir y confirmar las suscripciones, recursos y secretos de cada nube y entorno. GitHub será la fuente del código y el disparador de los flujos; no se publicará nada en Azure, OCI, AWS ni Neon desde este workflow.
+El job `Desplegar laboratorio` está preparado, pero queda omitido por defecto: solo se activa en un `push` a `main` si `LAB_DEPLOY_ENABLED` vale `true` en GitHub. Antes de activarlo hay que aprovisionar y revisar la infraestructura, configurar el environment protegido `lab`, el principal OIDC de Azure y sus permisos mínimos, las variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `LAB_ACR_NAME`, `LAB_ACR_LOGIN_SERVER`, `LAB_RESOURCE_GROUP`, `LAB_CONTAINER_APP_NAME`, `LAB_PUBLIC_APP_URL`, y el secreto `LAB_STATIC_WEB_APPS_DEPLOYMENT_TOKEN`. No cargues valores de `.env` a GitHub.
+
+La configuración del job por sí sola no habilita despliegues: `LAB_DEPLOY_ENABLED` no está activado. Producción no tiene todavía un job de publicación; requiere el mismo artefacto validado, un environment `prod` protegido con aprobación y una aprobación específica antes de incorporarlo.
+
+El borrador de infraestructura está en `infra/azure/` y el plan en `.azure/plan.copilotmd`. No ejecutes Bicep ni actives el CD hasta revisar y aprobar la infraestructura y completar la configuración de PostgreSQL/Neon, Atlas, Oracle/OCI, el correo MFA y DIFE. El Dockerfile actual tampoco instala todavía el controlador ODBC del sistema requerido para que `pyodbc` se conecte a Azure SQL; esto debe corregirse y validarse en local antes de desplegar.

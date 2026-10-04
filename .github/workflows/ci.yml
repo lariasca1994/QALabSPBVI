@@ -72,3 +72,84 @@ jobs:
         env:
           QALAB_E2E_PYTHON: python
         run: npm run test:e2e
+
+  deploy-lab:
+    name: Desplegar laboratorio
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.LAB_DEPLOY_ENABLED == 'true'
+    needs:
+      - backend-tests
+      - frontend-and-e2e
+    runs-on: ubuntu-24.04
+    environment: lab
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalar dependencias React
+        working-directory: web
+        run: npm ci
+
+      - name: Compilar React
+        working-directory: web
+        run: npm run build
+
+      - name: Iniciar sesion en Azure con OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publicar imagen inmutable de la API
+        shell: bash
+        env:
+          ACR_NAME: ${{ vars.LAB_ACR_NAME }}
+          ACR_LOGIN_SERVER: ${{ vars.LAB_ACR_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          az acr login --name "$ACR_NAME"
+          image="$ACR_LOGIN_SERVER/qalabspbvi-api:$GITHUB_SHA"
+          docker build --pull --tag "$image" .
+          docker push "$image"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+
+      - name: Actualizar Azure Container App
+        shell: bash
+        env:
+          RESOURCE_GROUP: ${{ vars.LAB_RESOURCE_GROUP }}
+          CONTAINER_APP_NAME: ${{ vars.LAB_CONTAINER_APP_NAME }}
+        run: |
+          set -euo pipefail
+          az containerapp update \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$CONTAINER_APP_NAME" \
+            --image "$IMAGE"
+
+      - name: Publicar React en Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.LAB_STATIC_WEB_APPS_DEPLOYMENT_TOKEN }}
+          action: upload
+          app_location: web
+          api_location: ""
+          output_location: dist
+          skip_app_build: true
+
+      - name: Comprobar la ruta publica de la API
+        shell: bash
+        env:
+          PUBLIC_APP_URL: ${{ vars.LAB_PUBLIC_APP_URL }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 12 --retry-delay 10 --retry-all-errors \
+            "$PUBLIC_APP_URL/api/health"
