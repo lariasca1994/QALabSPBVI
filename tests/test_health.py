@@ -31,16 +31,16 @@ def test_cloud_mode_uses_no_connection_pool_so_databases_can_pause(monkeypatch) 
     monkeypatch.setenv("DATABASE_POOL", "null")
     config.get_settings.cache_clear()
     try:
-        options = config.engine_options("postgresql+psycopg://u:p@h/db")
+        options = config.engine_options("mssql+pyodbc://u:p@h/db?driver=ODBC+Driver+18+for+SQL+Server")
         assert options == {"poolclass": NullPool}
-        engine = create_engine("postgresql+psycopg://u:p@h/db", **options)
+        engine = create_engine("mssql+pyodbc://u:p@h/db?driver=ODBC+Driver+18+for+SQL+Server", **options)
         assert isinstance(engine.pool, NullPool)
     finally:
         config.get_settings.cache_clear()
     monkeypatch.setenv("DATABASE_POOL", "queue")
     config.get_settings.cache_clear()
-    assert config.engine_options("postgresql+psycopg://u:p@h/db")["pool_pre_ping"] is True
-    assert isinstance(create_engine("postgresql+psycopg://u:p@h/db", **config.engine_options("postgresql+psycopg://u:p@h/db")).pool, QueuePool)
+    assert config.engine_options("mssql+pyodbc://u:p@h/db?driver=ODBC+Driver+18+for+SQL+Server")["pool_pre_ping"] is True
+    assert isinstance(create_engine("mssql+pyodbc://u:p@h/db?driver=ODBC+Driver+18+for+SQL+Server", **config.engine_options("mssql+pyodbc://u:p@h/db?driver=ODBC+Driver+18+for+SQL+Server")).pool, QueuePool)
     config.get_settings.cache_clear()
 
 

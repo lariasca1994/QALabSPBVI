@@ -48,10 +48,13 @@ def engine_options(url: str) -> dict:
     """Opciones comunes de create_engine según DATABASE_POOL."""
     from sqlalchemy.pool import NullPool
 
+    options: dict = {}
     if url.startswith("sqlite"):
-        return {"connect_args": {"check_same_thread": False}}
+        options["connect_args"] = {"check_same_thread": False}
     if get_settings().database_pool == "null":
-        return {"poolclass": NullPool}
+        options["poolclass"] = NullPool
+        return options
     # pool_pre_ping descarta conexiones cortadas por el servidor (p. ej. Neon suspende el
     # cómputo por inactividad); pool_recycle las renueva antes.
-    return {"pool_pre_ping": True, "pool_recycle": 240}
+    options.update(pool_pre_ping=True, pool_recycle=240)
+    return options
