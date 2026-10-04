@@ -1,146 +1,104 @@
 # QALabSPBVI
 
-Laboratorio local de pagos inmediatos interoperables y aseguramiento de calidad automatizado. Es un proyecto simulado: no se conecta a infraestructura real de pagos.
+Laboratorio simulado de pagos inmediatos interoperables, inspirado en Bre-B (Banco de la República de Colombia), para practicar y mostrar aseguramiento de calidad automatizado: pruebas de API REST/JSON, mensajería ISO 20022 de laboratorio y recorridos E2E. Es un proyecto de portafolio: **no se conecta a ninguna infraestructura real de pagos** y el MOL es una simulación.
 
-## Requisitos
+- Laboratorio en línea: <https://azfdeys6cijfwmjqvi1-hvgvfchjh7htgmf7.z02.azurefd.net> (requiere una cuenta creada por un administrador).
+- Documentación interactiva de la API: `/api/docs` en el laboratorio o `http://127.0.0.1:8000/docs` en local.
 
-- Python 3.11 o superior.
-- MongoDB Community local para la gestion QA; por ahora no requiere Docker.
-- Docker Compose solo para levantar PostgreSQL mediante `docker-compose.yml`. No hace falta para ejecutar la aplicacion ni sus pruebas SQL con SQLite.
-- La autenticacion real necesita una clave privada y la API de Brevo configurada en `.env`. Los tests usan un emisor de correo falso.
-- Los tests usan SQLite y una instancia Mongo simulada aislada (`mongomock`); al ejecutar la aplicacion, la gestion QA se conecta al servicio MongoDB local.
+## Contenido
 
-## Desarrollo local sin Docker
+1. [Arquitectura](#arquitectura)
+2. [Puesta en marcha local](#puesta-en-marcha-local)
+3. [Acceso seguro y roles](#acceso-seguro-y-roles)
+4. [Llaves Bre-B (DIFE y DICE)](#llaves-bre-b-dife-y-dice)
+5. [Cuentas y pagos](#cuentas-y-pagos)
+6. [Gestión QA](#gestión-qa)
+7. [Programa de pruebas ISO 20022 Bre-B](#programa-de-pruebas-iso-20022-bre-b)
+8. [Correos transaccionales](#correos-transaccionales)
+9. [Interfaz web](#interfaz-web)
+10. [Pruebas automatizadas](#pruebas-automatizadas)
+11. [CI/CD y laboratorio en la nube](#cicd-y-laboratorio-en-la-nube)
+12. [Estructura del repositorio](#estructura-del-repositorio)
+13. [Supuestos y pendientes](#supuestos-y-pendientes)
 
-Desde PowerShell, en la carpeta del proyecto:
+## Arquitectura
+
+Monolito modular en Python (FastAPI + SQLAlchemy 2) con dominios separados y listos para volverse servicios, más una interfaz React/TypeScript. Cada componente usa su propia base de datos, nueva y dedicada; ninguna se comparte ni reutiliza datos de otros proyectos.
+
+| Dominio | Responsabilidad | Persistencia |
+|---|---|---|
+| Pagos y autenticación | Cuentas, ledger, pagos intra/inter-SPBVI, usuarios, sesiones y MFA | PostgreSQL (`DATABASE_URL`) |
+| DIFE | Directorio federado de llaves de cada SPBVI y auditoría del ciclo de vida | SQL Server (`DIFE_DATABASE_URL`) |
+| DICE | Directorio centralizado: índice global de llaves para el enrutamiento inter-SPBVI | Oracle (`DICE_DATABASE_URL`) |
+| QA | Épicas, HU, CP, tareas, ejecuciones, bugs, fixes y avisos | MongoDB (`MONGODB_URL`, `MONGODB_DATABASE`) |
+| ISO 20022 | Adaptador que genera y valida `pacs.008` / `pacs.002` de laboratorio | Sin persistencia |
+| MOL simulado | Liquidación inter-SPBVI en una transacción local | Usa la base de pagos |
+
+El núcleo del dominio no depende del formato de mensaje: el adaptador ISO 20022 recibe datos neutrales del pago. Todos los montos son enteros en centavos.
+
+## Puesta en marcha local
+
+### Requisitos
+
+- Python 3.11 o superior y Node.js 20 o superior.
+- Bases locales nuevas y dedicadas: PostgreSQL, SQL Server (con ODBC Driver 18), Oracle (p. ej. Oracle Free con `FREEPDB1`) y MongoDB. Sin PostgreSQL se puede usar SQLite temporal para pagos y autenticación.
+- Una cuenta de Brevo para enviar el código MFA y los avisos.
+
+### Configuración
+
+Copia `.env.example` a `.env` y completa sus valores. Los nombres deben coincidir exactamente: la configuración ignora variables desconocidas, así que un nombre distinto deja la conexión en su valor por defecto sin avisar.
+
+| Variable | Uso |
+|---|---|
+| `DATABASE_URL` | PostgreSQL de pagos y autenticación (`postgresql+psycopg://…`). |
+| `DIFE_DATABASE_URL` | SQL Server del DIFE (`mssql+pyodbc://…?driver=ODBC+Driver+18+for+SQL+Server`). |
+| `DICE_DATABASE_URL` | Oracle del DICE (`oracle+oracledb://…`). |
+| `MONGODB_URL`, `MONGODB_DATABASE` | MongoDB de QA. No uses `cluster0` ni bases de otros proyectos. |
+| `QA_TARGET_BASE_URL` | Destino del ejecutor de CP (en local, `http://127.0.0.1:8000`). |
+| `AUTH_SECRET_KEY` | Clave privada de al menos 32 caracteres: `python -c "import secrets; print(secrets.token_urlsafe(48))"`. |
+| `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` | Envío de correos por la API HTTPS de Brevo. |
+| `PAYMENT_LIMIT_UVB`, `UVB_VALUE_CENTS` | Límite por operación (1.000 UVB) y valor de la UVB en centavos (supuesto; actualizar al valor vigente). |
+| `QA_SECRET_PAYMENTS_API_TOKEN` | Ejemplo de secreto referenciable desde un CP como `{{secret:PAYMENTS_API_TOKEN}}`. |
+
+Ningún secreto va al repositorio: solo `.env` (ignorado por git) o el gestor de secretos de la nube.
+
+### Ejecución (PowerShell)
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-Copy-Item .env.example .env
-python -m pytest
+python -m pip install -e ".[dev,postgres]"
+Copy-Item .env.example .env          # luego completa los valores
+python -m app.cli init-key-stores    # crea las tablas de DIFE y DICE (idempotente)
+python -m app.cli create-initial-admin
 python -m uvicorn app.main:app --reload
 ```
 
-La API queda disponible en `http://127.0.0.1:8000` y el chequeo de salud en `http://127.0.0.1:8000/health`.
-
-Pagos y autenticacion usan `DATABASE_URL`, que en local apunta a una base PostgreSQL nueva y exclusiva de QALabSPBVI, nunca a una base existente. Si no hay PostgreSQL disponible, SQLite queda como base temporal (valor por defecto de `.env.example`). Los nombres de variables del `.env` deben coincidir exactamente con los de `.env.example`: la configuracion ignora variables desconocidas, por lo que un nombre distinto deja la conexion en su valor por defecto sin avisar. DIFE y DICE se alojaran en bases independientes nuevas de SQL Server y Oracle, respectivamente. QA usa una base MongoDB nueva y dedicada: no se conecta a `cluster0` ni reutiliza datos de otros proyectos. No se requiere crear una base remota ni compartir credenciales para este esqueleto.
-
-## Registro de llaves en motores independientes
-
-DIFE y DICE son componentes separados con persistencias independientes: la base nueva `QALabDIFE` en SQL Server almacena la asociacion local entre llave, SPBVI y producto; el usuario/esquema nuevo `QALABDICE` en Oracle mantiene el indice global por tipo y valor. No se conectan a bases de otros proyectos. El API orquesta:
-
-1. `POST /difes/{spbvi_id}/keys` recibe tipo, valor y producto de deposito.
-2. DICE inserta una reserva `pending`, protegida por una restriccion unica `(key_type, key_value)`.
-3. DIFE guarda y activa la asociacion local (`active`) con su propio indice unico.
-4. DICE cambia su reserva a `confirmed`.
-
-Son transacciones locales separadas, no una transaccion distribuida. Si un paso falla despues de la reserva, la API responde `503` y conserva `pending`; reenviar la misma solicitud reanuda la activacion. DICE es quien garantiza la unicidad global incluso entre solicitudes simultaneas. Una llave ya confirmada responde `409 Conflict`.
-
-`DIFE_DATABASE_URL` y `DICE_DATABASE_URL` del `.env` apuntan a esas bases dedicadas. La aplicacion crea unicamente las tablas de llaves con este comando idempotente:
+En otra terminal, la interfaz:
 
 ```powershell
-python -m app.cli init-key-stores
+cd web
+npm install
+npm run dev
 ```
 
-Las tablas `dife_keys` y `dife_key_status_events` viven en SQL Server; `dice_keys` vive en Oracle. DICE conserva la referencia al producto de depósito para permitir el enrutamiento, pero no almacena saldos ni transacciones. La migración de `deposit_product_id` agrega la columna a esquemas Oracle existentes y completa referencias confirmadas cuando encuentra la llave activa correspondiente en DIFE.
-
-Los pagos intra-SPBVI resuelven la llave solo en el DIFE del SPBVI con `GET /difes/{spbvi_id}/keys/resolve?key_type=email&key_value=ana%40example.test`; no consultan Oracle/DICE. Los pagos inter-SPBVI consultan DICE mediante `POST /payments/inter-spbvi` y liquidan en un MOL simulado local; no representa una conexión con Banrep ni una liquidación real. Para desplegar sobre instalaciones previas, ejecutá de nuevo `python -m app.cli init-key-stores` para aplicar la columna y recuperar las asociaciones existentes que coincidan entre DIFE y DICE.
-
-Ejemplo de registro:
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/difes/spbvi-a/keys -ContentType "application/json" -Body '{"key_type":"email","key_value":"ana@example.test","deposit_product_id":"cuenta-123","owner_email":"titular@example.com"}'
-```
-
-Los valores de llave se recortan de espacios en los extremos; el tipo se convierte a minusculas. El valor restante se compara exactamente, sin normalizacion especifica de telefono, correo u otros formatos.
-
-### Ciclo de vida completo de llaves
-
-Cada operación se prueba desde JSON de envío versionado en `tests/fixtures/key_lifecycle/`. Los archivos `create.json`, `delete.json`, `suspend_administrative.json`, `suspend_personal.json`, `reactivate_administrative.json`, `reactivate_personal.json` y `assign_owner.json` se usan directamente en las pruebas HTTP automatizadas.
-
-| Acción | Método y ruta | Permisos / comportamiento |
-|---|---|---|
-| Crear | `POST /difes/{spbvi_id}/keys` | `admin` o `administrador`. `owner_email` es opcional; la llave se reserva en DICE y se activa en DIFE. |
-| Asignar titular a una llave existente | `PATCH /difes/{spbvi_id}/keys/owner` | `admin` o `administrador`. Necesario para habilitar la gestión personal de llaves legacy creadas sin titular. |
-| Suspender administrativamente | `POST /difes/{spbvi_id}/keys/suspend` con `"suspension_type":"administrative"` | `admin` o `administrador`; registra motivo y actor. |
-| Suspender personalmente | `POST /difes/{spbvi_id}/keys/suspend` con `"suspension_type":"personal"` | Requiere sesión autenticada cuyo correo coincida con el titular registrado. |
-| Reactivar administrativamente | `POST /difes/{spbvi_id}/keys/reactivate` con `"reactivation_type":"administrative"` | `admin` o `administrador`; puede reactivar cualquiera de los dos tipos de suspensión. |
-| Reactivar personalmente | `POST /difes/{spbvi_id}/keys/reactivate` con `"reactivation_type":"personal"` | Solo el titular y únicamente si la suspensión fue personal. |
-| Eliminar | `DELETE /difes/{spbvi_id}/keys` con JSON de motivo | `admin` o `administrador`; libera la llave en los dos índices y conserva una auditoría no enlazada a la fila eliminada. El alta posterior de la misma llave vuelve a estar disponible. |
-
-Ejemplos de cuerpos JSON de envío:
-
-```json
-{
-  "key_type": "email",
-  "key_value": "ana@example.test",
-  "deposit_product_id": "cuenta-123",
-  "owner_email": "titular@example.com"
-}
-```
-
-```json
-{
-  "key_type": "email",
-  "key_value": "ana@example.test",
-  "reason": "Bloqueo preventivo tras revisión",
-  "suspension_type": "administrative"
-}
-```
-
-```json
-{
-  "key_type": "email",
-  "key_value": "ana@example.test",
-  "reason": "Solicitud del titular",
-  "suspension_type": "personal"
-}
-```
-
-```json
-{
-  "key_type": "email",
-  "key_value": "ana@example.test",
-  "reason": "Revisión administrativa completada",
-  "reactivation_type": "administrative"
-}
-```
-
-```json
-{
-  "key_type": "email",
-  "key_value": "ana@example.test",
-  "reason": "El titular confirma la reactivación",
-  "reactivation_type": "personal"
-}
-```
-
-```json
-{
-  "key_type": "email",
-  "key_value": "ana@example.test",
-  "reason": "Retiro de la llave solicitado",
-  "owner_email": "titular@example.com"
-}
-```
-
-```json
-{
-  "key_type": "email",
-  "key_value": "ana@example.test",
-  "reason": "Solicitud de eliminación de prueba"
-}
-```
-
-La suspensión escribe primero `pending` en DICE para que la llave deje de resolverse en pagos inter-SPBVI; luego actualiza DIFE y confirma el estado final en DICE. La reactivación sigue el mismo patrón para no reabrir el enrutamiento global antes de activar DIFE. Si una operación entre motores falla, responde `503`; reenviar el mismo JSON completa la transición sin duplicar el evento de auditoría. La eliminación es física en los directorios para liberar la unicidad global, pero su snapshot (tipo/valor, titular, producto, motivo, usuario, rol, acción y fecha) queda en `key_lifecycle_events` de DIFE.
-
-Las llaves legacy no tienen titular por defecto. Un `admin` o `administrador` debe asignarlo con `PATCH /difes/{spbvi_id}/keys/owner` antes de aceptar una suspensión/reactivación personal. El correo del titular no se devuelve en la API de resolución. Las mutaciones requieren sesión autenticada y CSRF, igual que las demás rutas protegidas.
+La API queda en `http://127.0.0.1:8000` (salud en `/health`) y la interfaz en `http://127.0.0.1:5173`; Vite reenvía `/api` al backend. Las tablas de pagos y autenticación se crean al iniciar la API. `docker compose up --build` levanta la API con un PostgreSQL local de desarrollo cuando Docker está disponible.
 
 ## Acceso seguro y roles
 
-El backend usa tres roles y valida cada permiso en el servidor (la interfaz solo oculta lo que el backend igual rechazaría):
+El acceso requiere contraseña y un código MFA de seis dígitos enviado por correo. Las contraseñas se guardan con Argon2id; el código vence a los 5 minutos, admite 5 intentos y es de un solo uso. Hay límites de intentos por correo e IP. Las sesiones usan tokens opacos guardados como digest, con vencimiento por inactividad (30 minutos) y absoluto (8 horas). La cookie es `HttpOnly`, `SameSite=Strict` y `Secure` fuera de local, y toda operación que cambia estado exige token CSRF (`GET /auth/csrf` y cabecera `X-CSRF-Token`).
+
+### Reenvío del código MFA
+
+1. `POST /auth/login` valida la contraseña y envía el código. La respuesta es siempre la misma, para no revelar si la cuenta existe, y siempre emite la cookie `HttpOnly` `qalab_pending_login` (15 minutos).
+2. Solo con contraseña válida se registra ese token (como digest) en `pending_logins`.
+3. `POST /auth/resend-code` usa la cookie para emitir un código nuevo **sin volver a pedir la contraseña**; el código anterior queda invalidado.
+4. Límites: 60 segundos entre envíos (`429` con `Retry-After`) y 3 códigos cada 15 minutos por usuario.
+5. Al verificar el código (`POST /auth/verify-email-code`) se elimina el inicio pendiente. La interfaz muestra "Reenviar código" con cuenta regresiva.
+
+### Roles
+
+Los permisos se validan en el servidor; la interfaz solo oculta lo que el backend igual rechazaría.
 
 | Acción | `admin` | `administrador` | `usuario` |
 |---|---|---|---|
@@ -148,61 +106,85 @@ El backend usa tres roles y valida cada permiso en el servidor (la interfaz solo
 | Crear usuarios | Sí | Sí | No |
 | Crear épicas | Sí (único) | No | No |
 | Asociar integrantes a épicas | Sí | Sí | No |
-| Crear HU y CP | No | Sí | No |
+| Crear HU, CP e importar programas | No | Sí | No |
 | Crear, asignar y reasignar tareas | Sí | Sí | No |
 | Editar el JSON de un CP, ejecutarlo y avanzar tareas | Sí, si integra la épica | Sí, si integra la épica | Sí, si integra la épica |
 | Registrar bugs y fixes | No | No | Sí |
 | Avanzar el flujo de bugs (en fix, retest) | Sí | Sí | Sí, sin asignar responsables |
 | Asignar responsables de bugs | Sí | Sí | No |
+| Crear cuentas y registrar o administrar llaves | Sí | Sí | No (solo acciones personales sobre sus llaves) |
 
-El rol `admin` nunca se asigna por API: solo por los comandos CLI de bootstrap.
+No hay usuarios ni contraseñas por defecto. El primer `admin` se crea con `python -m app.cli create-initial-admin` (solo funciona con la base vacía) y otros con `python -m app.cli create-admin`; el rol `admin` nunca se asigna por API. Cada cuenta creada desde la plataforma recibe un correo de bienvenida con su rol y quién la creó, nunca con la contraseña; si el correo falla, la cuenta igual queda creada y la respuesta lo indica con `notification_status: "failed"`.
 
-El acceso requiere contrasena y un codigo MFA de seis digitos enviado por correo. Las contrasenas se almacenan con Argon2id, el codigo vence a los cinco minutos, tiene maximo cinco intentos y solo se puede usar una vez. Hay limitacion de intentos de contrasena/correo y de envios MFA.
+## Llaves Bre-B (DIFE y DICE)
 
-#### Reenvío del código MFA
+### Tipos de llave
 
-1. `POST /auth/login` valida la contraseña y envía el código. La respuesta es siempre la misma (no revela si la cuenta existe) y siempre emite la cookie `HttpOnly` `qalab_pending_login`, que vence en 15 minutos.
-2. Solo si la contraseña era válida, el servidor registra ese token (como digest) en la tabla `pending_logins`. Con contraseña incorrecta la cookie existe pero no corresponde a nada.
-3. `POST /auth/resend-code` (con CSRF) usa esa cookie para generar un código nuevo **sin volver a pedir la contraseña**. El código anterior queda invalidado.
-4. Límites: 60 segundos entre envíos (`429` con `Retry-After`) y un máximo de 3 códigos cada 15 minutos por usuario, contando el primero. Al alcanzar el máximo hay que esperar e iniciar sesión de nuevo.
-5. Al verificar el código (`/auth/verify-email-code`) se elimina el inicio pendiente. La pantalla del código muestra "Reenviar código" con la cuenta regresiva. Las sesiones usan tokens aleatorios opacos, guardados como digest en SQL, revocables en logout, con vencimiento por inactividad (30 minutos) y absoluto (8 horas). La cookie de sesion es `HttpOnly`, `SameSite=Strict` y `Secure` fuera del modo local; las operaciones que cambian estado requieren token CSRF.
+Según la página pública de Banrep ("¿Cuáles tipos de Llave puedo tener?"), una persona puede registrar número de documento, celular, correo y una llave alfanumérica que inicia con `@`; los comercios usan además el código de comercio. `GET /keys/types` publica el catálogo y los formularios lo usan.
 
-El correo como segundo factor es la decision del MVP, no equivale a una llave FIDO/passkey ni a una app TOTP y depende de proteger bien la cuenta de correo. El modo local HTTP deja `Secure` desactivado solo para desarrollo; nunca publiques ese modo.
+| Código | Tipo | Ejemplo | Forma canónica (supuesto del laboratorio) |
+|---|---|---|---|
+| `document` | Documento de identidad | `1023456789` | 5 a 15 dígitos; se quitan puntos y guiones |
+| `phone` | Celular | `3001234567` | 10 dígitos que inician en 3; se acepta `+57` |
+| `email` | Correo electrónico | `nombre@dominio.com` | En minúsculas |
+| `alias` | Llave alfanumérica | `@ana2026` | `@` + 3 a 20 letras o números, en minúsculas |
+| `merchant_code` | Código de comercio | `0012345` | 4 a 10 dígitos |
 
-El servicio MongoDB se mantiene local, ligado a localhost, hasta configurar su autenticacion. No abras el puerto MongoDB a la red ni lo uses con datos sensibles compartidos antes de habilitar autenticacion/usuarios; MongoDB local no sustituye el cifrado en reposo ni los controles del sistema operativo.
+Banrep no publica longitudes ni formatos exactos: estas reglas son **supuestos**. La API valida y normaliza la llave en alta, ciclo de vida, resolución y pagos, así que `+57 300 123 4567` y `3001234567` son la misma llave.
 
-### Bootstrap y configuracion privada
+### Registro con unicidad global
 
-1. Copia `.env.example` a `.env`.
-2. Genera una clave privada desde PowerShell:
+DIFE y DICE son componentes separados con bases independientes. El alta (`POST /difes/{spbvi_id}/keys`) sigue estos pasos:
 
-   ```powershell
-   python -c "import secrets; print(secrets.token_urlsafe(48))"
-   ```
+1. DICE inserta una reserva `pending`, protegida por un índice único `(key_type, key_value)`.
+2. DIFE guarda y activa la asociación local (`active`) con su propio índice único.
+3. DICE pasa la reserva a `confirmed`.
 
-   Guarda el resultado solo como `AUTH_SECRET_KEY` dentro de `.env`; no lo pegues en el chat ni en Git.
-3. Configura `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` y, opcionalmente, `BREVO_SENDER_NAME` en `.env`. La clave es una credencial secreta; no la compartas en el chat ni la agregues a Git. La integracion usa la API HTTPS oficial de Brevo y nunca registra la clave ni el cuerpo privado de la respuesta del proveedor.
-4. Crea el primer admin en una base vacia. El comando solicita el correo y la contrasena de forma interactiva, y solo funciona mientras no existan usuarios:
+Son transacciones locales separadas, no una transacción distribuida. Si un paso falla después de la reserva, la API responde `503` y reenviar la misma solicitud reanuda la activación. DICE garantiza la unicidad aun con registros simultáneos; una llave ya confirmada responde `409`. DICE conserva la referencia al producto de depósito para enrutar, pero no guarda saldos ni transacciones.
 
-   ```powershell
-   python -m app.cli create-initial-admin
-   ```
+### Ciclo de vida
 
-   No hay usuario, contrasena ni clave MFA por defecto. El admin crea administradores y usuarios; un administrador crea solo usuarios. Cada cuenta nueva recibe un correo de bienvenida con su rol y quién la creó, nunca con la contraseña: quien crea la cuenta la entrega por un canal seguro. Si el correo falla, la cuenta igual queda creada y la respuesta lo indica con `notification_status: "failed"`. Los usuarios autentican con `/auth/login`, obtienen el codigo por correo y completan MFA en `/auth/verify-email-code`. Antes de cada POST desde una interfaz, solicita `/auth/csrf` y envia el token recibido en `X-CSRF-Token`. La cookie de sesion no se expone a JavaScript.
+Los cuerpos JSON de cada operación están en `tests/fixtures/key_lifecycle/` y se ejecutan en las pruebas HTTP.
 
-   Para crear una cuenta administrativa adicional y visible, ejecutá `python -m app.cli create-admin`. Solicita correo, nombre y contraseña nueva de forma interactiva, almacena solo el hash Argon2id y rechaza duplicados; no uses contraseñas que hayan sido compartidas en chats.
+| Acción | Método y ruta | Permisos y comportamiento |
+|---|---|---|
+| Crear | `POST /difes/{spbvi_id}/keys` | `admin` o `administrador`; `owner_email` opcional. |
+| Resolver en el DIFE | `GET /difes/{spbvi_id}/keys/resolve?key_type=…&key_value=…` | Cualquier rol; no devuelve el correo del titular. |
+| Asignar titular | `PATCH /difes/{spbvi_id}/keys/owner` | `admin` o `administrador`; necesario para habilitar acciones personales en llaves sin titular. |
+| Suspender | `POST /difes/{spbvi_id}/keys/suspend` con `suspension_type` `administrative` o `personal` | Administrativa: `admin` o `administrador`. Personal: solo el titular autenticado. |
+| Reactivar | `POST /difes/{spbvi_id}/keys/reactivate` con `reactivation_type` `administrative` o `personal` | Administrativa: cualquier suspensión. Personal: solo el titular y solo si la suspensión fue personal. |
+| Eliminar | `DELETE /difes/{spbvi_id}/keys` con motivo | `admin` o `administrador`; libera ambos índices y conserva la auditoría en `key_lifecycle_events` del DIFE. |
 
-## Gestion QA local en MongoDB
+Suspender y reactivar ponen primero `pending` en DICE (la llave deja de resolverse en pagos inter-SPBVI), actualizan DIFE y confirman el estado final en DICE. Si algo falla, la API responde `503` y reenviar el mismo JSON completa la transición sin duplicar la auditoría.
 
-El servicio `MongoDB` se instala y ejecuta en este equipo; el backend usa `MONGODB_URL` y `MONGODB_DATABASE` de `.env.example`. Los documentos de epicas, HU, CP, tareas, ejecuciones, bugs y fixes se guardan en la base Mongo local nueva y dedicada `qalabspbvi_qa`. No apuntes la URI a `cluster0` ni a una base con datos de otros proyectos. Usuarios, hashes de contrasena y sesiones siguen en la base SQL exclusiva de QALabSPBVI.
+## Cuentas y pagos
 
-Los permisos siguen la tabla de "Acceso seguro y roles". Al asociar integrantes, quien guarda queda incluido automáticamente.
+| Endpoint | Descripción |
+|---|---|
+| `POST /accounts` | Crea una cuenta simulada (`account_id`, `spbvi_id`, `balance_cents`). El saldo inicial se registra como asiento `opening`. `admin` o `administrador`; un identificador repetido responde `409`. |
+| `POST /payments` | Pago intra-SPBVI: resuelve la llave **solo en el DIFE** del SPBVI de origen (el DICE recibe cero consultas) y mueve débito y crédito en una sola transacción. |
+| `POST /payments/inter-spbvi` | Pago inter-SPBVI: resuelve la llave en el DICE, liquida con el MOL simulado y devuelve `pacs008_xml` y `pacs002_xml`. |
+| `GET /payments/{operation_id}` | Estado de un pago y su equivalente pacs.002 (`ACCP`, `PDNG`, `RJCT`). Equivale en el laboratorio a una consulta pacs.028. |
+| `GET /accounts/{account_id}/statement` | Extracto: saldo inicial, movimientos (con su `operation_id`), créditos, débitos, saldo final y si concilia con el saldo de la cuenta (`reconciled`). Equivale a camt.052/053. |
 
-Jerarquía: **épica → HU → CP**, con **tareas** a nivel de épica y **ejecuciones**, **bugs** y **fixes** colgando de cada CP. La interfaz muestra primero esa planeación y después la ejecución.
+Reglas de los pagos:
 
-#### Casos de prueba: solo API REST con JSON
+- **Idempotencia:** repetir el mismo `operation_id` con los mismos datos devuelve el pago original (`200`, `replayed: true`) sin mover dinero; con datos distintos responde `409`. Un `operation_id` no se reutiliza entre flujos intra e inter.
+- **Límite por operación:** el monto no puede superar `PAYMENT_LIMIT_UVB × UVB_VALUE_CENTS` (1.000 UVB). El pago intra responde `422`; el inter responde `422` con `pacs002_xml` `RJCT` y razón `AMOUNT_LIMIT_EXCEEDED`.
+- **Rechazos sin efectos:** llave o cuenta inexistente (`404`), fondos insuficientes (`409`; en inter con pacs.002 `RJCT`), llave del mismo SPBVI por el flujo inter (`422`). Ningún rechazo ni falla parcial deja débito o crédito: todo se revierte.
+- Las entradas del ledger de cada pago suman cero.
 
-Por decisión del proyecto, todo CP ejecutable es una solicitud HTTP a la API REST con cuerpo JSON; no se usan otros esquemas (XML, SOAP, colas) mientras no haga falta. Un CP almacena su contrato junto con sus criterios tipo Jira (descripción, precondiciones, pasos, resultado esperado):
+### Adaptador ISO 20022 de laboratorio
+
+`app/domains/iso20022/messages.py` genera y valida `pacs.008.001.08` y `pacs.002.001.10` con XSD propios (`*-lab.xsd`) limitados a los campos implementados. **No son los XSD oficiales de ISO 20022 ni prueban conformidad con Banrep.** Versiones, campos y secuencia del flujo son supuestos hasta revisar el anexo 6 de la Circular DSP-465. `PDNG` solo se valida como mensaje, porque el MOL liquida de forma síncrona.
+
+## Gestión QA
+
+Jerarquía: **épica → HU → CP**, con **tareas** a nivel de épica y **ejecuciones**, **bugs** y **fixes** asociados a cada CP. La interfaz muestra primero esa planeación y después la ejecución.
+
+### Casos de prueba: API REST con JSON
+
+Todo CP ejecutable es una solicitud HTTP a la API REST con cuerpo JSON (por decisión del proyecto no se usan otros esquemas mientras no haga falta). Además de los criterios tipo Jira (descripción, precondiciones, pasos, resultado esperado), cada CP guarda su contrato:
 
 ```json
 {
@@ -216,137 +198,118 @@ Por decisión del proyecto, todo CP ejecutable es una solicitud HTTP a la API RE
 }
 ```
 
-Los JSON no son fijos: cualquier integrante de la épica los actualiza desde **Calidad y pruebas → JSON** en cada CP, o con `PUT /qa/cases/{case_key}` (mismo contrato más `change_note`). Cada guardado:
+`POST /qa/cases/{case_key}/execute` ejecuta el contrato contra `QA_TARGET_BASE_URL` y guarda método, URL, solicitud y respuesta redactadas, resultado y duración. El CP aprueba si el código HTTP está entre los esperados y, cuando hay `expected_response`, si la respuesta contiene esos campos con esos valores (comparación por subconjunto). Con `expected_response: null` solo se valida el código HTTP.
 
-- vuelve a aplicar las mismas validaciones de seguridad que el alta (ruta relativa, sin credenciales en campos, cabeceras permitidas);
-- incrementa `version` y guarda la versión anterior en `versions`, con autor, fecha y motivo (visible en "Historial");
-- usa concurrencia optimista: si dos personas editan a la vez, la segunda recibe `409` en vez de pisar el cambio;
-- notifica por correo a la épica. Al invocar `POST /qa/cases/{case_key}/execute`, se ejecuta esa definicion contra `QA_TARGET_BASE_URL`; se compara la respuesta con los estados y el JSON esperado, y se guarda metodo, URL, request/response redactados, resultado y duracion.
+Los JSON no son fijos: cualquier integrante de la épica los actualiza desde **Calidad y pruebas → JSON** o con `PUT /qa/cases/{case_key}` (mismo contrato más `change_note`). Cada guardado vuelve a validar, incrementa `version`, guarda la versión anterior en `versions` (autor, fecha y motivo, visible en "Historial"), usa concurrencia optimista (`409` si otra edición se guardó antes) y avisa a la épica.
 
-El runner solo permite rutas relativas, metodos HTTP permitidos y un destino base configurado por el operador; en modo local obliga a usar `localhost`, no sigue redirecciones y no acepta URLs absolutas. Los campos con nombres de credenciales se rechazan salvo referencias declarativas como `{{secret:PAYMENTS_API_TOKEN}}`, resueltas solo desde `QA_SECRET_PAYMENTS_API_TOKEN` en el entorno o en `.env` y nunca guardadas en la ejecucion. Las cabeceras sensibles, por ejemplo `Authorization`, solo aceptan referencias a secretos. La cookie de sesion y el CSRF del ejecutor se reenvian unicamente cuando el host destino coincide exactamente con el host de la solicitud entrante. La respuesta registrada tambien se limpia de esos valores y se omite si supera 1 MB.
+### Seguridad del ejecutor
 
-La gestion de bug sigue `open → assigned → in_fix → ready_for_retest → closed`, o `reopened` si el retest falla. Al asignar, el responsable debe ser integrante de la epica; quien implementa el fix lo marca listo para retest y el administrador mueve el bug a retest. El cierre exige el resultado aprobado; si falla, se reabre y se puede registrar otro fix.
+Solo admite rutas relativas, métodos permitidos y el destino configurado; en local obliga a `localhost`, no sigue redirecciones y no acepta URLs absolutas. Los campos con nombres de credenciales se rechazan salvo referencias como `{{secret:PAYMENTS_API_TOKEN}}`, que se resuelven desde el entorno al ejecutar y nunca se guardan. La sesión y el CSRF de quien ejecuta se reenvían solo si el host destino coincide con el host de la solicitud entrante; por eso, en la nube, `QA_TARGET_BASE_URL` apunta al dominio propio de la Container App. Las respuestas registradas se limpian de secretos y se omiten si superan 1 MB.
 
-#### Correos transaccionales
+### Bugs, fixes y tareas
 
-Todos los correos (código MFA, bienvenida, avisos QA) usan una sola plantilla (`app/core/email_templates.py`): HTML con CSS inline, una columna adaptable a móvil y escritorio, paleta de la interfaz, sin JavaScript, imágenes, fuentes ni hojas externas, más una alternativa en texto plano. Todo valor dinámico se escapa. El código MFA es el único dato sensible permitido y se muestra con su vencimiento y el aviso de no compartirlo.
+- Bugs: `open → assigned → in_fix → ready_for_retest → closed`, o `reopened` si el retest falla. El responsable debe integrar la épica; el cierre exige retest aprobado.
+- Tareas: `open → in_progress → done`; el usuario solo avanza las que tiene asignadas.
 
-Avisan por correo a todos los integrantes de la épica, incluido quien hizo la acción: creación de épica, cambio de integrantes, HU, CP, tareas, asignación de tareas, edición del JSON de un CP, ejecuciones, bugs, fixes y cambios de estado. El alta de usuarios avisa a la cuenta nueva.
+### Avisos por correo
 
-Cada alta, ejecucion o cambio relevante crea el aviso dentro del mismo documento Mongo que la accion y lo envia por la API HTTPS de Brevo a los integrantes de la epica, incluyendo al autor. Si Brevo no acepta el envio, la accion queda guardada y el aviso se conserva como pendiente; `POST /qa/notifications/retry` permite reintentar con rol `admin` o `administrador`. Los avisos pendientes se eliminan del documento al entregarse para evitar crecimiento sin limite; por eso Mongo no funciona como historial de correos. La entrega es de mejor esfuerzo y al menos una vez: si la conexion cae despues de que Brevo acepta el correo, podria recibirse duplicado.
+Cada acción relevante guarda su aviso en el mismo documento Mongo y lo envía por Brevo a todos los integrantes de la épica, incluido quien la realizó. Si Brevo falla, la acción queda guardada y el aviso pendiente se reintenta con `POST /qa/notifications/retry` (`admin` o `administrador`). La entrega es de mejor esfuerzo, al menos una vez.
 
-El listado de usuarios activos para asociarlos a epicas esta disponible en `GET /auth/users` para `admin` y `administrador`; el listado de bugs/fixes de una epica se obtiene en `GET /qa/epics/{epic_key}/bugs`. Las respuestas de Mongo incluyen solo la epica a la que pertenece el usuario autenticado.
+## Programa de pruebas ISO 20022 Bre-B
 
-## Tipos de llave Bre-B
+`qa_programs/iso20022-breb-rest-json.json` adapta a la plataforma el documento "Programa de Pruebas ISO 20022 – Ecosistema BREB BanRep (Enfoque API REST / JSON)": 19 HU, 30 CP ejecutables y 22 tareas (incluidas las subtareas). Se genera con `python qa_programs/build_iso20022_breb.py`; para cambiar datos o casos, edita el script y vuelve a generarlo.
 
-Según la página pública de Banrep ("¿Cuáles tipos de Llave puedo tener?"), una persona puede registrar número de documento, celular, correo y una llave alfanumérica que inicia con `@`; los comercios usan además el código de comercio (y el NIT como documento). `GET /keys/types` publica el catálogo y los formularios de llaves y pagos lo usan.
+Adaptaciones al laboratorio:
 
-| Código | Tipo | Ejemplo | Forma canónica (supuesto del laboratorio) |
-|---|---|---|---|
-| `document` | Documento de identidad | `1023456789` | 5 a 15 dígitos; se quitan puntos y guiones |
-| `phone` | Celular | `3001234567` | 10 dígitos que inician en 3; se acepta `+57` |
-| `email` | Correo electrónico | `nombre@dominio.com` | En minúsculas |
-| `alias` | Llave alfanumérica | `@ana2026` | `@` + 3 a 20 letras o números, en minúsculas |
-| `merchant_code` | Código de comercio | `0012345` | 4 a 10 dígitos |
+- **HU de preparación (`LAB-HU-000`):** crea cuentas fijas `qa-breb-*` en `spbvi-a` y `spbvi-b` y las llaves `@qabrebdestino` y `@qabrebremoto`. Aceptan `201` o `409`, así que el programa se puede ejecutar todas las veces que haga falta.
+- **Mapeo de mensajes:** pain.001 → `POST /payments`; pacs.008/pacs.002 → `POST /payments/inter-spbvi`; pacs.028 → `GET /payments/{operation_id}`; camt.052/053 y conciliación → `GET /accounts/{id}/statement`.
+- **HU sin endpoint** (pacs.004, camt.056, camt.029, camt.054, pain.002 independiente, resiliencia) se cargan sin CP y lo indican en su descripción; no se inventan casos que no se puedan ejecutar.
+- Se corrigen erratas del documento: "BREG" → Bre-B, "Camato" → CAMT y cuentas CLABE (formato mexicano) → producto de depósito local.
 
-Banrep no publica longitudes ni formatos exactos: esas reglas son **supuestos** y deben ajustarse cuando se tenga la especificación. La API valida y normaliza la llave en alta, ciclo de vida, resolución y pagos, así que `+57 300 123 4567` y `3001234567` son la misma llave.
+Cómo cargarlo y ejecutarlo:
 
-## Cuentas y pagos intra-SPBVI
+1. El `admin` crea la épica (título y descripción en el bloque `epic` del archivo) y asocia al equipo.
+2. Un `administrador` integrante abre la épica en **Calidad y pruebas → Importar programa** y sube el archivo (o usa `POST /qa/epics/{epic_key}/import`). Todo se valida antes de guardar; lo que ya existe con la misma `ref` se omite y el equipo recibe un solo correo resumen.
+3. Un `administrador` ejecuta los CP de `LAB-HU-000` (crear cuentas y llaves es administrativo).
+4. Cualquier integrante ejecuta el resto en orden de HU. `tests/test_qa_program.py` importa el programa y comprueba que los 30 CP aprueban en dos rondas seguidas.
 
-El endpoint local `POST /accounts` crea una cuenta simulada con `account_id`, `spbvi_id` y `balance_cents`. El saldo inicial se registra como una entrada de apertura en el ledger; los montos siempre son enteros en centavos.
+## Correos transaccionales
 
-`POST /payments` recibe `operation_id`, `source_account_id`, `destination_key_type`, `destination_key_value` y `amount_cents`. Resuelve el destino exclusivamente mediante el DIFE del SPBVI de origen; no consulta el resolvedor inter-SPBVI del DICE. La transferencia crea un pago y dos entradas de ledger balanceadas en la misma transaccion que actualiza ambos saldos.
+Todos los correos (código MFA, bienvenida y avisos QA) usan una sola plantilla (`app/core/email_templates.py`): HTML con CSS inline, una columna adaptable a móvil y escritorio, paleta de la interfaz, sin JavaScript, imágenes, fuentes ni hojas externas, y con alternativa en texto plano. Todo valor dinámico se escapa. No incluyen credenciales, tokens ni datos sensibles de pagos; la única excepción es el código MFA, que se muestra con su vencimiento y el aviso de no compartirlo.
 
-```powershell
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/accounts -ContentType "application/json" -Body '{"account_id":"origen","spbvi_id":"spbvi-a","balance_cents":5000}'
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/payments -ContentType "application/json" -Body '{"operation_id":"op-001","source_account_id":"origen","destination_key_type":"email","destination_key_value":"ana@example.test","amount_cents":1250}'
-```
+## Interfaz web
 
-Un destino inexistente responde `404`; saldo insuficiente e identificador reutilizado con datos distintos responden `409`. La repeticion exacta de un `operation_id` devuelve el pago original (`200`) sin volver a mover dinero. Los montos cero, negativos o no enteros se rechazan con `422`. Si falla cualquier escritura durante el movimiento, se revierten tanto los saldos como los registros del pago.
+React + TypeScript + Vite en `web/`, con tipografía del sistema y sin recursos externos. Incluye:
 
-### Pagos inter-SPBVI con MOL simulado
+- Acceso con MFA y reenvío del código.
+- Panel inicial con las épicas y su avance (HU, CP y tareas abiertas), "Mis tareas", estado del entorno y banner.
+- **Calidad y pruebas:** jerarquía épica → HU → CP, tareas, editor e historial del JSON de cada CP, ejecución, importación de programas y creación según el rol.
+- Llaves (alta, consulta y ciclo de vida con el catálogo de tipos), pagos intra/inter y cuentas.
+- Usuarios y roles; tema claro y oscuro; diseño adaptable desde 320 px.
 
-El flujo inter-SPBVI usa `POST /payments/inter-spbvi` con el mismo contrato JSON que `/payments`. DICE resuelve la llave confirmada, la referencia de producto debe corresponder a una cuenta local cuyo `spbvi_id` coincida con el participante receptor, y el MOL simulado debita y acredita en una unica transaccion PostgreSQL con dos entradas de ledger balanceadas. Tras la liquidacion, la respuesta incluye `payment_type: "inter_spbvi"`, el XML de orden `pacs008_xml` y la confirmacion `pacs002_xml` con estado `ACCP`. Los dos mensajes se generan con el timestamp del pago y se validan con los XSD locales. Un replay exacto conserva idempotencia y devuelve los mismos XML; un mismo `operation_id` no se puede reutilizar entre flujos intra e inter.
+La paleta toma como referencia el carácter institucional de Banrep, sin afirmar que reproduce sus colores oficiales. Todo el texto del producto usa español neutro.
 
-Llave o cuenta destino ausente responde `404`; fondos insuficientes devuelve `409` con `status: "rejected"` y un `pacs002_xml` `RJCT` (sin pago ni movimientos de ledger persistidos); conflicto de idempotencia responde `409`; intento de usar el flujo inter con una llave del mismo SPBVI, `422`; y una falla del almacenamiento DICE o del MOL simulado, `503`. Una falla despues de escrituras parciales del MOL revierte pago, ledger y ambos saldos. El perfil y las fixtures contemplan `ACCP`, `RJCT` y `PDNG`; `PDNG` solo se valida como mensaje de prueba, porque el MOL actual liquida sincronicamente y todavia no mantiene pagos pendientes en el flujo de ejecucion. Las pruebas usan motores SQLite aislados y no envian transacciones a las bases locales configuradas.
-
-### Adaptador ISO 20022 provisional
-
-`app.domains.iso20022.messages` genera y valida los perfiles de laboratorio `pacs.008.001.08` y `pacs.002.001.10`; el endpoint inter-SPBVI usa el adaptador tras liquidar el pago. El adaptador recibe datos neutrales del pago, conserva los importes como enteros en centavos y serializa el XML con escape seguro. La validacion usa XSD locales propios (`*-lab.xsd`), que cubren solo los campos usados por este laboratorio: **no son los XSD oficiales de ISO 20022 ni prueban conformidad con Banrep**. Versiones, campos obligatorios y secuencia del flujo siguen siendo supuestos hasta revisar el anexo 6 de la Circular DSP-465. El contrato JSON enviado por las pruebas está en `tests/fixtures/payments/inter_spbvi.json`.
-
-## Con Docker Compose
-
-En un equipo con Docker operativo, `docker compose up --build` levanta la API y PostgreSQL local. Usa una base PostgreSQL nueva y dedicada para `DATABASE_URL`; no apuntes el contenedor a datos preexistentes. Las credenciales definidas en Compose son exclusivamente de desarrollo local y no deben reutilizarse en ningun entorno compartido o productivo.
-
-## Interfaz web local
-
-La primera interfaz está en `web/` con React, TypeScript y Vite; usa tipografía del sistema y recursos locales, sin cargar fuentes ni servicios externos. Para trabajarla localmente, inicia FastAPI en una terminal y luego, desde `web/`, ejecuta:
+## Pruebas automatizadas
 
 ```powershell
-npm install
-npm run dev
+python -m pytest                       # backend: unitarias, HTTP e integración del programa QA
+cd web; npm run build; npm run test:e2e  # compilación y recorridos E2E con Playwright
 ```
 
-Abrí `http://127.0.0.1:5173`. El proxy de Vite reenvía `/api` al backend local en `http://127.0.0.1:8000`, sin requerir CORS ni configurar un segundo origen. La interfaz React cubre login MFA, resumen, ejecución de casos QA, usuarios autorizados, alta/consulta y ciclo de vida de llaves, creación de cuentas de laboratorio y pagos intra/inter-SPBVI. Las pantallas de llaves y pagos usan los contratos HTTP existentes; las cuentas y llaves se identifican por sus IDs/valores, ya que la API aún no ofrece endpoints de listado. Las cookies de sesión siguen siendo `HttpOnly`; el frontend solo conserva la preferencia de tema claro/oscuro. La navegación se adapta a pantallas pequeñas y la compilación se valida con `npm run build`.
+- **Backend:** usan SQLite en memoria, `mongomock` y un emisor de correo falso; no tocan las bases configuradas ni envían correos. Cubren las pruebas de aceptación de la fase 1 (llaves duplicadas en paralelo, rechazos sin efectos, idempotencia, rollback, ledger que suma cero, cero consultas al DICE en pagos intra), el ciclo de llaves, pagos inter con ISO 20022, autenticación, MFA y reenvío, roles, gestión QA, correos y el programa ISO 20022 completo.
+- **E2E (Playwright):** inician una API aislada en el puerto 8010 y Vite en el 5174, con credenciales y datos temporales. Recorren MFA, ejecución y edición versionada de un CP, ciclo de llaves y pagos intra/inter, en anchos de 320 a 375 px y sin desbordamiento horizontal. `QALAB_E2E_PYTHON` permite elegir el intérprete.
 
-### Pruebas E2E de escritorio y móvil
+## CI/CD y laboratorio en la nube
 
-Con Playwright instalado, ejecutá desde `web/`:
+`.github/workflows/ci.yml` ejecuta en cada push y pull request las pruebas del backend, la compilación de React y los E2E. En un push a `main` que pasa la CI, el job **Desplegar laboratorio** (activo con la variable `LAB_DEPLOY_ENABLED=true`) publica la API (imagen etiquetada con el SHA del commit) y el frontend. GitHub entra a Azure por OIDC con la identidad `qalabspbvi-github-lab`, limitada a `AcrPush` sobre el registro, `Contributor` sobre la Container App y `Reader` sobre el grupo; el único secreto en GitHub es el token de Static Web Apps del environment `lab`.
 
-```powershell
-npm run test:e2e
-```
-
-La suite inicia una API aislada en `8010` y Vite en `5174`; no usa el `.env` ni las bases locales configuradas para desarrollo. El servidor de pruebas genera credenciales temporales, MFA de correo simulado, SQLite para pagos/DIFE/DICE y Mongo simulado, y elimina su carpeta temporal al terminar. Incluye autenticación + ejecución QA a 320 px, ciclo de llaves a 375 px y pagos intra/inter a 320–375 px. Requiere que el entorno Python activo tenga las dependencias del proyecto y `mongomock`; para seleccionar explícitamente el intérprete, definí `QALAB_E2E_PYTHON` antes de ejecutar el comando. No se envían correos ni se escriben registros en las bases locales reales.
-
-La paleta es sobria y toma como referencia el carácter institucional de Banrep; no se presenta como reproducción de una guía oficial de marca. El tema claro/oscuro es accesible desde el botón de tema y respeta la preferencia del sistema como valor inicial.
-
-Las cuentas no se siembran automáticamente ni existen usuarios privilegiados ocultos. El primer `admin` se crea mediante `python -m app.cli create-initial-admin`; una cuenta adicional con rol `admin` se crea interactivamente mediante `python -m app.cli create-admin`. La interfaz lista las cuentas activas y permite crear roles que autoriza el backend. El endpoint `/auth/users` no asigna el rol superior `admin` y esa restricción se valida en el servidor.
-
-## Estructura actual
-
-```text
-app/
-  api/       Rutas HTTP y autenticacion
-  core/      Configuracion, seguridad y correo
-  db/        Base SQLAlchemy y sesiones
-  domains/
-    auth/    Credenciales, MFA y sesiones
-    keys/    Registro, auditoria y ciclo de vida DIFE/DICE
-    payments/ Transferencias intra/inter-SPBVI, MOL simulado y ledger
-    iso20022/ Adaptador XML provisional y perfiles XSD locales
-    qa/      Gestion Jira, runner HTTP, Mongo y notificaciones
-  main.py    Fabrica y punto de entrada FastAPI
-tests/       Pruebas automaticas
-web/
-  src/       Interfaz React/TypeScript y sistema visual claro/oscuro
-```
-
-El backend local incluye pagos intra e inter-SPBVI con MOL simulado y emisión de mensajes ISO 20022 de laboratorio, el ciclo completo de llaves, autenticacion MFA y la gestion QA descrita arriba. La primera versión de la interfaz web ya funciona localmente; el despliegue cloud sigue pendiente y requiere confirmación explícita. El archivo de configuracion de ejemplo no contiene credenciales reales; las pruebas no envian correo ni requieren conectar una base cloud.
-
-## Integracion continua en GitHub
-
-El workflow `.github/workflows/ci.yml` ejecuta en cada push y pull request las pruebas del backend, la compilación TypeScript/React y los recorridos E2E con Chromium. También se puede iniciar manualmente desde GitHub Actions. Los E2E usan persistencias temporales y simuladas; el workflow no requiere ni configura secretos o conexiones a bases cloud.
-
-El job `Desplegar laboratorio` está preparado, pero queda omitido por defecto: solo se activa en un `push` a `main` si `LAB_DEPLOY_ENABLED` vale `true` en GitHub. Antes de activarlo hay que aprovisionar y revisar la infraestructura, configurar el environment protegido `lab`, el principal OIDC de Azure y sus permisos mínimos, las variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `LAB_ACR_NAME`, `LAB_ACR_LOGIN_SERVER`, `LAB_RESOURCE_GROUP`, `LAB_CONTAINER_APP_NAME`, `LAB_PUBLIC_APP_URL`, y el secreto `LAB_STATIC_WEB_APPS_DEPLOYMENT_TOKEN`. No cargues valores de `.env` a GitHub.
-
-`LAB_DEPLOY_ENABLED` está activado: cada `push` a `main` que pasa la CI publica la API (imagen etiquetada con el SHA del commit) y el frontend en el laboratorio. GitHub se autentica en Azure por OIDC con una identidad dedicada (`qalabspbvi-github-lab`) limitada a `AcrPush` sobre el registro, `Contributor` sobre la Container App y `Reader` sobre el grupo; no hay credenciales de larga duración en GitHub salvo el token de despliegue de Static Web Apps, guardado como secreto del environment `lab`. Producción no tiene todavía un job de publicación; requiere el mismo artefacto validado, un environment `prod` protegido con aprobación y una aprobación específica antes de incorporarlo.
-
-### Laboratorio desplegado (multinube)
-
-El entorno `lab` reparte sus componentes entre proveedores, cada uno con bases nuevas y dedicadas:
+El laboratorio reparte sus componentes entre proveedores, cada uno con bases nuevas y dedicadas:
 
 | Componente | Proveedor | Recurso |
 |---|---|---|
 | API FastAPI | Azure Container Apps (eastus2) | Imagen en Azure Container Registry |
-| Frontend React | Azure Static Web Apps | Publicado tras Azure Front Door |
+| Frontend React | Azure Static Web Apps | Publicado detrás de Azure Front Door |
 | Entrada pública | Azure Front Door | `/` → React; `/api/*` → API sin el prefijo `/api` |
 | Pagos y autenticación | Neon (PostgreSQL, us-east-2) | Proyecto dedicado |
-| DIFE | Azure SQL Database (centralus) | Base dedicada; eastus2 no admitía servidores SQL nuevos |
+| DIFE | Azure SQL Database (centralus) | Base dedicada (eastus2 no admitía servidores SQL nuevos) |
 | DICE | OCI Autonomous Database (sa-bogota-1) | Base Always Free nueva, compartimento `qalabspbvi-lab`, usuario `QALABDICE`, TLS |
 | QA | MongoDB Atlas (AWS us-east-1) | Proyecto `QALabSPBVI-lab`, cluster M0, usuario limitado a `qalabspbvi_qa_lab` |
-| Secretos de runtime | Azure Key Vault | La API los lee con identidad administrada |
+| Secretos | Azure Key Vault | La API los lee con identidad administrada |
 
-La aplicación es pública por la URL de Front Door. Las bases no: OCI y Atlas solo aceptan la IP de salida de la Container App y la IP de administración, y Azure SQL solo servicios de Azure y la IP de administración. Si Azure cambia la IP de salida del entorno de Container Apps, hay que actualizar esas listas. Las cadenas de conexión del laboratorio viven solo en Key Vault y en un `.env.lab` local ignorado por git; nunca en el repositorio. AWS SQS y los logs en Neon siguen pendientes de implementación.
+La infraestructura de Azure está en `infra/azure/main.bicep` y se aprovisiona por CLI tras revisar el `what-if`. La aplicación es pública por Front Door; las bases no: OCI y Atlas solo aceptan la IP de salida de la Container App y la de administración, y Azure SQL solo servicios de Azure y la IP de administración. Si Azure cambia la IP de salida, hay que actualizar esas listas. Las cadenas de conexión del laboratorio viven solo en Key Vault y en un `.env.lab` local ignorado por git. El primer administrador del laboratorio se crea con `python -m app.cli create-initial-admin`, ejecutado con las variables de `.env.lab` cargadas solo en esa terminal.
 
-El primer administrador del laboratorio se crea con `python -m app.cli create-initial-admin`, ejecutado con las variables de `.env.lab` cargadas solo en esa terminal.
+## Estructura del repositorio
+
+```text
+app/
+  api/         Rutas HTTP y esquemas
+  core/        Configuración, seguridad, correo y plantilla de correos
+  db/          Modelos SQLAlchemy y sesiones
+  domains/
+    auth/      Credenciales, MFA, reenvío y sesiones
+    keys/      Catálogo de tipos, DIFE/DICE y ciclo de vida
+    payments/  Pagos intra/inter-SPBVI, límite por operación, MOL y ledger
+    iso20022/  Adaptador XML de laboratorio y XSD propios
+    qa/        Gestión tipo Jira, ejecutor HTTP, importación y avisos
+  cli.py       Comandos de bootstrap (admin inicial, tablas de llaves)
+  main.py      Punto de entrada FastAPI
+qa_programs/   Programas de prueba importables y su generador
+tests/         Pruebas del backend y servidor aislado para E2E
+web/           Interfaz React/TypeScript y pruebas Playwright (web/e2e)
+infra/azure/   Bicep del laboratorio
+```
+
+## Supuestos y pendientes
+
+Supuestos (se ajustan al recibir la especificación oficial):
+
+- Tipos y orden de mensajes ISO 20022, perfiles `pacs.008.001.08` / `pacs.002.001.10` y su mapeo a JSON (anexo 6 de la Circular DSP-465).
+- Formatos y longitudes de las llaves, valor de la UVB y el mapeo de pain.001, pacs.028 y camt.052/053 a los endpoints del laboratorio.
+
+Pendientes:
+
+- Endpoints para pacs.004 (devoluciones), camt.056 (cancelaciones), camt.029 (investigaciones), camt.054 (notificaciones) y pain.002 independiente; filtros por fecha en el extracto.
+- Mock server para simular latencia, timeouts y errores de red (HU-018, TASK-004, TASK-010, TASK-013).
+- Validación con JSON Schema por tipo de mensaje, monitoreo de latencia y pruebas de seguridad OWASP.
+- Cola de eventos en AWS SQS, logs en Neon y entorno de producción con aprobación manual.
+- Pantalla para registrar y gestionar bugs y fixes (el backend ya los soporta).

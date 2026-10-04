@@ -19,6 +19,7 @@ claude
 Laboratorio simulado de pagos inmediatos interoperables, inspirado en Bre-B (Banco de la República de Colombia), para practicar y mostrar aseguramiento de calidad automatizado: pruebas de API, de mensajería ISO 20022 y E2E. Es un proyecto de portafolio. No se conecta a ninguna infraestructura real de pagos.
 
 Idioma: respondé y comentá el código en español. Tuteá con voseo.
+Texto del producto (interfaz, correos, mensajes de la API, README y documentación): español neutro con tuteo ("prueba", no "probá"). El voseo es solo para responder en el chat.
 
 ## Reglas de trabajo
 - Cambios pequeños y verificables: escribí la prueba, corré la prueba, y recién ahí avanzá.
@@ -100,14 +101,10 @@ Pruebas de aceptación de la fase 1 (todas automáticas):
 - En un pago intra el DICE recibe cero consultas.
 
 ## Estado y fases siguientes
-El núcleo local de llaves (alta, suspensión/reactivación personal y administrativa, eliminación, asignación de titular y auditoría), pagos intra/inter-SPBVI con MOL simulado, autenticación y backend QA con ejecución de CP JSON está implementado. Los cuerpos JSON del ciclo de llaves se mantienen en `tests/fixtures/key_lifecycle/` y se ejecutan en pruebas HTTP automatizadas. La interfaz React local en `web/` incluye login MFA, resumen, ejecución QA, usuarios por rol, operaciones de llaves y pagos; la API aún no ofrece listados de cuentas o llaves, por lo que esas pantallas requieren los identificadores y valores conocidos. Falta validar los flujos autenticados de extremo a extremo con Playwright.
+Implementado y desplegado en el laboratorio multinube (ver README): llaves DIFE/DICE con catálogo de tipos Bre-B y ciclo de vida completo; pagos intra/inter-SPBVI con MOL simulado, límite de 1.000 UVB, consulta de estado y extracto conciliado; ISO 20022 de laboratorio; autenticación con MFA y reenvío; gestión QA (épica → HU → CP, tareas, bugs/fixes, edición versionada del JSON de CP, importación de programas, avisos con plantilla HTML); interfaz React con E2E en Playwright; CI/CD con GitHub Actions a Azure por OIDC.
 
-1. Crear y validar bases locales limpias y dedicadas para SQL Server/DIFE, Oracle/DICE, PostgreSQL/pagos-autenticación y MongoDB/QA; no reutilizar datos existentes.
-2. Completar la coordinación idempotente y recuperable entre DIFE y DICE y los smoke tests locales.
-3. Ampliar la cobertura ISO 20022 con JSON de prueba de respuesta/rechazo y resultados del MOL, preservando los contratos XML actuales.
-4. Validar con Playwright los flujos autenticados de la interfaz React/TypeScript, incluidos llaves, pagos, QA, MFA y viewports móviles; evaluar endpoints de listado para cuentas y llaves.
-5. Tras estabilizar y validar localmente, desplegar en la nube acordada usando bases nuevas y vacías, con confirmación explícita antes de aprovisionar recursos.
+El programa `qa_programs/iso20022-breb-rest-json.json` (adaptado del documento de pruebas ISO 20022 Bre-B) se importa en una épica y sus 30 CP pasan en la prueba de integración.
 
-La interfaz web local incluye login MFA, resumen de salud, consulta/ejecución de casos QA, gestión de usuarios autorizada por rol, operaciones de llaves, pagos y temas claro/oscuro. Usa la paleta institucional como referencia, sin afirmar que reproduce colores oficiales; no carga fuentes externas. Se ejecuta aparte de FastAPI con `cd web; npm install; npm run dev` en Windows/PowerShell. La autenticación conserva la sesión en cookie HttpOnly y las rutas sensibles siguen protegidas en el backend. El layout adaptable admite viewports desde 320 px; la verificación visual automatizada hasta ahora cubrió la pantalla de acceso, no las vistas autenticadas. No sembrar administradores ocultos ni credenciales predeterminadas: el admin inicial y las cuentas admin adicionales se crean interactivamente con los comandos CLI documentados en README.
+Pendientes: endpoints pacs.004, camt.056, camt.029, camt.054 y pain.002 independiente; mock server de fallos de red; validación JSON Schema; pantalla de bugs/fixes; SQS, logs en Neon y entorno de producción con aprobación.
 
 Diagrama de referencia de los flujos intra e inter: https://claude.ai/artifact/VzbGmnH3VLvvogB9hwDjJW (privado; si no abre, no es crítico).
