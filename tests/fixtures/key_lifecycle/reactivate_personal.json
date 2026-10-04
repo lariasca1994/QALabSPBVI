@@ -1,0 +1,6 @@
+{
+  "key_type": "email",
+  "key_value": "ana@example.test",
+  "reason": "El titular solicita reactivar su llave",
+  "reactivation_type": "personal"
+}

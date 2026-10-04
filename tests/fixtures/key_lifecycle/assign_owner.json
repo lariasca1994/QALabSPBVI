@@ -1,0 +1,6 @@
+{
+  "key_type": "email",
+  "key_value": "ana@example.test",
+  "owner_email": "titular@example.com",
+  "reason": "Asociación del titular en el registro existente"
+}

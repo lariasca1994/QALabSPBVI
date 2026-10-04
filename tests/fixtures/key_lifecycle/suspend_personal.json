@@ -1,0 +1,6 @@
+{
+  "key_type": "email",
+  "key_value": "ana@example.test",
+  "reason": "Suspensión personal solicitada por el titular",
+  "suspension_type": "personal"
+}

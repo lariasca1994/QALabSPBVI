@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08"
+           xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08"
+           elementFormDefault="qualified">
+  <xs:simpleType name="CurrencyCode">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Z]{3}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="Amount">
+    <xs:simpleContent>
+      <xs:extension base="xs:decimal">
+        <xs:attribute name="Ccy" type="CurrencyCode" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+  <xs:complexType name="AccountIdentification">
+    <xs:sequence>
+      <xs:element name="Id">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="Othr">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="Id" type="xs:string"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Document">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="FIToFICstmrCdtTrf">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="GrpHdr">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="MsgId" type="xs:string"/>
+                    <xs:element name="CreDtTm" type="xs:dateTime"/>
+                    <xs:element name="NbOfTxs" type="xs:positiveInteger"/>
+                    <xs:element name="TtlIntrBkSttlmAmt" type="Amount"/>
+                    <xs:element name="SttlmInf">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="SttlmMtd">
+                            <xs:simpleType>
+                              <xs:restriction base="xs:string">
+                                <xs:enumeration value="CLRG"/>
+                              </xs:restriction>
+                            </xs:simpleType>
+                          </xs:element>
+                          <xs:element name="ClrSys">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="Prtry" type="xs:string"/>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="CdtTrfTxInf">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="PmtId">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="InstrId" type="xs:string"/>
+                          <xs:element name="EndToEndId" type="xs:string"/>
+                          <xs:element name="TxId" type="xs:string"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="IntrBkSttlmAmt" type="Amount"/>
+                    <xs:element name="Dbtr">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="Nm" type="xs:string"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="DbtrAcct" type="AccountIdentification"/>
+                    <xs:element name="Cdtr">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="Nm" type="xs:string"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="CdtrAcct" type="AccountIdentification"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

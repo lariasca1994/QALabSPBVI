@@ -1,0 +1,7 @@
+{
+  "operation_id": "inter-op-1",
+  "source_account_id": "inter-source",
+  "destination_key_type": "alias",
+  "destination_key_value": "remote-recipient",
+  "amount_cents": 1250
+}
