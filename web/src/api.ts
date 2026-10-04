@@ -130,7 +130,17 @@ export interface CsrfProtectedRequest {
   body?: unknown;
 }
 
+export type KeyTypeInfo = {
+  code: string;
+  label: string;
+  example: string;
+  hint: string;
+};
+
 export const api = {
+  keyTypes(): Promise<KeyTypeInfo[]> {
+    return request<KeyTypeInfo[]>("/keys/types");
+  },
   async me(): Promise<User> {
     return request<User>("/auth/me");
   },

@@ -112,14 +112,14 @@ def seed_payment_scenario(client: TestClient) -> None:
     )
     recipient = client.post(
         "/accounts",
-        json={"account_id": "recipient", "spbvi_id": "spbvi-a", "balance_cents": 250},
+        json={"account_id": "@recipient", "spbvi_id": "spbvi-a", "balance_cents": 250},
     )
     key = client.post(
         "/difes/spbvi-a/keys",
         json={
             "key_type": "alias",
-            "key_value": "recipient",
-            "deposit_product_id": "recipient",
+            "key_value": "@recipient",
+            "deposit_product_id": "@recipient",
         },
     )
 
@@ -136,7 +136,7 @@ def payment_payload(
         "operation_id": operation_id,
         "source_account_id": "source",
         "destination_key_type": "alias",
-        "destination_key_value": "recipient",
+        "destination_key_value": "@recipient",
         "amount_cents": amount_cents,
     }
 
@@ -161,7 +161,7 @@ def seed_inter_spbvi_scenario(
             DiceKey(
                 registration_id="inter-registration",
                 key_type="alias",
-                key_value="remote-recipient",
+                key_value="@remoterecipient",
                 spbvi_id="spbvi-b",
                 deposit_product_id="inter-recipient",
                 status=KeyStatus.CONFIRMED,
@@ -238,7 +238,7 @@ def test_dice_migration_backfills_legacy_mappings_from_active_dife_keys() -> Non
             dife_db.add(
                 DifeKey(
                     key_type="alias",
-                    key_value="legacy-key",
+                    key_value="@legacykey",
                     spbvi_id="spbvi-b",
                     deposit_product_id="legacy-account",
                     status=KeyStatus.ACTIVE,
@@ -250,7 +250,7 @@ def test_dice_migration_backfills_legacy_mappings_from_active_dife_keys() -> Non
                 DiceKey(
                     registration_id="legacy-registration",
                     key_type="alias",
-                    key_value="legacy-key",
+                    key_value="@legacykey",
                     spbvi_id="spbvi-b",
                     deposit_product_id=None,
                     status=KeyStatus.CONFIRMED,
@@ -439,7 +439,7 @@ def test_inter_spbvi_payment_rejects_same_participant_target(
             DiceKey(
                 registration_id="same-spbvi-registration",
                 key_type="alias",
-                key_value="same-spbvi",
+                key_value="@samespbvi",
                 spbvi_id="spbvi-a",
                 deposit_product_id="inter-source",
                 status=KeyStatus.CONFIRMED,
@@ -451,7 +451,7 @@ def test_inter_spbvi_payment_rejects_same_participant_target(
         "/payments/inter-spbvi",
         json={
             **inter_payment_payload(),
-            "destination_key_value": "same-spbvi",
+            "destination_key_value": "@samespbvi",
         },
     )
 
@@ -514,7 +514,7 @@ def test_successful_intra_payment_moves_cents_and_balances_ledger(
     assert response.json()["amount_cents"] == 1250
     db.expire_all()
     assert db.get(Account, "source").balance_cents == 3750
-    assert db.get(Account, "recipient").balance_cents == 1500
+    assert db.get(Account, "@recipient").balance_cents == 1500
     entries = db.scalars(select(LedgerEntry)).all()
     payment_entries = [entry for entry in entries if entry.payment_id is not None]
     assert len(payment_entries) == 2
@@ -559,7 +559,7 @@ def test_insufficient_funds_reject_payment_without_changing_balances(
     assert response.status_code == 409
     db.expire_all()
     assert db.get(Account, "source").balance_cents == 5000
-    assert db.get(Account, "recipient").balance_cents == 250
+    assert db.get(Account, "@recipient").balance_cents == 250
     assert db.scalar(select(func.count()).select_from(Payment)) == 0
     assert db.scalar(
         select(func.count())
@@ -582,7 +582,7 @@ def test_repeated_operation_id_returns_original_payment_without_double_credit(
     assert replay.json()["id"] == first.json()["id"]
     db.expire_all()
     assert db.get(Account, "source").balance_cents == 3750
-    assert db.get(Account, "recipient").balance_cents == 1500
+    assert db.get(Account, "@recipient").balance_cents == 1500
     assert db.scalar(select(func.count()).select_from(Payment)) == 1
     assert db.scalar(
         select(func.count())
@@ -606,7 +606,7 @@ def test_reusing_operation_id_with_different_payload_conflicts(
     assert response.status_code == 409
     db.expire_all()
     assert db.get(Account, "source").balance_cents == 3750
-    assert db.get(Account, "recipient").balance_cents == 1500
+    assert db.get(Account, "@recipient").balance_cents == 1500
     assert db.scalar(select(func.count()).select_from(Payment)) == 1
 
 
@@ -647,7 +647,7 @@ def test_failure_while_writing_credit_rolls_back_both_sides(
     assert response.status_code == 500
     db.expire_all()
     assert db.get(Account, "source").balance_cents == 5000
-    assert db.get(Account, "recipient").balance_cents == 250
+    assert db.get(Account, "@recipient").balance_cents == 250
     assert db.scalar(select(func.count()).select_from(Payment)) == 0
     assert db.scalar(
         select(func.count())

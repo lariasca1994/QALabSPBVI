@@ -13,6 +13,9 @@ test("administra el ciclo de vida de una llave sin desbordamiento en móvil", as
   const ownerEmail = e2eAdminEmail("keys");
 
   await page.getByLabel("SPBVI de origen").fill(spbviId);
+  await expect(page.locator("#register-key-type option")).toHaveText([
+    "Documento de identidad", "Celular", "Correo electrónico", "Llave alfanumérica", "Código de comercio",
+  ]);
   await page.locator("#register-key-type").selectOption("email");
   await page.getByLabel("Valor de la llave").first().fill(keyValue);
   await page.getByLabel("Producto de depósito").fill(`e2e-account-${suffix}`);

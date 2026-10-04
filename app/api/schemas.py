@@ -7,9 +7,11 @@ from pydantic import (
     Field,
     StrictInt,
     field_validator,
+    model_validator,
 )
 
 from app.db.models import KeyStatus, UserRole
+from app.domains.keys.key_types import normalize_key_type, normalize_key_value
 
 
 class LoginRequest(BaseModel):
@@ -177,6 +179,14 @@ class PaymentCreateRequest(BaseModel):
             raise ValueError("El valor no puede quedar vacio.")
         return value
 
+    @model_validator(mode="after")
+    def validate_destination_key(self) -> "PaymentCreateRequest":
+        self.destination_key_type = normalize_key_type(self.destination_key_type)
+        self.destination_key_value = normalize_key_value(
+            self.destination_key_type, self.destination_key_value
+        )
+        return self
+
 
 class PaymentResponse(BaseModel):
     id: int
@@ -207,14 +217,6 @@ class KeyRegistrationRequest(BaseModel):
     deposit_product_id: str = Field(min_length=1, max_length=100)
     owner_email: EmailStr | None = None
 
-    @field_validator("key_type")
-    @classmethod
-    def normalize_key_type(cls, value: str) -> str:
-        value = value.strip().lower()
-        if not value:
-            raise ValueError("El tipo de llave no puede quedar vacio.")
-        return value
-
     @field_validator("key_value", "deposit_product_id")
     @classmethod
     def trim_required_value(cls, value: str) -> str:
@@ -223,19 +225,17 @@ class KeyRegistrationRequest(BaseModel):
             raise ValueError("El valor no puede quedar vacio.")
         return value
 
+    @model_validator(mode="after")
+    def validate_bre_b_key(self) -> "KeyRegistrationRequest":
+        self.key_type = normalize_key_type(self.key_type)
+        self.key_value = normalize_key_value(self.key_type, self.key_value)
+        return self
+
 
 class KeyLifecycleRequest(BaseModel):
     key_type: str = Field(min_length=1, max_length=32)
     key_value: str = Field(min_length=1, max_length=255)
     reason: str = Field(min_length=1, max_length=500)
-
-    @field_validator("key_type")
-    @classmethod
-    def normalize_lifecycle_key_type(cls, value: str) -> str:
-        value = value.strip().lower()
-        if not value:
-            raise ValueError("El tipo de llave no puede quedar vacio.")
-        return value
 
     @field_validator("key_value", "reason")
     @classmethod
@@ -244,6 +244,12 @@ class KeyLifecycleRequest(BaseModel):
         if not value:
             raise ValueError("El valor no puede quedar vacio.")
         return value
+
+    @model_validator(mode="after")
+    def validate_lifecycle_key(self) -> "KeyLifecycleRequest":
+        self.key_type = normalize_key_type(self.key_type)
+        self.key_value = normalize_key_value(self.key_type, self.key_value)
+        return self
 
 
 class KeySuspendRequest(KeyLifecycleRequest):

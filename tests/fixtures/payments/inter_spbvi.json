@@ -2,6 +2,6 @@
   "operation_id": "inter-op-1",
   "source_account_id": "inter-source",
   "destination_key_type": "alias",
-  "destination_key_value": "remote-recipient",
+  "destination_key_value": "@remoterecipient",
   "amount_cents": 1250
 }

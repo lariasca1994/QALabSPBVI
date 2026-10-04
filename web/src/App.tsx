@@ -29,7 +29,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
-import { api, ApiError, type Epic, type Execution, type Payment, type User, type WorkItem } from "./api";
+import { api, ApiError, type Epic, type Execution, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
 type View = "overview" | "keys" | "payments" | "quality" | "users";
@@ -303,6 +303,52 @@ function formatWait(seconds: number): string {
 function environmentLabel(): string {
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1" ? "ENTORNO LOCAL" : "ENTORNO DE LABORATORIO";
+}
+
+// Respaldo si /keys/types no responde; la fuente de verdad es app/domains/keys/key_types.py.
+const FALLBACK_KEY_TYPES: KeyTypeInfo[] = [
+  { code: "document", label: "Documento de identidad", example: "1023456789", hint: "Solo números, de 5 a 15 dígitos." },
+  { code: "phone", label: "Celular", example: "3001234567", hint: "Celular colombiano de 10 dígitos que inicia en 3." },
+  { code: "email", label: "Correo electrónico", example: "nombre@dominio.com", hint: "Correo registrado en la entidad financiera." },
+  { code: "alias", label: "Llave alfanumérica", example: "@ana2026", hint: "Inicia con @ seguida de 3 a 20 letras o números." },
+  { code: "merchant_code", label: "Código de comercio", example: "0012345", hint: "Código del comercio, de 4 a 10 dígitos." },
+];
+let keyTypesRequest: Promise<KeyTypeInfo[]> | null = null;
+
+function useKeyTypes(): KeyTypeInfo[] {
+  const [keyTypes, setKeyTypes] = useState<KeyTypeInfo[]>(FALLBACK_KEY_TYPES);
+  useEffect(() => {
+    keyTypesRequest ??= api.keyTypes().catch(() => FALLBACK_KEY_TYPES);
+    let active = true;
+    void keyTypesRequest.then((loaded) => { if (active && loaded.length) setKeyTypes(loaded); });
+    return () => { active = false; };
+  }, []);
+  return keyTypes;
+}
+
+function KeyTypeFields({ idPrefix, typeName, valueName, typeLabel, valueLabel, valueId }: {
+  idPrefix: string;
+  typeName: string;
+  valueName: string;
+  typeLabel: string;
+  valueLabel: string;
+  valueId?: string;
+}) {
+  const keyTypes = useKeyTypes();
+  const [selected, setSelected] = useState("email");
+  const current = keyTypes.find((item) => item.code === selected) ?? keyTypes[0];
+  const inputId = valueId ?? `${idPrefix}-key-value`;
+  return (
+    <>
+      <label className="field-label" htmlFor={`${idPrefix}-key-type`}>{typeLabel}</label>
+      <select className="text-input select-input" id={`${idPrefix}-key-type`} name={typeName} value={selected} onChange={(event) => setSelected(event.target.value)}>
+        {keyTypes.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
+      </select>
+      <label className="field-label" htmlFor={inputId}>{valueLabel}</label>
+      <input className="text-input" id={inputId} name={valueName} placeholder={current?.example} required maxLength={255} aria-describedby={`${inputId}-hint`} />
+      <p className="field-hint" id={`${inputId}-hint`}>{current?.hint}</p>
+    </>
+  );
 }
 
 function App() {
@@ -972,12 +1018,7 @@ function KeysPage({ role }: { role: User["role"] }) {
             <form className="form-stack operation-form" onSubmit={(event) => void registerKey(event)}>
               <label className="field-label" htmlFor="register-spbvi">SPBVI de origen</label>
               <input className="text-input" id="register-spbvi" name="spbvi_id" placeholder="spbvi-a" required maxLength={100} />
-              <label className="field-label" htmlFor="register-key-type">Tipo de llave</label>
-              <select className="text-input select-input" id="register-key-type" name="key_type" defaultValue="email">
-                <option value="email">Correo electrónico</option><option value="phone">Teléfono</option><option value="document">Documento</option><option value="alias">Alias</option>
-              </select>
-              <label className="field-label" htmlFor="register-key-value">Valor de la llave</label>
-              <input className="text-input" id="register-key-value" name="key_value" required maxLength={255} />
+              <KeyTypeFields idPrefix="register" typeName="key_type" valueName="key_value" typeLabel="Tipo de llave" valueLabel="Valor de la llave" />
               <label className="field-label" htmlFor="register-product">Producto de depósito</label>
               <input className="text-input" id="register-product" name="deposit_product_id" placeholder="cuenta-123" required maxLength={100} />
               <label className="field-label" htmlFor="register-owner">Correo del titular <span className="optional-label">OPCIONAL</span></label>
@@ -1004,12 +1045,7 @@ function KeysPage({ role }: { role: User["role"] }) {
             </select>
             <label className="field-label" htmlFor="manage-spbvi">SPBVI</label>
             <input className="text-input" id="manage-spbvi" name="spbvi_id" placeholder="spbvi-a" required maxLength={100} />
-            <label className="field-label" htmlFor="manage-key-type">Tipo de llave</label>
-            <select className="text-input select-input" id="manage-key-type" name="key_type" defaultValue="email">
-              <option value="email">Correo electrónico</option><option value="phone">Teléfono</option><option value="document">Documento</option><option value="alias">Alias</option>
-            </select>
-            <label className="field-label" htmlFor="manage-key-value">Valor de la llave</label>
-            <input className="text-input" id="manage-key-value" name="key_value" required maxLength={255} />
+            <KeyTypeFields idPrefix="manage" typeName="key_type" valueName="key_value" typeLabel="Tipo de llave" valueLabel="Valor de la llave" />
             {action !== "lookup" && <>
               <label className="field-label" htmlFor="manage-reason">Motivo</label>
               <input className="text-input" id="manage-reason" name="reason" required maxLength={500} />
@@ -1147,12 +1183,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
             </div>
             <label className="field-label" htmlFor="payment-source">Cuenta de origen</label>
             <input className="text-input" id="payment-source" name="source_account_id" required maxLength={100} />
-            <label className="field-label" htmlFor="payment-key-type">Tipo de llave destino</label>
-            <select className="text-input select-input" id="payment-key-type" name="destination_key_type" defaultValue="email">
-              <option value="email">Correo electrónico</option><option value="phone">Teléfono</option><option value="document">Documento</option><option value="alias">Alias</option>
-            </select>
-            <label className="field-label" htmlFor="payment-key-value">Llave destino</label>
-            <input className="text-input" id="payment-key-value" name="destination_key_value" required maxLength={255} />
+            <KeyTypeFields idPrefix="payment" typeName="destination_key_type" valueName="destination_key_value" typeLabel="Tipo de llave destino" valueLabel="Llave destino" />
             <label className="field-label" htmlFor="payment-amount">Monto en centavos</label>
             <input className="text-input" id="payment-amount" name="amount_cents" type="number" min="1" step="1" inputMode="numeric" required />
             <button className="button button--primary" disabled={busy} type="submit"><ArrowUpRight size={15} />{busy ? "Procesando…" : "Ejecutar pago"}</button>

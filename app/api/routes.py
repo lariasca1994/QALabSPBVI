@@ -25,6 +25,12 @@ from app.core.security import require_roles
 from app.db.models import Account, KeyStatus, LedgerEntry, User, UserRole
 from app.db.session import get_db
 from app.domains.keys.dife import resolve_key
+from app.domains.keys.key_types import (
+    InvalidKeyError,
+    key_type_catalog,
+    normalize_key_type,
+    normalize_key_value,
+)
 from app.domains.keys.persistence import DiceSession, DifeKey, DifeSession
 from app.domains.keys.service import (
     DuplicateKeyError,
@@ -405,6 +411,12 @@ def delete_registered_key(
     )
 
 
+@router.get("/keys/types", tags=["llaves"])
+def list_key_types() -> list[dict[str, str]]:
+    """Catálogo de tipos de llave Bre-B con ejemplo y formato esperado."""
+    return key_type_catalog()
+
+
 @router.get(
     "/difes/{spbvi_id}/keys/resolve",
     response_model=PaymentKeyResponse,
@@ -420,6 +432,13 @@ def resolve_local_key(
         Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR, UserRole.USUARIO)),
     ],
 ) -> PaymentKeyResponse:
+    try:
+        key_type = normalize_key_type(key_type)
+        key_value = normalize_key_value(key_type, key_value)
+    except InvalidKeyError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
     key = resolve_key(
         dife_db,
         spbvi_id=spbvi_id,
