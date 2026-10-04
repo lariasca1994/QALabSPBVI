@@ -50,7 +50,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | **Aseguramiento de calidad** | Plataforma tipo Jira con épicas, HU, CP, tareas, bugs y fixes. Cada CP es una solicitud REST/JSON que se ejecuta con un clic y muestra método, URL, solicitud y respuesta. Incluye un programa ISO 20022 de 35 CP que pasa completo en la nube, con llaves generadas según su tipo. |
 | **Backend y datos** | Monolito modular en FastAPI con cuatro motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle y MongoDB. Ninguno se comparte, y la coordinación entre DIFE y DICE es recuperable, sin transacciones distribuidas. |
 | **Seguridad** | Contraseñas Argon2id, MFA por correo con reenvío, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
-| **Cloud y DevOps** | Siete plataformas cloud, todas en capa gratuita (ver [Plataformas](#plataformas)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
+| **Cloud y DevOps** | Siete plataformas cloud con una función cada una (ver [Plataformas](#plataformas)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
 | **Pruebas** | 131 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles. |
 
 ## Funcionalidades
@@ -126,21 +126,21 @@ Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte n
 
 ## Plataformas
 
-Cada plataforma cumple una función distinta; ninguna concentra todo el sistema y todas se usan en su capa gratuita.
+Cada plataforma cumple una función distinta; ninguna concentra todo el sistema.
 
-| Plataforma | Qué hace en QALabSPBVI | Plan |
-|---|---|---|
-| **Vercel** | Publica la interfaz React y reenvía `/api/*` a la API, de modo que el navegador ve un solo dominio y las cookies siguen siendo `SameSite=Strict`. Se publica sola en cada push. | Hobby |
-| **Azure Container Apps** | Ejecuta la API FastAPI: autenticación con MFA, llaves DIFE/DICE, pagos intra e inter-SPBVI, MOL simulado, gestión QA y el ejecutor de CP. Escala a cero sin uso. | Concesión mensual gratuita |
-| **Azure SQL Database** | DIFE: directorio federado de llaves de cada SPBVI y auditoría de su ciclo de vida. Resuelve las llaves de los pagos **intra-SPBVI**. | Oferta gratuita (pausa automática) |
-| **Azure Key Vault** | Guarda las cadenas de conexión y claves de la API, que las lee con identidad administrada. | Uso mínimo |
-| **Oracle Cloud (OCI)** | DICE en Autonomous Database: índice central de llaves con unicidad global. Resuelve las llaves de los pagos **inter-SPBVI**. | Always Free |
-| **Neon** | PostgreSQL de cuentas, ledger, pagos, usuarios y sesiones; ahí liquidan los pagos intra e inter. | Free |
-| **MongoDB Atlas** | Artefactos QA: épicas, HU, CP con su JSON versionado, ejecuciones, bugs, fixes y la lista de llaves de cada épica. | M0 |
-| **AWS** | Cola SQS con DLQ y Lambda que entrega por Brevo los avisos QA. La API solo puede enviar a la cola; la API key de Brevo vive en SSM Parameter Store. | Capa gratuita permanente |
-| **Render** | Gateway ISO 20022: servicio aparte que genera los pacs.008 / pacs.002 de laboratorio. Se suspende sin uso; mientras despierta, la API los genera en proceso. | Free |
-| **Brevo** | Envía el código MFA, la bienvenida y los avisos QA. | 300 correos al día |
-| **GitHub** | Código, CI/CD con Actions (OIDC hacia Azure y AWS, sin claves guardadas) e imágenes públicas en Container Registry. | Gratuito (repo público) |
+| Plataforma | Qué hace en QALabSPBVI |
+|---|---|
+| **Vercel** | Publica la interfaz React y reenvía `/api/*` a la API, de modo que el navegador ve un solo dominio y las cookies siguen siendo `SameSite=Strict`. Se publica sola en cada push. |
+| **Azure Container Apps** | Ejecuta la API FastAPI: autenticación con MFA, llaves DIFE/DICE, pagos intra e inter-SPBVI, MOL simulado, gestión QA y el ejecutor de CP. Escala a cero sin uso. |
+| **Azure SQL Database** | DIFE: directorio federado de llaves de cada SPBVI y auditoría de su ciclo de vida. Resuelve las llaves de los pagos **intra-SPBVI**. |
+| **Azure Key Vault** | Guarda las cadenas de conexión y claves de la API, que las lee con identidad administrada. |
+| **Oracle Cloud (OCI)** | DICE en Autonomous Database: índice central de llaves con unicidad global. Resuelve las llaves de los pagos **inter-SPBVI**. |
+| **Neon** | PostgreSQL de cuentas, ledger, pagos, usuarios y sesiones; ahí liquidan los pagos intra e inter. |
+| **MongoDB Atlas** | Artefactos QA: épicas, HU, CP con su JSON versionado, ejecuciones, bugs, fixes y la lista de llaves de cada épica. |
+| **AWS** | Cola SQS con DLQ y Lambda que entrega por Brevo los avisos QA. La API solo puede enviar a la cola; la API key de Brevo vive en SSM Parameter Store. |
+| **Render** | Gateway ISO 20022: servicio aparte que genera los pacs.008 / pacs.002 de laboratorio. Se suspende sin uso; mientras despierta, la API los genera en proceso. |
+| **Brevo** | Envía el código MFA, la bienvenida y los avisos QA. |
+| **GitHub** | Código, CI/CD con Actions (OIDC hacia Azure y AWS, sin claves guardadas) e imágenes públicas en Container Registry. |
 
 ## Estructura
 
@@ -385,7 +385,7 @@ Si Brevo falla, la acción queda guardada y el aviso se reintenta con `POST /qa/
 
 ## Despliegue
 
-El laboratorio reparte sus componentes entre varias nubes, cada uno con su base dedicada, y **todo corre en capas gratuitas** (ver [Plataformas](#plataformas)). Las regiones son:
+El laboratorio reparte sus componentes entre varias nubes, cada uno con su base dedicada (ver [Plataformas](#plataformas)). Las regiones son:
 
 - **eastus2:** API (Azure Container Apps).
 - **australiaeast:** DIFE (Azure SQL).
@@ -400,7 +400,7 @@ El laboratorio reparte sus componentes entre varias nubes, cada uno con su base 
 - `/health` no toca ninguna base, así que los monitores no las despiertan.
 - Al abrir la aplicación con sesión válida, `/auth/me` despierta DIFE y DICE en segundo plano. Mientras Azure SQL se reanuda (cerca de un minuto), la conexión se reintenta, y si aún no está lista la API responde `503` con "La base de datos se está activando".
 
-La oferta gratuita de Azure SQL solo se pudo crear en australiaeast: eastus2 y eastus no admiten servidores nuevos, y en las demás regiones de América la creación falla. Por eso DIFE responde con algo más de latencia que el resto.
+DIFE está en australiaeast, así que responde con algo más de latencia que el resto.
 
 El despliegue es continuo:
 
@@ -431,7 +431,7 @@ Pendientes:
 - Mock server de latencia y fallos de red.
 - Validación con JSON Schema.
 - Pantalla de bugs y fixes.
-- Avisos por correo: el plan gratuito de Brevo (300 por día) se agotó en las pruebas. Los avisos rechazados quedan en la DLQ de SQS y se pueden reenviar cuando se renueve el cupo.
+- Avisos por correo: los rechazados por Brevo quedan en la DLQ de SQS y se pueden reenviar.
 - Logs en Neon y entorno de producción.
 
 ## Autor
