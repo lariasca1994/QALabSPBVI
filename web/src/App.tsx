@@ -525,7 +525,7 @@ function App() {
         <div className="sidebar-brand"><Brand /></div>
         <div className="workspace-select">
           <div className="workspace-avatar">QA</div>
-          <div className="workspace-copy"><strong>Laboratorio local</strong><small>QALabSPBVI</small></div>
+          <div className="workspace-copy"><strong>Laboratorio de pagos</strong><small>QALabSPBVI</small></div>
           <ChevronDown size={15} />
         </div>
         <span className="nav-section-label">ESPACIO DE TRABAJO</span>
@@ -547,7 +547,7 @@ function App() {
         <div className="sidebar-bottom">
           <div className="sidebar-status">
             <span className={`status-dot ${apiHealthy ? "status-dot--ok" : apiHealthy === false ? "status-dot--error" : ""}`} />
-            <span>API local</span>
+            <span>API</span>
             <small>{apiHealthy ? "Operativa" : apiHealthy === false ? "Sin conexión" : "Revisando"}</small>
           </div>
           <div className="sidebar-user">
@@ -562,7 +562,7 @@ function App() {
         <header className="topbar">
           <div className="breadcrumb"><span>QALabSPBVI</span><span>/</span><strong>{visibleNav.find((item) => item.id === view)?.label}</strong></div>
           <div className="topbar-actions">
-            <div className="local-badge"><span /> LOCAL</div>
+            <div className="local-badge"><span /> {environmentLabel().replace(/^ENTORNO (DE )?/, "")}</div>
             <button className="icon-button" type="button" aria-label="Buscar" title="Buscar" onClick={() => setView("quality")}><Search size={18} /></button>
             <button className="icon-button" type="button" aria-label="Notificaciones" title="Notificaciones"><Bell size={18} /></button>
             <ThemeButton theme={theme} onToggle={() => setTheme((current) => current === "dark" ? "light" : "dark")} />
@@ -605,7 +605,7 @@ function App() {
           )}
         </main>
         <footer className="app-footer">
-          <span>QALabSPBVI <b>·</b> Laboratorio local de aseguramiento</span>
+          <span>QALabSPBVI <b>·</b> Laboratorio de aseguramiento de calidad</span>
           <span><ShieldCheck size={14} /> Entorno aislado · No procesa pagos reales</span>
         </footer>
       </div>
@@ -780,7 +780,7 @@ function ActionResultCard({ result }: { result: ActionResult }) {
   return (
     <section className="surface-card execution-card execution-card--passed" aria-live="polite">
       <div className="card-heading">
-        <div><h2>Respuesta del backend</h2><p>Resultado de la última operación local.</p></div>
+        <div><h2>Respuesta del backend</h2><p>Resultado de la última operación.</p></div>
         <span className="result-pill result-pill--passed">HTTP {result.status}</span>
       </div>
       <div className="request-summary">
@@ -1064,7 +1064,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
         title="Pagos de laboratorio"
         description="Crea cuentas de prueba y ejecuta pagos intra o inter-SPBVI con saldos enteros en centavos."
       />
-      <div className="role-policy"><ShieldCheck size={17} /><span><strong>Entorno simulado: no mueve dinero real.</strong> Las operaciones son transaccionales e idempotentes. Inter-SPBVI usa DICE y el MOL local simulado.</span></div>
+      <div className="role-policy"><ShieldCheck size={17} /><span><strong>Entorno simulado: no mueve dinero real.</strong> Las operaciones son transaccionales e idempotentes. Inter-SPBVI usa DICE y el MOL simulado.</span></div>
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
       {error && <div className="alert alert--error" role="alert">{error}</div>}
       <div className="operation-grid">
