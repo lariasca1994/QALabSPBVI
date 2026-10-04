@@ -118,7 +118,7 @@ def test_iso20022_breb_program_imports_and_every_case_passes_twice(
 
     imported = client.post(f"/qa/epics/{epic_key}/import", json=program)
     assert imported.status_code == 201, imported.text
-    assert imported.json()["created"] == {"stories": 19, "test_cases": 30, "tasks": 22}
+    assert imported.json()["created"] == {"stories": 19, "test_cases": 35, "tasks": 22}
 
     cases = sorted(
         database.work_items.find({"epic_key": epic_key, "kind": "test_case"}),
@@ -136,3 +136,85 @@ def test_iso20022_breb_program_imports_and_every_case_passes_twice(
                     f"{json.dumps(execution['result'].get('body'), ensure_ascii=False)[:300]}"
                 )
         assert failures == [], f"Ronda {round_number}:\n" + "\n".join(failures)
+
+    # Cada ronda generó llaves nuevas y válidas de cada tipo Bre-B, sin repetir valores.
+    from app.domains.keys.key_types import normalize_key_value
+
+    pool = client.get(f"/qa/epics/{epic_key}/keys").json()
+    assert len(pool) == 14
+    assert len({(key["key_type"], key["key_value"]) for key in pool}) == 14
+    assert {key["key_type"] for key in pool if key["spbvi_id"] == "spbvi-a"} == {
+        "phone", "email", "document", "alias", "merchant_code"
+    }
+    for key in pool:
+        assert normalize_key_value(key["key_type"], key["key_value"]) == key["key_value"]
+        assert key["status"] == "confirmed"
+    assert len(client.get(f"/qa/epics/{epic_key}/keys", params={"key_type": "phone", "spbvi_id": "spbvi-b"}).json()) == 2
+
+    # Quien ejecuta puede elegir una llave de la lista según el tipo del CP.
+    tc001 = next(case for case in cases if case["external_key"] == "TC-001")
+    oldest_phone = [key for key in pool if key["key_type"] == "phone" and key["spbvi_id"] == "spbvi-a"][-1]
+    chosen = client.post(
+        f"/qa/cases/{tc001['key']}/execute",
+        json={"selected_keys": {"phone:spbvi-a": oldest_phone["key_value"]}},
+    )
+    assert chosen.status_code == 201 and chosen.json()["passed"], chosen.text
+    assert chosen.json()["request"]["body"]["destination_key_value"] == oldest_phone["key_value"]
+    assert chosen.json()["placeholders"]["{{key:phone:spbvi-a}}"] == oldest_phone["key_value"]
+
+    outside = client.post(
+        f"/qa/cases/{tc001['key']}/execute",
+        json={"selected_keys": {"phone:spbvi-a": "3009999999"}},
+    )
+    assert outside.status_code == 422
+    assert "lista de llaves" in outside.json()["detail"]
+
+
+TEMPLATES = PROGRAM.parent / "plantillas"
+
+
+def test_templates_match_the_api_schemas() -> None:
+    from app.api.schemas import (
+        BugCreateRequest,
+        EpicCreateRequest,
+        FixCreateRequest,
+        ProgramImportRequest,
+        StoryCreateRequest,
+        TaskCreateRequest,
+        TestCaseCreateRequest,
+    )
+
+    schemas = {
+        "epica.json": EpicCreateRequest,
+        "hu.json": StoryCreateRequest,
+        "cp.json": TestCaseCreateRequest,
+        "tarea.json": TaskCreateRequest,
+        "bug.json": BugCreateRequest,
+        "fix.json": FixCreateRequest,
+        "programa.json": ProgramImportRequest,
+    }
+    assert {path.name for path in TEMPLATES.glob("*.json")} == set(schemas)
+    for name, schema in schemas.items():
+        schema.model_validate(json.loads((TEMPLATES / name).read_text(encoding="utf-8")))
+
+
+def test_program_template_imports_and_its_cases_pass(
+    platform: tuple[TestClient, mongomock.database.Database],
+) -> None:
+    client, database = platform
+    program = json.loads((TEMPLATES / "programa.json").read_text(encoding="utf-8"))
+    epic = client.post(
+        "/qa/epics",
+        headers={"x-test-role": "admin"},
+        json={"title": program["epic"]["title"], "description": program["epic"]["description"], "member_ids": [2]},
+    ).json()
+    imported = client.post(f"/qa/epics/{epic['key']}/import", json=program)
+    assert imported.status_code == 201, imported.text
+
+    cases = sorted(
+        database.work_items.find({"epic_key": epic["key"], "kind": "test_case"}),
+        key=lambda item: case_number(item["key"]),
+    )
+    results = {case["external_key"]: client.post(f"/qa/cases/{case['key']}/execute").json() for case in cases}
+    assert all(result["passed"] for result in results.values()), results
+    assert results["PLT-TC-004"]["placeholders"]["{{key:phone:spbvi-a}}"] == results["PLT-TC-003"]["placeholders"]["{{key:new:phone}}"]

@@ -1,0 +1,139 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "Nombre del programa de pruebas",
+  "epic": {
+    "ref": "EPIC-REF",
+    "title": "Título de la épica que agrupa este programa",
+    "description": "Objetivo, alcance y fecha objetivo. Lo usa el admin para crear la épica (o seed-program la crea con este bloque)."
+  },
+  "stories": [
+    {
+      "ref": "PLT-HU-001",
+      "title": "Preparar cuenta y llave celular",
+      "description": "Como analista de pruebas, quiero una cuenta con saldo y una llave celular generada por el sistema, para usarlas en los pagos.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "La cuenta de origen existe (201 la primera vez, 409 después).",
+        "La llave celular se genera con un valor válido y queda en la lista de llaves de la épica."
+      ],
+      "labels": ["datos-prueba"],
+      "story_points": 1,
+      "test_cases": [
+        {
+          "ref": "PLT-TC-001",
+          "title": "Crear cuenta de origen",
+          "description": "Crea la cuenta plt-origen en spbvi-a con saldo inicial.",
+          "priority": "highest",
+          "preconditions": ["Ejecutar con rol administrador."],
+          "steps": [{"action": "Enviar POST /accounts.", "expected": "201 o 409 si ya existía."}],
+          "expected_result": "La cuenta existe.",
+          "labels": ["datos-prueba"],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {"account_id": "plt-origen", "spbvi_id": "spbvi-a", "balance_cents": 10000000},
+          "expected_status_codes": [201, 409],
+          "expected_response": null
+        },
+        {
+          "ref": "PLT-TC-002",
+          "title": "Crear cuenta destino",
+          "description": "Crea la cuenta plt-destino en spbvi-a.",
+          "priority": "highest",
+          "preconditions": ["Ejecutar con rol administrador."],
+          "steps": [{"action": "Enviar POST /accounts.", "expected": "201 o 409 si ya existía."}],
+          "expected_result": "La cuenta existe.",
+          "labels": ["datos-prueba"],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {"account_id": "plt-destino", "spbvi_id": "spbvi-a", "balance_cents": 0},
+          "expected_status_codes": [201, 409],
+          "expected_response": null
+        },
+        {
+          "ref": "PLT-TC-003",
+          "title": "Registrar llave celular generada",
+          "description": "El sistema genera una llave celular válida según el catálogo Bre-B y la registra en spbvi-a.",
+          "priority": "highest",
+          "preconditions": ["Ejecutar con rol administrador.", "PLT-TC-002 ejecutado."],
+          "steps": [{"action": "Enviar POST /difes/spbvi-a/keys con {{key:new:phone}}.", "expected": "201 con la llave confirmada."}],
+          "expected_result": "La llave queda confirmada y en la lista de llaves de la épica.",
+          "labels": ["llaves", "phone"],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {"key_type": "phone", "key_value": "{{key:new:phone}}", "deposit_product_id": "plt-destino"},
+          "expected_status_codes": [201],
+          "expected_response": {"key_type": "phone", "key_value": "{{key:new:phone}}", "status": "confirmed"}
+        }
+      ]
+    },
+    {
+      "ref": "PLT-HU-002",
+      "title": "Pagar a una llave celular",
+      "description": "Como pagador, quiero enviar un pago a una llave celular, para que el SPBVI lo liquide de inmediato.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "El pago se completa con 201 y un identificador de operación nuevo.",
+        "La consulta de estado devuelve completed / ACCP."
+      ],
+      "labels": ["pagos"],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "PLT-TC-004",
+          "title": "Pagar a la llave celular de la lista",
+          "description": "Usa la llave celular de spbvi-a elegida al ejecutar (por defecto, la más reciente).",
+          "priority": "high",
+          "preconditions": ["PLT-HU-001 ejecutada."],
+          "steps": [{"action": "Enviar POST /payments.", "expected": "201 completed."}],
+          "expected_result": "Pago completado.",
+          "labels": ["pagos", "phone"],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:plt-pago:new}}",
+            "source_account_id": "plt-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 25000
+          },
+          "expected_status_codes": [201],
+          "expected_response": {"operation_id": "{{op:plt-pago}}", "status": "completed"}
+        },
+        {
+          "ref": "PLT-TC-005",
+          "title": "Consultar el estado del pago",
+          "description": "Consulta el último pago generado por PLT-TC-004.",
+          "priority": "medium",
+          "preconditions": ["PLT-TC-004 ejecutado."],
+          "steps": [{"action": "Enviar GET /payments/{{op:plt-pago}}.", "expected": "200 con iso_status ACCP."}],
+          "expected_result": "El pago está completed.",
+          "labels": ["pagos", "estado"],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:plt-pago}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [200],
+          "expected_response": {"operation_id": "{{op:plt-pago}}", "status": "completed", "iso_status": "ACCP"}
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "PLT-TASK-001",
+      "title": "Ejecutar la preparación y revisar la lista de llaves",
+      "description": "Ejecutar PLT-HU-001 y confirmar que la llave celular aparece en Llaves de la épica.",
+      "labels": ["datos-prueba"],
+      "story_points": 1
+    }
+  ]
+}

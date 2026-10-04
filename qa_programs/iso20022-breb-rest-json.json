@@ -11,12 +11,13 @@
     {
       "ref": "LAB-HU-000",
       "title": "Preparar datos de prueba del laboratorio",
-      "description": "Como analista de pruebas, quiero crear las cuentas y llaves fijas que usan los demás casos, para que el programa sea repetible. HU agregada por el laboratorio; cada CP acepta 201 (creado) o 409 (ya existía).",
+      "description": "Como analista de pruebas, quiero crear las cuentas y las llaves que usan los demás casos, para que el programa sea repetible. HU agregada por el laboratorio. Las cuentas son fijas (201 la primera vez, 409 si ya existían). Las llaves las genera el sistema en cada ejecución con un valor válido para su tipo Bre-B (celular, correo, documento, alfanumérica y código de comercio) y quedan en la lista de llaves de la épica, de donde las toman los CP de transacciones según el tipo que indican.",
       "priority": "highest",
       "acceptance_criteria": [
         "Existen las cuentas qa-breb-* en spbvi-a y spbvi-b.",
-        "Las llaves @qabrebdestino (spbvi-a) y @qabrebremoto (spbvi-b) están confirmadas en DIFE y DICE.",
-        "Reejecutar la preparación no duplica datos."
+        "Hay al menos una llave confirmada de cada tipo Bre-B en spbvi-a y llaves alfanumérica y celular en spbvi-b.",
+        "Cada llave generada cumple el formato de su tipo y queda en la lista de llaves de la épica.",
+        "Reejecutar la preparación no duplica cuentas y agrega llaves nuevas sin repetir valores."
       ],
       "labels": [
         "datos-prueba",
@@ -231,8 +232,8 @@
         },
         {
           "ref": "LAB-TC-006",
-          "title": "Registrar llave @qabrebdestino en spbvi-a",
-          "description": "Registra la llave alfanumérica del destino intra-SPBVI (DIFE → DICE).",
+          "title": "Registrar llave celular generada en spbvi-a",
+          "description": "El sistema genera una llave de tipo phone válida según el catálogo Bre-B y la registra en el DIFE de spbvi-a (DIFE → DICE) apuntando a qa-breb-a-destino.",
           "priority": "highest",
           "preconditions": [
             "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
@@ -243,7 +244,7 @@
               "expected": "La API responde con JSON."
             },
             {
-              "action": "Validar el código HTTP (201, 409).",
+              "action": "Validar el código HTTP (201).",
               "expected": "El código coincide con lo esperado."
             },
             {
@@ -251,10 +252,152 @@
               "expected": "Los campos esperados coinciden."
             }
           ],
-          "expected_result": "La llave queda confirmada (409 si ya estaba registrada).",
+          "expected_result": "La llave queda confirmada en DIFE y DICE y se agrega a la lista de llaves de la épica.",
           "labels": [
             "datos-prueba",
-            "llaves"
+            "llaves",
+            "phone"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:new:phone}}",
+            "deposit_product_id": "qa-breb-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "phone",
+            "key_value": "{{key:new:phone}}",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "LAB-TC-024",
+          "title": "Registrar llave correo electrónico generada en spbvi-a",
+          "description": "El sistema genera una llave de tipo email válida según el catálogo Bre-B y la registra en el DIFE de spbvi-a (DIFE → DICE) apuntando a qa-breb-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y se agrega a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves",
+            "email"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "email",
+            "key_value": "{{key:new:email}}",
+            "deposit_product_id": "qa-breb-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "email",
+            "key_value": "{{key:new:email}}",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "LAB-TC-025",
+          "title": "Registrar llave documento de identidad generada en spbvi-a",
+          "description": "El sistema genera una llave de tipo document válida según el catálogo Bre-B y la registra en el DIFE de spbvi-a (DIFE → DICE) apuntando a qa-breb-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y se agrega a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves",
+            "document"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:new:document}}",
+            "deposit_product_id": "qa-breb-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "document",
+            "key_value": "{{key:new:document}}",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "LAB-TC-026",
+          "title": "Registrar llave alfanumérica (@) generada en spbvi-a",
+          "description": "El sistema genera una llave de tipo alias válida según el catálogo Bre-B y la registra en el DIFE de spbvi-a (DIFE → DICE) apuntando a qa-breb-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y se agrega a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves",
+            "alias"
           ],
           "request_method": "POST",
           "request_path": "/difes/spbvi-a/keys",
@@ -262,19 +405,70 @@
           "request_headers": {},
           "request_body": {
             "key_type": "alias",
-            "key_value": "@qabrebdestino",
+            "key_value": "{{key:new:alias}}",
             "deposit_product_id": "qa-breb-a-destino"
           },
           "expected_status_codes": [
-            201,
-            409
+            201
           ],
-          "expected_response": null
+          "expected_response": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "LAB-TC-027",
+          "title": "Registrar llave código de comercio generada en spbvi-a",
+          "description": "El sistema genera una llave de tipo merchant_code válida según el catálogo Bre-B y la registra en el DIFE de spbvi-a (DIFE → DICE) apuntando a qa-breb-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y se agrega a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves",
+            "merchant_code"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:new:merchant_code}}",
+            "deposit_product_id": "qa-breb-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:new:merchant_code}}",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
         },
         {
           "ref": "LAB-TC-007",
-          "title": "Registrar llave @qabrebremoto en spbvi-b",
-          "description": "Registra la llave del destino inter-SPBVI.",
+          "title": "Registrar llave alfanumérica (@) generada en spbvi-b",
+          "description": "El sistema genera una llave de tipo alias válida según el catálogo Bre-B y la registra en el DIFE de spbvi-b (DIFE → DICE) apuntando a qa-breb-b-destino.",
           "priority": "highest",
           "preconditions": [
             "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
@@ -285,7 +479,7 @@
               "expected": "La API responde con JSON."
             },
             {
-              "action": "Validar el código HTTP (201, 409).",
+              "action": "Validar el código HTTP (201).",
               "expected": "El código coincide con lo esperado."
             },
             {
@@ -293,10 +487,11 @@
               "expected": "Los campos esperados coinciden."
             }
           ],
-          "expected_result": "La llave queda confirmada (409 si ya estaba registrada).",
+          "expected_result": "La llave queda confirmada en DIFE y DICE y se agrega a la lista de llaves de la épica.",
           "labels": [
             "datos-prueba",
-            "llaves"
+            "llaves",
+            "alias"
           ],
           "request_method": "POST",
           "request_path": "/difes/spbvi-b/keys",
@@ -304,14 +499,65 @@
           "request_headers": {},
           "request_body": {
             "key_type": "alias",
-            "key_value": "@qabrebremoto",
+            "key_value": "{{key:new:alias}}",
             "deposit_product_id": "qa-breb-b-destino"
           },
           "expected_status_codes": [
-            201,
-            409
+            201
           ],
-          "expected_response": null
+          "expected_response": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "spbvi_id": "spbvi-b",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "LAB-TC-028",
+          "title": "Registrar llave celular generada en spbvi-b",
+          "description": "El sistema genera una llave de tipo phone válida según el catálogo Bre-B y la registra en el DIFE de spbvi-b (DIFE → DICE) apuntando a qa-breb-b-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y se agrega a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves",
+            "phone"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:new:phone}}",
+            "deposit_product_id": "qa-breb-b-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "phone",
+            "key_value": "{{key:new:phone}}",
+            "spbvi_id": "spbvi-b",
+            "status": "confirmed"
+          }
         },
         {
           "ref": "LAB-TC-008",
@@ -319,7 +565,7 @@
           "description": "Consulta la llave en el directorio federado del SPBVI de origen.",
           "priority": "high",
           "preconditions": [
-            "LAB-TC-006 ejecutado."
+            "LAB-TC-006 ejecutado (llave celular en spbvi-a)."
           ],
           "steps": [
             {
@@ -343,8 +589,8 @@
           "request_method": "GET",
           "request_path": "/difes/spbvi-a/keys/resolve",
           "request_query": {
-            "key_type": "alias",
-            "key_value": "@qabrebdestino"
+            "key_type": "phone",
+            "key_value": "{{key:phone:spbvi-a}}"
           },
           "request_headers": {},
           "request_body": null,
@@ -352,7 +598,7 @@
             200
           ],
           "expected_response": {
-            "key_value": "@qabrebdestino",
+            "key_value": "{{key:phone:spbvi-a}}",
             "spbvi_id": "spbvi-a",
             "deposit_product_id": "qa-breb-a-destino"
           }
@@ -384,7 +630,7 @@
         {
           "ref": "TC-001",
           "title": "Validar envío de pago inmediato con JSON válido",
-          "description": "Envía un pago intra-SPBVI válido por llave alfanumérica.",
+          "description": "Envía un pago intra-SPBVI válido a una llave celular de la lista de la épica.",
           "priority": "high",
           "preconditions": [
             "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
@@ -395,7 +641,7 @@
               "expected": "La API responde con JSON."
             },
             {
-              "action": "Validar el código HTTP (200, 201).",
+              "action": "Validar el código HTTP (201).",
               "expected": "El código coincide con lo esperado."
             },
             {
@@ -403,7 +649,7 @@
               "expected": "Los campos esperados coinciden."
             }
           ],
-          "expected_result": "Pago aceptado (201 la primera vez, 200 en reenvíos idempotentes) en ≤ 20 segundos.",
+          "expected_result": "Pago aceptado con un identificador de operación nuevo en ≤ 20 segundos.",
           "labels": [
             "pain001",
             "api-rest",
@@ -414,17 +660,17 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-tc001",
+            "operation_id": "{{op:tc001:new}}",
             "source_account_id": "qa-breb-a-origen",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebdestino",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
             "amount_cents": 125000
           },
           "expected_status_codes": [
-            200,
             201
           ],
           "expected_response": {
+            "operation_id": "{{op:tc001}}",
             "status": "completed",
             "payment_type": "intra_spbvi",
             "amount_cents": 125000
@@ -464,10 +710,10 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-tc002",
+            "operation_id": "{{op:tc002:new}}",
             "source_account_id": "qa-breb-a-origen",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebdestino",
+            "destination_key_type": "email",
+            "destination_key_value": "{{key:email:spbvi-a}}",
             "amount_cents": 1155200001
           },
           "expected_status_codes": [
@@ -508,7 +754,7 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab009",
+            "operation_id": "{{op:lab009:new}}",
             "source_account_id": "qa-breb-a-origen",
             "amount_cents": 1000
           },
@@ -520,10 +766,11 @@
         {
           "ref": "LAB-TC-010",
           "title": "Validar idempotencia del pago inmediato",
-          "description": "Reenvía la misma orden de TC-001.",
+          "description": "Reenvía la misma orden de TC-001 (mismo identificador de operación y misma llave).",
           "priority": "high",
           "preconditions": [
-            "TC-001 ejecutado al menos una vez."
+            "TC-001 ejecutado justo antes.",
+            "Usar la misma llave celular que TC-001 (por defecto, la más reciente de la lista)."
           ],
           "steps": [
             {
@@ -549,17 +796,17 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-tc001",
+            "operation_id": "{{op:tc001}}",
             "source_account_id": "qa-breb-a-origen",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebdestino",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
             "amount_cents": 125000
           },
           "expected_status_codes": [
             200
           ],
           "expected_response": {
-            "operation_id": "qa-breb-tc001",
+            "operation_id": "{{op:tc001}}",
             "replayed": true
           }
         }
@@ -601,7 +848,7 @@
               "expected": "La API responde con JSON."
             },
             {
-              "action": "Validar el código HTTP (200, 201).",
+              "action": "Validar el código HTTP (201).",
               "expected": "El código coincide con lo esperado."
             },
             {
@@ -620,17 +867,17 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-tc003",
+            "operation_id": "{{op:tc003:new}}",
             "source_account_id": "qa-breb-a-origen",
             "destination_key_type": "alias",
-            "destination_key_value": "@qabrebremoto",
+            "destination_key_value": "{{key:alias:spbvi-b}}",
             "amount_cents": 75000
           },
           "expected_status_codes": [
-            200,
             201
           ],
           "expected_response": {
+            "operation_id": "{{op:tc003}}",
             "status": "completed",
             "payment_type": "inter_spbvi",
             "destination_account_id": "qa-breb-b-destino"
@@ -666,10 +913,10 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab011",
+            "operation_id": "{{op:lab011:new}}",
             "source_account_id": "qa-breb-no-existe",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebremoto",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-b}}",
             "amount_cents": 1000
           },
           "expected_status_codes": [
@@ -711,7 +958,7 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab012",
+            "operation_id": "{{op:lab012:new}}",
             "source_account_id": "qa-breb-a-origen",
             "destination_key_type": "alias",
             "destination_key_value": "@qabrebnoexiste",
@@ -756,10 +1003,10 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab013",
+            "operation_id": "{{op:lab013:new}}",
             "source_account_id": "qa-breb-a-origen",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebdestino",
+            "destination_key_type": "document",
+            "destination_key_value": "{{key:document:spbvi-a}}",
             "amount_cents": 1000
           },
           "expected_status_codes": [
@@ -838,10 +1085,10 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab014",
+            "operation_id": "{{op:lab014:new}}",
             "source_account_id": "qa-breb-a-origen",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebdestino",
+            "destination_key_type": "merchant_code",
+            "destination_key_value": "{{key:merchant_code:spbvi-a}}",
             "amount_cents": "mil"
           },
           "expected_status_codes": [
@@ -881,10 +1128,10 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab015",
+            "operation_id": "{{op:lab015:new}}",
             "source_account_id": "qa-breb-a-sinfondos",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebdestino",
+            "destination_key_type": "email",
+            "destination_key_value": "{{key:email:spbvi-a}}",
             "amount_cents": 5000
           },
           "expected_status_codes": [
@@ -927,10 +1174,10 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab016",
+            "operation_id": "{{op:lab016:new}}",
             "source_account_id": "qa-breb-a-sinfondos",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebremoto",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-b}}",
             "amount_cents": 5000
           },
           "expected_status_codes": [
@@ -968,10 +1215,10 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab017",
+            "operation_id": "{{op:lab017:new}}",
             "source_account_id": "qa-breb-no-existe",
-            "destination_key_type": "alias",
-            "destination_key_value": "@qabrebdestino",
+            "destination_key_type": "document",
+            "destination_key_value": "{{key:document:spbvi-a}}",
             "amount_cents": 1000
           },
           "expected_status_codes": [
@@ -1151,7 +1398,7 @@
           ],
           "steps": [
             {
-              "action": "Enviar GET /payments/qa-breb-tc001 con el JSON del caso.",
+              "action": "Enviar GET /payments/{{op:tc001}} con el JSON del caso.",
               "expected": "La API responde con JSON."
             },
             {
@@ -1170,7 +1417,7 @@
             "json"
           ],
           "request_method": "GET",
-          "request_path": "/payments/qa-breb-tc001",
+          "request_path": "/payments/{{op:tc001}}",
           "request_query": {},
           "request_headers": {},
           "request_body": null,
@@ -1178,7 +1425,7 @@
             200
           ],
           "expected_response": {
-            "operation_id": "qa-breb-tc001",
+            "operation_id": "{{op:tc001}}",
             "status": "completed",
             "iso_status": "ACCP"
           }
@@ -1480,7 +1727,7 @@
           ],
           "steps": [
             {
-              "action": "Enviar GET /payments/qa-breb-tc003 con el JSON del caso.",
+              "action": "Enviar GET /payments/{{op:tc003}} con el JSON del caso.",
               "expected": "La API responde con JSON."
             },
             {
@@ -1498,7 +1745,7 @@
             "liquidacion"
           ],
           "request_method": "GET",
-          "request_path": "/payments/qa-breb-tc003",
+          "request_path": "/payments/{{op:tc003}}",
           "request_query": {},
           "request_headers": {},
           "request_body": null,
@@ -1542,17 +1789,17 @@
           "request_query": {},
           "request_headers": {},
           "request_body": {
-            "operation_id": "qa-breb-lab023",
+            "operation_id": "{{op:lab023:new}}",
             "source_account_id": "qa-breb-a-origen",
             "destination_key_type": "alias",
-            "destination_key_value": "@qabrebremoto",
+            "destination_key_value": "{{key:alias:spbvi-b}}",
             "amount_cents": 1155200001
           },
           "expected_status_codes": [
             422
           ],
           "expected_response": {
-            "operation_id": "qa-breb-lab023",
+            "operation_id": "{{op:lab023}}",
             "status": "rejected"
           }
         }

@@ -1,0 +1,7 @@
+{
+  "case_key": "CP-00009",
+  "execution_key": "RUN-00001",
+  "title": "El pago a llave celular responde 500",
+  "description": "Pasos: ejecutar CP-00009 con la llave automática. Resultado actual: 500 Internal Server Error. Resultado esperado: 201 completed. Evidencia: ejecución RUN-00001.",
+  "severity": "major"
+}

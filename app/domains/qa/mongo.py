@@ -38,6 +38,12 @@ def ensure_qa_indexes(database: Database) -> None:
     database.issues.create_index("key", unique=True)
     database.issues.create_index("epic_key")
     database.executions.create_index("key", unique=True)
+    # Lista de llaves de cada épica y contexto de identificadores generados por los CP.
+    database.qa_keys.create_index(
+        [("epic_key", 1), ("key_type", 1), ("key_value", 1), ("spbvi_id", 1)], unique=True
+    )
+    database.qa_keys.create_index([("epic_key", 1), ("created_at_epoch", -1)])
+    database.qa_context.create_index([("epic_key", 1), ("kind", 1), ("name", 1)], unique=True)
     database.executions.create_index(
         [("case_key", 1), ("created_at_epoch", -1)]
     )

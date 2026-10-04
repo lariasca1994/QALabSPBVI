@@ -1,0 +1,5 @@
+{
+  "title": "Nombre de la épica (máximo 200 caracteres)",
+  "description": "Objetivo, alcance y fecha objetivo de la épica. Ejemplo: validar los pagos inter-SPBVI con llaves de todos los tipos Bre-B antes del 2026-12-15.",
+  "member_ids": [2, 3]
+}

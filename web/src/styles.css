@@ -459,3 +459,8 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 }
 
 .file-input { min-height: 0; padding: 9px 12px; cursor: pointer; }
+.keys-card { margin-top: 15px; }
+.keys-card code { color: var(--text); font-size: 9px; }
+.placeholder-list { display: grid; gap: 5px; margin-top: 12px; padding: 10px 12px; border-radius: 6px; background: var(--surface-2); font-size: 9px; }
+.placeholder-list div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.placeholder-list code { color: var(--muted); }.placeholder-list strong { color: var(--text); overflow-wrap: anywhere; }

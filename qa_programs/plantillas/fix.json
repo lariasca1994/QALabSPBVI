@@ -1,0 +1,4 @@
+{
+  "title": "Corregir la dependencia del driver ODBC en la imagen",
+  "description": "Causa: autoremove borraba libgssapi-krb5-2. Cambio: se instala explícitamente y el build verifica las dependencias del driver. Retest: volver a ejecutar el CP del bug."
+}

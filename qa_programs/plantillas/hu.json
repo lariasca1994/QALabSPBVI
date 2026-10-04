@@ -1,0 +1,10 @@
+{
+  "title": "Validar pagos intra-SPBVI por llave celular",
+  "description": "Como analista de pruebas, quiero enviar pagos a llaves celulares registradas, para comprobar que el SPBVI resuelve la llave en su DIFE y liquida sin pasar por el DICE.",
+  "priority": "high",
+  "acceptance_criteria": [
+    "El pago a una llave celular confirmada se completa con 201.",
+    "El pago a una llave inexistente se rechaza sin tocar saldos.",
+    "Reenviar el mismo identificador de operación no duplica el abono."
+  ]
+}

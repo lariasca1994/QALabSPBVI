@@ -111,12 +111,18 @@ def create_admin_account() -> int:
     return 0
 
 
-def seed_program(program_path: str, admin_email: str, manager_email: str) -> int:
+def seed_program(
+    program_path: str,
+    admin_email: str,
+    manager_email: str,
+    update_existing: bool = False,
+) -> int:
     """Crea la épica del programa (si no existe) y carga sus HU, CP y tareas.
 
     Usa las mismas reglas de la plataforma: la épica la crea un admin y la importación
     la hace un administrador integrante. La épica asocia a todos los usuarios activos.
     Es idempotente: reejecutarlo reutiliza la épica por título y omite lo ya cargado.
+    Con --actualizar, los CP existentes cuyo JSON cambió pasan a una versión nueva.
     """
     try:
         raw_program = json.loads(Path(program_path).read_text(encoding="utf-8"))
@@ -165,6 +171,7 @@ def seed_program(program_path: str, admin_email: str, manager_email: str) -> int
                 actor=manager,
                 mailer=mailer,
                 program=program,
+                update_existing=update_existing,
             )
         except QaForbiddenError:
             print("El administrador no es integrante de la épica; asócialo y reintenta.")
@@ -177,7 +184,8 @@ def seed_program(program_path: str, admin_email: str, manager_email: str) -> int
     print(
         f"Creados: {created['stories']} HU, {created['test_cases']} CP, {created['tasks']} tareas. "
         f"Omitidos por existir: {skipped['stories']} HU, {skipped['test_cases']} CP, "
-        f"{skipped['tasks']} tareas. Aviso por correo: {summary['notification_status']}."
+        f"{skipped['tasks']} tareas. CP actualizados: {summary['updated_test_cases']}. "
+        f"Aviso por correo: {summary['notification_status']}."
     )
     return 0
 
@@ -199,13 +207,16 @@ def main() -> int:
             return 1
         print("Tablas dedicadas de DIFE (SQL Server) y DICE (Oracle) listas.")
         return 0
-    if len(arguments) == 4 and arguments[0] == "seed-program":
-        return seed_program(*arguments[1:])
+    if arguments[:1] == ["seed-program"] and len(arguments) in {4, 5}:
+        if len(arguments) == 5 and arguments[4] != "--actualizar":
+            print("Opción desconocida; la única es --actualizar.")
+            return 2
+        return seed_program(*arguments[1:4], update_existing=len(arguments) == 5)
     print(
         "Uso: python -m app.cli create-initial-admin | "
         "python -m app.cli create-admin | "
         "python -m app.cli init-key-stores | "
-        "python -m app.cli seed-program RUTA CORREO_ADMIN CORREO_ADMINISTRADOR"
+        "python -m app.cli seed-program RUTA CORREO_ADMIN CORREO_ADMINISTRADOR [--actualizar]"
     )
     return 2
 

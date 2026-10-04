@@ -120,7 +120,19 @@ export interface ImportSummary {
   program: string;
   created: { stories: number; test_cases: number; tasks: number };
   skipped: { stories: number; test_cases: number; tasks: number };
+  updated_test_cases?: number;
   notification_status: string;
+}
+
+/** Llave creada por un CP de la épica; las transacciones la eligen según su tipo. */
+export interface EpicKey {
+  key_type: string;
+  key_value: string;
+  spbvi_id: string;
+  status: string;
+  deposit_product_id?: string;
+  case_key?: string;
+  created_at_epoch?: number;
 }
 
 export interface WorkItem {
@@ -155,8 +167,9 @@ export interface Execution {
   passed: boolean;
   created_at_epoch?: number;
   actor?: { email?: string; display_name?: string };
-  request?: { method?: string; url?: string };
+  request?: { method?: string; url?: string; body?: unknown };
   result?: { status_code?: number; duration_ms?: number; body?: unknown };
+  placeholders?: Record<string, string>;
 }
 
 export interface PaymentKey {
@@ -255,12 +268,11 @@ export const api = {
   workItems(epicKey: string): Promise<WorkItem[]> {
     return request(`/qa/epics/${encodeURIComponent(epicKey)}/work-items`);
   },
-  async executeCase(caseKey: string): Promise<Execution> {
-    const token = await csrfToken();
-    return request(`/qa/cases/${encodeURIComponent(caseKey)}/execute`, {
-      method: "POST",
-      headers: { "X-CSRF-Token": token },
-    });
+  async executeCase(caseKey: string, selectedKeys: Record<string, string> = {}): Promise<Execution> {
+    return mutate<Execution>(`/qa/cases/${encodeURIComponent(caseKey)}/execute`, "POST", { selected_keys: selectedKeys });
+  },
+  epicKeys(epicKey: string): Promise<EpicKey[]> {
+    return request(`/qa/epics/${encodeURIComponent(epicKey)}/keys`);
   },
   users(): Promise<User[]> {
     return request("/auth/users");
@@ -301,8 +313,9 @@ export const api = {
   async transitionTask(taskKey: string, status: string): Promise<WorkItem> {
     return mutate<WorkItem>(`/qa/tasks/${encodeURIComponent(taskKey)}/transition`, "POST", { status });
   },
-  async importProgram(epicKey: string, program: unknown): Promise<ImportSummary> {
-    return mutate<ImportSummary>(`/qa/epics/${encodeURIComponent(epicKey)}/import`, "POST", program);
+  async importProgram(epicKey: string, program: unknown, updateExisting = false): Promise<ImportSummary> {
+    const query = updateExisting ? "?update_existing=true" : "";
+    return mutate<ImportSummary>(`/qa/epics/${encodeURIComponent(epicKey)}/import${query}`, "POST", program);
   },
   caseExecutions(caseKey: string): Promise<Execution[]> {
     return request(`/qa/cases/${encodeURIComponent(caseKey)}/executions`);

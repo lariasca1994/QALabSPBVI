@@ -200,6 +200,18 @@ Todo CP ejecutable es una solicitud HTTP a la API REST con cuerpo JSON (por deci
 
 `POST /qa/cases/{case_key}/execute` ejecuta el contrato contra `QA_TARGET_BASE_URL` y guarda método, URL, solicitud y respuesta redactadas, resultado y duración. El CP aprueba si el código HTTP está entre los esperados y, cuando hay `expected_response`, si la respuesta contiene esos campos con esos valores (comparación por subconjunto). Con `expected_response: null` solo se valida el código HTTP.
 
+#### Llaves automáticas y marcadores dinámicos
+
+Los CP no fijan valores que cambian entre ejecuciones; usan marcadores que el ejecutor resuelve justo antes de enviar la solicitud:
+
+- **`{{key:new:TIPO}}`** genera una llave nueva y válida del tipo Bre-B indicado: `document`, `phone`, `email`, `alias` o `merchant_code`, según el catálogo de `app/domains/keys/key_types.py`. Cuando el registro (`POST /difes/{spbvi}/keys`) responde 2xx, la llave entra en la **lista de llaves de la épica**. Las suspensiones y reactivaciones actualizan su estado y la eliminación la quita de la lista.
+- **`{{key:TIPO}}` / `{{key:TIPO:SPBVI}}`** usa una llave de esa lista. Por defecto es la más reciente confirmada de ese tipo. En la interfaz, al ejecutar un CP que usa llaves, se abre un selector con las llaves del tipo indicado. Por API se envía `{"selected_keys": {"phone:spbvi-a": "3001234567"}}`, y una llave que no esté en la lista se rechaza.
+- **`{{op:NOMBRE:new}}`** genera un identificador de operación nuevo y **`{{op:NOMBRE}}`** reutiliza el último. Sirven para los reenvíos idempotentes y la consulta de estado.
+
+Dentro de una ejecución, el mismo marcador siempre resuelve al mismo valor. La ejecución guarda los valores usados (`placeholders`) y la interfaz los muestra junto al método, la URL, la solicitud y la respuesta. La lista se consulta con `GET /qa/epics/{epic_key}/keys` (filtros `key_type` y `spbvi_id`) y se ve en **Llaves de la épica**.
+
+Hay plantillas listas para épica, programa, HU, CP, tarea, bug y fix en [`qa_programs/plantillas/`](qa_programs/plantillas/README.md).
+
 Los JSON no son fijos: cualquier integrante de la épica los actualiza desde **Calidad y pruebas → JSON** o con `PUT /qa/cases/{case_key}` (mismo contrato más `change_note`). Cada guardado vuelve a validar, incrementa `version`, guarda la versión anterior en `versions` (autor, fecha y motivo, visible en "Historial"), usa concurrencia optimista (`409` si otra edición se guardó antes) y avisa a la épica.
 
 ### Seguridad del ejecutor
@@ -217,11 +229,12 @@ Cada acción relevante guarda su aviso en el mismo documento Mongo y lo envía p
 
 ## Programa de pruebas ISO 20022 Bre-B
 
-`qa_programs/iso20022-breb-rest-json.json` adapta a la plataforma el documento "Programa de Pruebas ISO 20022 – Ecosistema BREB BanRep (Enfoque API REST / JSON)": 19 HU, 30 CP ejecutables y 22 tareas (incluidas las subtareas). Se genera con `python qa_programs/build_iso20022_breb.py`; para cambiar datos o casos, edita el script y vuelve a generarlo.
+`qa_programs/iso20022-breb-rest-json.json` adapta a la plataforma el documento "Programa de Pruebas ISO 20022 – Ecosistema BREB BanRep (Enfoque API REST / JSON)": 19 HU, 35 CP ejecutables y 22 tareas (incluidas las subtareas). Se genera con `python qa_programs/build_iso20022_breb.py`; para cambiar datos o casos, edita el script y vuelve a generarlo.
 
 Adaptaciones al laboratorio:
 
-- **HU de preparación (`LAB-HU-000`):** crea cuentas fijas `qa-breb-*` en `spbvi-a` y `spbvi-b` y las llaves `@qabrebdestino` y `@qabrebremoto`. Aceptan `201` o `409`, así que el programa se puede ejecutar todas las veces que haga falta.
+- **HU de preparación (`LAB-HU-000`):** crea las cuentas fijas `qa-breb-*` en `spbvi-a` y `spbvi-b` (aceptan `201` o `409`). El sistema genera y registra una llave de cada tipo Bre-B en `spbvi-a` (celular, correo, documento, alfanumérica y código de comercio) y llaves alfanumérica y celular en `spbvi-b`.
+- **Transacciones:** cada CP de pago indica el tipo de llave destino (`{{key:phone:spbvi-a}}`, `{{key:alias:spbvi-b}}`, …) y genera su propio `operation_id`. El reenvío idempotente y la consulta de estado reutilizan el de TC-001 o TC-003 con `{{op:…}}`. El programa se puede ejecutar todas las veces que haga falta sin conflictos de idempotencia.
 - **Mapeo de mensajes:** pain.001 → `POST /payments`; pacs.008/pacs.002 → `POST /payments/inter-spbvi`; pacs.028 → `GET /payments/{operation_id}`; camt.052/053 y conciliación → `GET /accounts/{id}/statement`.
 - **HU sin endpoint** (pacs.004, camt.056, camt.029, camt.054, pain.002 independiente, resiliencia) se cargan sin CP y lo indican en su descripción; no se inventan casos que no se puedan ejecutar.
 - Se corrigen erratas del documento: "BREG" → Bre-B, "Camato" → CAMT y cuentas CLABE (formato mexicano) → producto de depósito local.
@@ -231,15 +244,15 @@ Cómo cargarlo y ejecutarlo:
 1. El `admin` crea la épica (título y descripción en el bloque `epic` del archivo) y asocia al equipo.
 2. Un `administrador` integrante abre la épica en **Calidad y pruebas → Importar programa** y sube el archivo (o usa `POST /qa/epics/{epic_key}/import`). Todo se valida antes de guardar; lo que ya existe con la misma `ref` se omite y el equipo recibe un solo correo resumen.
 3. Un `administrador` ejecuta los CP de `LAB-HU-000` (crear cuentas y llaves es administrativo).
-4. Cualquier integrante ejecuta cada CP desde su detalle, uno a uno, según el que necesite probar; los que dependen de datos previos indican en sus precondiciones que primero se ejecute la preparación. `tests/test_qa_program.py` importa el programa y comprueba que los 30 CP aprueban en dos rondas seguidas.
+4. Cualquier integrante ejecuta cada CP desde su detalle, uno a uno, según el que necesite probar; los que dependen de datos previos indican en sus precondiciones que primero se ejecute la preparación. `tests/test_qa_program.py` importa el programa y comprueba que los 35 CP aprueban en dos rondas seguidas, con llaves nuevas en cada ronda.
 
 Como alternativa a los pasos 1 y 2, un operador con acceso a las bases puede cargarlo por CLI:
 
 ```bash
-python -m app.cli seed-program qa_programs/iso20022-breb-rest-json.json CORREO_ADMIN CORREO_ADMINISTRADOR
+python -m app.cli seed-program qa_programs/iso20022-breb-rest-json.json CORREO_ADMIN CORREO_ADMINISTRADOR [--actualizar]
 ```
 
-Crea la épica con todos los usuarios activos como integrantes (o reutiliza la que tenga el mismo título) e importa el programa con las mismas reglas y avisos que la interfaz. Se puede reejecutar sin duplicar nada. En el laboratorio se corre con las variables de `.env.lab` cargadas solo en esa terminal; así quedó cargada la épica `EPIC-00001`.
+Crea la épica con todos los usuarios activos como integrantes (o reutiliza la que tenga el mismo título) e importa el programa con las mismas reglas y avisos que la interfaz. Se puede reejecutar sin duplicar nada; con `--actualizar` (o la casilla "Actualizar los CP que ya existen" al importar), los CP cuyo JSON cambió pasan a una versión nueva y la anterior queda en el historial, con un solo correo resumen. En el laboratorio se corre con las variables de `.env.lab` cargadas solo en esa terminal; así quedó cargada la épica `EPIC-00001`.
 
 ## Correos transaccionales
 
@@ -299,9 +312,9 @@ app/
     payments/  Pagos intra/inter-SPBVI, límite por operación, MOL y ledger
     iso20022/  Adaptador XML de laboratorio y XSD propios
     qa/        Gestión tipo Jira, ejecutor HTTP, importación y avisos
-  cli.py       Comandos de bootstrap (admin inicial, tablas de llaves)
+  cli.py       Comandos de operación (admin inicial, tablas de llaves, seed-program)
   main.py      Punto de entrada FastAPI
-qa_programs/   Programas de prueba importables y su generador
+qa_programs/   Programas de prueba importables, su generador y plantillas (plantillas/)
 tests/         Pruebas del backend y servidor aislado para E2E
 web/           Interfaz React/TypeScript y pruebas Playwright (web/e2e)
 infra/azure/   Bicep del laboratorio

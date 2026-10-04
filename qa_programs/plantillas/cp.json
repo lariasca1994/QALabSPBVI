@@ -1,0 +1,31 @@
+{
+  "title": "Pagar a una llave celular de la lista de la épica",
+  "description": "Envía un pago intra-SPBVI a la llave celular más reciente de spbvi-a (o la que se elija al ejecutar).",
+  "priority": "high",
+  "preconditions": [
+    "Existe la cuenta de origen con saldo.",
+    "Se ejecutó un CP que registra una llave celular en spbvi-a ({{key:new:phone}})."
+  ],
+  "steps": [
+    {"action": "Enviar POST /payments con el JSON del caso.", "expected": "La API responde 201 con JSON."},
+    {"action": "Comparar la respuesta con el JSON esperado.", "expected": "El pago queda completed con el mismo operation_id."}
+  ],
+  "expected_result": "Pago completado y registrado con un identificador de operación nuevo.",
+  "request_method": "POST",
+  "request_path": "/payments",
+  "request_query": {},
+  "request_headers": {},
+  "request_body": {
+    "operation_id": "{{op:pago-celular:new}}",
+    "source_account_id": "qa-breb-a-origen",
+    "destination_key_type": "phone",
+    "destination_key_value": "{{key:phone:spbvi-a}}",
+    "amount_cents": 50000
+  },
+  "expected_status_codes": [201],
+  "expected_response": {
+    "operation_id": "{{op:pago-celular}}",
+    "status": "completed",
+    "amount_cents": 50000
+  }
+}

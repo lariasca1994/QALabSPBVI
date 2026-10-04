@@ -19,6 +19,13 @@ from app.core.config import get_settings
 from app.core.email_templates import EmailMessage
 from app.core.mailer import MailDeliveryError, Mailer, send_message
 from app.db.models import User, UserRole
+from app.domains.qa.placeholders import (
+    PlaceholderError,
+    Resolver,
+    list_epic_keys,
+    record_key_result,
+    validate_placeholders,
+)
 
 logger = logging.getLogger(__name__)
 MAX_RESPONSE_BYTES = 1_000_000
@@ -522,6 +529,12 @@ def _validate_case_request(
         )
     if any(code < 100 or code > 599 for code in expected_status_codes):
         raise QaValidationError("Los codigos HTTP esperados deben estar entre 100 y 599.")
+    try:
+        validate_placeholders(
+            request_path, request_query, request_headers, request_body, expected_response
+        )
+    except PlaceholderError as error:
+        raise QaValidationError(str(error)) from error
     return method
 
 
@@ -767,11 +780,14 @@ def import_program(
     actor: User,
     mailer: Mailer,
     program: dict[str, Any],
+    update_existing: bool = False,
 ) -> dict[str, Any]:
     """Carga HU, CP y tareas de un programa en una épica existente.
 
     Valida todo antes de escribir (un CP inválido rechaza el programa completo) y es
-    idempotente por `ref`: lo que ya existe en la épica con esa referencia se omite.
+    idempotente por `ref`: lo que ya existe en la épica con esa referencia se omite. Con
+    `update_existing`, los CP existentes cuyo JSON cambió se actualizan a una versión nueva
+    (la anterior queda en el historial, igual que al editar un CP).
     Envía un único aviso resumen en lugar de uno por elemento.
     """
     if actor.role is not UserRole.ADMINISTRADOR:
@@ -814,6 +830,7 @@ def import_program(
     }
     created = {"stories": 0, "test_cases": 0, "tasks": 0}
     skipped = {"stories": 0, "test_cases": 0, "tasks": 0}
+    updated = 0
     now = int(time.time())
     base = {
         "epic_key": epic_key,
@@ -844,7 +861,56 @@ def import_program(
             skipped["stories"] += 1
         for case in story["test_cases"]:
             if case["ref"] in existing:
-                skipped["test_cases"] += 1
+                current = existing[case["ref"]]
+                definition = {
+                    "request": {
+                        "method": validated_methods[case["ref"]],
+                        "path": case["request_path"],
+                        "query": case["request_query"],
+                        "headers": case["request_headers"],
+                        "body": case["request_body"],
+                    },
+                    "expected_status_codes": case["expected_status_codes"],
+                    "expected_response": case["expected_response"],
+                }
+                changed = any(
+                    current.get(field) != value for field, value in definition.items()
+                )
+                if not (update_existing and changed):
+                    skipped["test_cases"] += 1
+                    continue
+                version = current.get("version", 1)
+                result = database.work_items.update_one(
+                    {"_id": current["_id"], "version": current.get("version")},
+                    {
+                        "$set": {
+                            **definition,
+                            "version": version + 1,
+                            "title": case["title"].strip(),
+                            "description": case["description"],
+                            "preconditions": case["preconditions"],
+                            "steps": case["steps"],
+                            "expected_result": case["expected_result"],
+                            "labels": case["labels"],
+                            "updated_by": _actor(actor),
+                            "updated_at_epoch": now,
+                        },
+                        "$push": {
+                            "versions": {
+                                "version": version,
+                                "request": current["request"],
+                                "expected_status_codes": current["expected_status_codes"],
+                                "expected_response": current.get("expected_response"),
+                                "replaced_by": _actor(actor),
+                                "replaced_at_epoch": now,
+                                "change_note": f"Actualizado al importar {program['name']}.",
+                            }
+                        },
+                    },
+                )
+                if result.modified_count != 1:
+                    raise QaConflictError
+                updated += 1
                 continue
             database.work_items.insert_one(
                 {
@@ -902,6 +968,7 @@ def import_program(
         title=(
             f"Se importó {program['name']}: {created['stories']} HU, "
             f"{created['test_cases']} CP y {created['tasks']} tareas nuevas"
+            + (f"; {updated} CP actualizados" if updated else "")
         ),
     )
     database.epics.update_one(
@@ -915,6 +982,7 @@ def import_program(
         "program": program["name"],
         "created": created,
         "skipped": skipped,
+        "updated_test_cases": updated,
         "notification_status": notification_status,
     }
 
@@ -1029,18 +1097,25 @@ def execute_test_case(
     cookies: dict[str, str] | None = None,
     csrf_token: str | None = None,
     incoming_host: str | None = None,
+    selected_keys: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     case = _required_document(database, "work_items", case_key, "test_case")
     epic = _required_document(database, "epics", case["epic_key"], "epic")
     if actor.id not in {member["user_id"] for member in epic["members"]}:
         raise QaForbiddenError
 
-    request_spec = case["request"]
+    # Primero los marcadores dinámicos (llaves y operaciones), luego los secretos.
+    resolver = Resolver(database, epic["key"], selected_keys)
+    try:
+        request_spec = resolver.resolve(case["request"])
+        resolved_expected = resolver.resolve(case.get("expected_response"))
+    except PlaceholderError as error:
+        raise QaValidationError(str(error)) from error
     secret_values: set[str] = set()
     request_body = _resolve_secrets(request_spec["body"], secret_values)
     request_headers = _resolve_secrets(request_spec["headers"], secret_values)
     expected_response = (
-        _resolve_secrets(case["expected_response"], secret_values)
+        _resolve_secrets(resolved_expected, secret_values)
         if "expected_response" in case
         else None
     )
@@ -1136,9 +1211,21 @@ def execute_test_case(
         "request": request_record,
         "result": result_record,
         "passed": passed,
+        "placeholders": resolver.values,
         "created_at_epoch": int(time.time()),
         "notifications": {},
     }
+    resolver.commit()
+    record_key_result(
+        database,
+        epic_key=epic["key"],
+        method=request_spec["method"],
+        path=request_spec["path"],
+        status_code=result_record.get("status_code"),
+        response_body=response_body_unredacted,
+        case_key=case_key,
+        execution_key=execution_key,
+    )
     notification = _new_notification(
         event_type="test_case_executed",
         epic=epic,
@@ -1153,6 +1240,21 @@ def execute_test_case(
         database, "executions", execution, notification, mailer
     )
     return _response_document(execution)
+
+
+def list_epic_key_pool(
+    database: Database,
+    *,
+    epic_key: str,
+    actor: User,
+    key_type: str | None = None,
+    spbvi_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Lista de llaves creadas por los CP de la épica (para elegir en las transacciones)."""
+    epic = _required_document(database, "epics", epic_key, "epic")
+    if actor.id not in {member["user_id"] for member in epic["members"]}:
+        raise QaForbiddenError
+    return list_epic_keys(database, epic_key, key_type=key_type, spbvi_id=spbvi_id)
 
 
 def list_case_executions(

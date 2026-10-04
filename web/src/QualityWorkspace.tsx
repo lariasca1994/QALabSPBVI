@@ -6,6 +6,7 @@ import {
   Check,
   ClipboardCheck,
   History,
+  KeyRound,
   ListChecks,
   LoaderCircle,
   Plus,
@@ -18,6 +19,7 @@ import {
   api,
   type CaseDefinition,
   type Epic,
+  type EpicKey,
   type Execution,
   type User,
   type WorkItem,
@@ -34,6 +36,7 @@ type ModalState =
   | { type: "history"; testCase: WorkItem }
   | { type: "task" }
   | { type: "import" }
+  | { type: "run"; testCase: WorkItem; requirements: string[] }
   | null;
 
 const PRIORITIES = [
@@ -48,6 +51,34 @@ const NEXT_TASK_STATUS: Record<string, { status: string; label: string }> = {
   open: { status: "in_progress", label: "Iniciar" },
   in_progress: { status: "done", label: "Completar" },
 };
+// Tipos de llave Bre-B (mismo catálogo que GET /keys/types).
+const KEY_TYPE_LABEL: Record<string, string> = {
+  document: "Documento",
+  phone: "Celular",
+  email: "Correo",
+  alias: "Alfanumérica",
+  merchant_code: "Código de comercio",
+};
+const KEY_PLACEHOLDER = /\{\{key:(?!new:)([a-z_]+)(?::([a-z0-9-]+))?\}\}/g;
+
+/** Llaves de la lista que pide el CP: "TIPO" o "TIPO:SPBVI" (marcadores {{key:…}}). */
+function keyRequirements(testCase: WorkItem): string[] {
+  const text = JSON.stringify([testCase.request ?? {}, testCase.expected_response ?? null]);
+  const found = new Set<string>();
+  for (const match of text.matchAll(KEY_PLACEHOLDER)) found.add(match[2] ? `${match[1]}:${match[2]}` : match[1]);
+  return [...found];
+}
+
+function keysFor(requirement: string, keys: EpicKey[]): EpicKey[] {
+  const [type, spbvi] = requirement.split(":");
+  return keys.filter((key) => key.key_type === type && (!spbvi || key.spbvi_id === spbvi) && ["confirmed", "active"].includes(key.status));
+}
+
+function requirementLabel(requirement: string): string {
+  const [type, spbvi] = requirement.split(":");
+  return `${KEY_TYPE_LABEL[type] ?? type}${spbvi ? ` en ${spbvi}` : ""}`;
+}
+
 const EMPTY_DEFINITION: CaseDefinition = {
   request_method: "GET",
   request_path: "/health",
@@ -168,6 +199,13 @@ export function ExecutionResult({ execution }: { execution: Execution }) {
     <section className={`surface-card execution-card ${execution.passed ? "execution-card--passed" : "execution-card--failed"}`}>
       <div className="card-heading"><div><h2>Resultado de ejecución</h2><p>{execution.key} · {execution.passed ? "Aprobado" : "Fallido"}</p></div><span className={`result-pill ${execution.passed ? "result-pill--passed" : "result-pill--failed"}`}>{execution.passed ? "APROBADO" : "FALLIDO"}</span></div>
       <div className="request-summary"><span className="method-pill">{execution.request?.method ?? "HTTP"}</span><code>{execution.request?.url ?? "Solicitud ejecutada"}</code><strong>{execution.result?.status_code ?? "—"}</strong><small>{execution.result?.duration_ms ?? "—"} ms</small></div>
+      {execution.placeholders && Object.keys(execution.placeholders).length > 0 && (
+        <div className="placeholder-list">
+          <span className="eyebrow eyebrow--muted">VALORES USADOS</span>
+          {Object.entries(execution.placeholders).map(([token, value]) => <div key={token}><code>{token}</code><strong>{value}</strong></div>)}
+        </div>
+      )}
+      <details className="response-details"><summary>Ver solicitud enviada</summary><pre>{JSON.stringify(execution.request?.body ?? null, null, 2)}</pre></details>
       <details className="response-details"><summary>Ver respuesta registrada</summary><pre>{JSON.stringify(execution.result?.body ?? execution.result ?? {}, null, 2)}</pre></details>
     </section>
   );
@@ -201,6 +239,9 @@ export function QualityWorkspace({
   const [execution, setExecution] = useState<Execution | null>(null);
   const [executingKey, setExecutingKey] = useState("");
   const [definitionText, setDefinitionText] = useState("");
+  const [epicKeys, setEpicKeys] = useState<EpicKey[]>([]);
+  const [keyChoices, setKeyChoices] = useState<Record<string, string>>({});
+  const [updateExisting, setUpdateExisting] = useState(false);
 
   const epic = epics.find((item) => item.key === selectedEpic);
   const stories = useMemo(() => items.filter((item) => item.kind === "story"), [items]);
@@ -228,7 +269,9 @@ export function QualityWorkspace({
     setLoadingItems(true);
     setError("");
     try {
-      setItems(await api.workItems(epicKey));
+      const [loadedItems, loadedKeys] = await Promise.all([api.workItems(epicKey), api.epicKeys(epicKey)]);
+      setItems(loadedItems);
+      setEpicKeys(loadedKeys);
     } catch (loadError) {
       setError(friendlyError(loadError));
     } finally {
@@ -252,7 +295,11 @@ export function QualityWorkspace({
     setNotice("");
     if (next?.type === "case") setDefinitionText(JSON.stringify(EMPTY_DEFINITION, null, 2));
     if (next?.type === "definition") setDefinitionText(JSON.stringify(definitionOf(next.testCase), null, 2));
-    if (next?.type === "import") setDefinitionText("");
+    if (next?.type === "import") {
+      setDefinitionText("");
+      setUpdateExisting(false);
+    }
+    if (next?.type === "run") setKeyChoices({});
     setModal(next);
   }
 
@@ -275,16 +322,26 @@ export function QualityWorkspace({
     return status === "pending" ? " El aviso por correo quedó pendiente de reintento." : " Se notificó por correo a la épica.";
   }
 
-  async function runCase(caseKey: string) {
+  async function runCase(caseKey: string, selectedKeys: Record<string, string> = {}) {
     setExecutingKey(caseKey);
     setError("");
     try {
-      setExecution(await api.executeCase(caseKey));
+      setExecution(await api.executeCase(caseKey, selectedKeys));
+      if (selectedEpic) setEpicKeys(await api.epicKeys(selectedEpic));
     } catch (runError) {
       setError(friendlyError(runError));
     } finally {
       setExecutingKey("");
     }
+  }
+
+  function startRun(testCase: WorkItem) {
+    const requirements = keyRequirements(testCase);
+    if (requirements.length === 0) {
+      void runCase(testCase.key);
+      return;
+    }
+    open({ type: "run", testCase, requirements });
   }
 
   async function moveTask(task: WorkItem) {
@@ -384,7 +441,7 @@ export function QualityWorkspace({
                           <div className="case-actions">
                             <button className="button button--small button--quiet" onClick={() => open({ type: "definition", testCase })} type="button" title="Editar el JSON del CP"><Braces size={14} /> JSON</button>
                             {(testCase.versions?.length ?? 0) > 0 && <button className="icon-button" onClick={() => open({ type: "history", testCase })} aria-label={`Historial de ${testCase.key}`} title="Historial de versiones" type="button"><History size={15} /></button>}
-                            <button className="button button--small button--primary" disabled={executingKey === testCase.key} onClick={() => void runCase(testCase.key)} type="button">
+                            <button className="button button--small button--primary" disabled={executingKey === testCase.key} onClick={() => startRun(testCase)} type="button">
                               {executingKey === testCase.key ? <LoaderCircle className="spin" size={14} /> : <Activity size={14} />}
                               {executingKey === testCase.key ? "Ejecutando" : "Ejecutar"}
                             </button>
@@ -426,6 +483,23 @@ export function QualityWorkspace({
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </section>
+
+          <section className="surface-card keys-card">
+            <div className="card-heading">
+              <div><h2>Llaves de la épica</h2><p>Las crean los CP de registro con un valor generado según su tipo Bre-B; las transacciones eligen una de esta lista según el tipo que indica el CP.</p></div>
+              <span className="priority-tag">{epicKeys.length} llaves</span>
+            </div>
+            {epicKeys.length === 0 ? (
+              <div className="empty-state"><div className="empty-icon"><KeyRound size={19} /></div><strong>Sin llaves todavía</strong><p>Ejecuta los CP de preparación que registran llaves.</p></div>
+            ) : (
+              <div className="users-table-wrap">
+                <table className="users-table">
+                  <thead><tr><th>Tipo</th><th>Valor</th><th>SPBVI</th><th>Estado</th><th>Creada por</th></tr></thead>
+                  <tbody>{epicKeys.map((key) => <tr key={`${key.spbvi_id}-${key.key_type}-${key.key_value}`}><td>{KEY_TYPE_LABEL[key.key_type] ?? key.key_type}</td><td><code>{key.key_value}</code></td><td>{key.spbvi_id}</td><td>{key.status}</td><td>{key.case_key ?? "—"}</td></tr>)}</tbody>
+                </table>
               </div>
             )}
           </section>
@@ -609,9 +683,10 @@ export function QualityWorkspace({
               } catch (parseError) {
                 throw new Error(`El archivo no es un JSON válido: ${(parseError as Error).message}`);
               }
-              const summary = await api.importProgram(epic.key, program);
+              const summary = await api.importProgram(epic.key, program, updateExisting);
               const { created, skipped } = summary;
               return `${summary.program}: ${created.stories} HU, ${created.test_cases} CP y ${created.tasks} tareas nuevas` +
+                (summary.updated_test_cases ? `; ${summary.updated_test_cases} CP actualizados` : "") +
                 (skipped.stories + skipped.test_cases + skipped.tasks > 0
                   ? `; ${skipped.stories + skipped.test_cases + skipped.tasks} elementos ya existían y se omitieron.`
                   : ".") + delivery(summary.notification_status);
@@ -629,8 +704,36 @@ export function QualityWorkspace({
             }} type="file" />
             <label className="field-label" htmlFor="program-json">Contenido</label>
             <textarea className="text-input json-input" id="program-json" onChange={(event) => setDefinitionText(event.target.value)} rows={12} spellCheck={false} value={definitionText} />
+            <label className="check-row"><input checked={updateExisting} onChange={(event) => setUpdateExisting(event.target.checked)} type="checkbox" /> Actualizar los CP que ya existen si su JSON cambió (la versión anterior queda en el historial)</label>
             {modalError && <div className="alert alert--error" role="alert">{modalError}</div>}
             <div className="modal-actions"><button className="button button--quiet" onClick={() => setModal(null)} type="button">Cancelar</button><button className="button button--primary" disabled={saving || !definitionText.trim()} type="submit"><Upload size={16} /> Importar</button></div>
+          </form>
+        </Modal>
+      )}
+
+      {modal?.type === "run" && (
+        <Modal eyebrow="EJECUCIÓN" title={`Ejecutar ${modal.testCase.key}`} onClose={() => setModal(null)}>
+          <form className="form-stack modal-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            const chosen = Object.fromEntries(Object.entries(keyChoices).filter(([, value]) => value));
+            setModal(null);
+            void runCase(modal.testCase.key, chosen);
+          }}>
+            <p className="field-hint"><span className="method-tag">{modal.testCase.request?.method}</span> {modal.testCase.request?.path} · El CP usa llaves de la lista de la épica según su tipo. Elige cuál usar o deja la automática (la más reciente).</p>
+            {modal.requirements.map((requirement) => {
+              const options = keysFor(requirement, epicKeys);
+              return (
+                <div key={requirement}>
+                  <label className="field-label" htmlFor={`key-${requirement}`}>Llave {requirementLabel(requirement)}</label>
+                  <select className="text-input select-input" id={`key-${requirement}`} onChange={(event) => setKeyChoices({ ...keyChoices, [requirement]: event.target.value })} value={keyChoices[requirement] ?? ""}>
+                    <option value="">{options.length ? `Automática: ${options[0].key_value}` : "No hay llaves de este tipo"}</option>
+                    {options.map((key) => <option key={key.key_value} value={key.key_value}>{key.key_value} · {key.case_key ?? ""}</option>)}
+                  </select>
+                  {options.length === 0 && <small className="field-hint">Ejecuta primero el CP de preparación que registra una llave {requirementLabel(requirement).toLowerCase()}.</small>}
+                </div>
+              );
+            })}
+            <div className="modal-actions"><button className="button button--quiet" onClick={() => setModal(null)} type="button">Cancelar</button><button className="button button--primary" type="submit"><Activity size={16} /> Ejecutar</button></div>
           </form>
         </Modal>
       )}

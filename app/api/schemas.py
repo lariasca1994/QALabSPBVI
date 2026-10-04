@@ -159,6 +159,12 @@ class ProgramImportRequest(BaseModel):
     tasks: list[ProgramTask] = Field(default_factory=list, max_length=300)
 
 
+class CaseExecuteRequest(BaseModel):
+    """Llaves elegidas de la lista de la épica, por marcador: {"phone:spbvi-a": "3001234567"}."""
+
+    selected_keys: dict[str, str] = Field(default_factory=dict, max_length=20)
+
+
 class TaskAssignRequest(BaseModel):
     assignee_id: int
 

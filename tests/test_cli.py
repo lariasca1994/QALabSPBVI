@@ -92,14 +92,22 @@ def test_seed_program_creates_epic_imports_program_and_is_idempotent(tmp_path, m
         epic = database.epics.find_one()
         assert len(epic["members"]) == 3
         assert database.work_items.count_documents({"kind": "story"}) == 19
-        assert database.work_items.count_documents({"kind": "test_case"}) == 30
+        assert database.work_items.count_documents({"kind": "test_case"}) == 35
         assert database.work_items.count_documents({"kind": "task"}) == 22
         # Un aviso de épica y un resumen de importación, a los tres integrantes.
         assert len(sent) == 6
 
         assert seed_program(program, "admin@example.com", "manager@example.com") == 0
         assert database.epics.count_documents({}) == 1
-        assert database.work_items.count_documents({}) == 71
+        assert database.work_items.count_documents({}) == 76
+
+        # Con --actualizar, un CP cuyo JSON cambió en el programa pasa a una versión nueva.
+        database.work_items.update_one({"external_key": "TC-001"}, {"$set": {"request.path": "/viejo"}})
+        assert seed_program(program, "admin@example.com", "manager@example.com", update_existing=True) == 0
+        tc001 = database.work_items.find_one({"external_key": "TC-001"})
+        assert tc001["request"]["path"] == "/payments"
+        assert tc001["version"] == 2
+        assert tc001["versions"][0]["request"]["path"] == "/viejo"
     finally:
         Base.metadata.drop_all(engine)
         engine.dispose()

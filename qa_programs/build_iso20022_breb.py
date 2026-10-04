@@ -21,8 +21,27 @@ DEST_A = "qa-breb-a-destino"
 NO_FUNDS = "qa-breb-a-sinfondos"
 EMPTY = "qa-breb-a-vacia"
 DEST_B = "qa-breb-b-destino"
-KEY_A = "@qabrebdestino"
-KEY_B = "@qabrebremoto"
+# Las llaves no son fijas: los CP de preparación las generan con {{key:new:TIPO}} según el
+# catálogo Bre-B y las transacciones toman una de la lista de la épica con {{key:TIPO:SPBVI}}.
+# Los identificadores de operación se generan con {{op:NOMBRE:new}} y se reutilizan con
+# {{op:NOMBRE}} (reenvío idempotente y consulta de estado).
+SETUP_KEYS = [
+    # (ref, tipo, SPBVI, cuenta destino)
+    ("LAB-TC-006", "phone", SPBVI_A, DEST_A),
+    ("LAB-TC-024", "email", SPBVI_A, DEST_A),
+    ("LAB-TC-025", "document", SPBVI_A, DEST_A),
+    ("LAB-TC-026", "alias", SPBVI_A, DEST_A),
+    ("LAB-TC-027", "merchant_code", SPBVI_A, DEST_A),
+    ("LAB-TC-007", "alias", SPBVI_B, DEST_B),
+    ("LAB-TC-028", "phone", SPBVI_B, DEST_B),
+]
+KEY_LABELS = {
+    "phone": "celular",
+    "email": "correo electrónico",
+    "document": "documento de identidad",
+    "alias": "alfanumérica (@)",
+    "merchant_code": "código de comercio",
+}
 # 1.000 UVB con el valor por defecto de UVB_VALUE_CENTS (1.155.200) = 1.155.200.000 centavos.
 OVER_LIMIT_CENTS = 1_155_200_001
 
@@ -81,14 +100,31 @@ def case(
     }
 
 
-def payment(operation_id: str, source: str, key: str, amount_cents: int) -> dict:
+def payment(
+    operation: str,
+    source: str,
+    key_type: str,
+    spbvi: str,
+    amount_cents: int,
+    *,
+    key_value: str | None = None,
+) -> dict:
+    """Cuerpo de pago: la llave sale de la lista de la épica según el tipo indicado."""
     return {
-        "operation_id": operation_id,
+        "operation_id": operation,
         "source_account_id": source,
-        "destination_key_type": "alias",
-        "destination_key_value": key,
+        "destination_key_type": key_type,
+        "destination_key_value": key_value or f"{{{{key:{key_type}:{spbvi}}}}}",
         "amount_cents": amount_cents,
     }
+
+
+def new_op(name: str) -> str:
+    return f"{{{{op:{name}:new}}}}"
+
+
+def op(name: str) -> str:
+    return f"{{{{op:{name}}}}}"
 
 
 PREP = ["Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."]
@@ -99,15 +135,19 @@ stories = [
         "ref": "LAB-HU-000",
         "title": "Preparar datos de prueba del laboratorio",
         "description": (
-            "Como analista de pruebas, quiero crear las cuentas y llaves fijas que usan los "
-            "demás casos, para que el programa sea repetible. HU agregada por el laboratorio; "
-            "cada CP acepta 201 (creado) o 409 (ya existía)."
+            "Como analista de pruebas, quiero crear las cuentas y las llaves que usan los demás "
+            "casos, para que el programa sea repetible. HU agregada por el laboratorio. Las "
+            "cuentas son fijas (201 la primera vez, 409 si ya existían). Las llaves las genera el "
+            "sistema en cada ejecución con un valor válido para su tipo Bre-B (celular, correo, "
+            "documento, alfanumérica y código de comercio) y quedan en la lista de llaves de la "
+            "épica, de donde las toman los CP de transacciones según el tipo que indican."
         ),
         "priority": "highest",
         "acceptance_criteria": [
             "Existen las cuentas qa-breb-* en spbvi-a y spbvi-b.",
-            "Las llaves @qabrebdestino (spbvi-a) y @qabrebremoto (spbvi-b) están confirmadas en DIFE y DICE.",
-            "Reejecutar la preparación no duplica datos.",
+            "Hay al menos una llave confirmada de cada tipo Bre-B en spbvi-a y llaves alfanumérica y celular en spbvi-b.",
+            "Cada llave generada cumple el formato de su tipo y queda en la lista de llaves de la épica.",
+            "Reejecutar la preparación no duplica cuentas y agrega llaves nuevas sin repetir valores.",
         ],
         "labels": ["datos-prueba", "laboratorio"],
         "story_points": 2,
@@ -137,42 +177,45 @@ stories = [
                     start=1,
                 )
             ],
-            case(
-                "LAB-TC-006",
-                f"Registrar llave {KEY_A} en {SPBVI_A}",
-                "Registra la llave alfanumérica del destino intra-SPBVI (DIFE → DICE).",
-                method="POST",
-                path=f"/difes/{SPBVI_A}/keys",
-                body={"key_type": "alias", "key_value": KEY_A, "deposit_product_id": DEST_A},
-                expected_status=[201, 409],
-                preconditions=ADMIN_PREP,
-                expected_result="La llave queda confirmada (409 si ya estaba registrada).",
-                priority="highest",
-                labels=["datos-prueba", "llaves"],
-            ),
-            case(
-                "LAB-TC-007",
-                f"Registrar llave {KEY_B} en {SPBVI_B}",
-                "Registra la llave del destino inter-SPBVI.",
-                method="POST",
-                path=f"/difes/{SPBVI_B}/keys",
-                body={"key_type": "alias", "key_value": KEY_B, "deposit_product_id": DEST_B},
-                expected_status=[201, 409],
-                preconditions=ADMIN_PREP,
-                expected_result="La llave queda confirmada (409 si ya estaba registrada).",
-                priority="highest",
-                labels=["datos-prueba", "llaves"],
-            ),
+            *[
+                case(
+                    ref,
+                    f"Registrar llave {KEY_LABELS[key_type]} generada en {spbvi}",
+                    (
+                        f"El sistema genera una llave de tipo {key_type} válida según el catálogo "
+                        f"Bre-B y la registra en el DIFE de {spbvi} (DIFE → DICE) apuntando a {account}."
+                    ),
+                    method="POST",
+                    path=f"/difes/{spbvi}/keys",
+                    body={
+                        "key_type": key_type,
+                        "key_value": f"{{{{key:new:{key_type}}}}}",
+                        "deposit_product_id": account,
+                    },
+                    expected_status=[201],
+                    expected_response={
+                        "key_type": key_type,
+                        "key_value": f"{{{{key:new:{key_type}}}}}",
+                        "spbvi_id": spbvi,
+                        "status": "confirmed",
+                    },
+                    preconditions=ADMIN_PREP,
+                    expected_result="La llave queda confirmada en DIFE y DICE y se agrega a la lista de llaves de la épica.",
+                    priority="highest",
+                    labels=["datos-prueba", "llaves", key_type],
+                )
+                for ref, key_type, spbvi, account in SETUP_KEYS
+            ],
             case(
                 "LAB-TC-008",
                 "Resolver llave destino en el DIFE",
                 "Consulta la llave en el directorio federado del SPBVI de origen.",
                 method="GET",
                 path=f"/difes/{SPBVI_A}/keys/resolve",
-                query={"key_type": "alias", "key_value": KEY_A},
+                query={"key_type": "phone", "key_value": "{{key:phone:spbvi-a}}"},
                 expected_status=[200],
-                expected_response={"key_value": KEY_A, "spbvi_id": SPBVI_A, "deposit_product_id": DEST_A},
-                preconditions=["LAB-TC-006 ejecutado."],
+                expected_response={"key_value": "{{key:phone:spbvi-a}}", "spbvi_id": SPBVI_A, "deposit_product_id": DEST_A},
+                preconditions=["LAB-TC-006 ejecutado (llave celular en spbvi-a)."],
                 expected_result="El DIFE devuelve la llave activa y su producto de depósito.",
                 labels=["llaves", "dife"],
             ),
@@ -202,14 +245,14 @@ stories = [
             case(
                 "TC-001",
                 "Validar envío de pago inmediato con JSON válido",
-                "Envía un pago intra-SPBVI válido por llave alfanumérica.",
+                "Envía un pago intra-SPBVI válido a una llave celular de la lista de la épica.",
                 method="POST",
                 path="/payments",
-                body=payment("qa-breb-tc001", ORIGIN, KEY_A, 125_000),
-                expected_status=[200, 201],
-                expected_response={"status": "completed", "payment_type": "intra_spbvi", "amount_cents": 125_000},
+                body=payment(new_op("tc001"), ORIGIN, "phone", SPBVI_A, 125_000),
+                expected_status=[201],
+                expected_response={"operation_id": op("tc001"), "status": "completed", "payment_type": "intra_spbvi", "amount_cents": 125_000},
                 preconditions=PREP,
-                expected_result="Pago aceptado (201 la primera vez, 200 en reenvíos idempotentes) en ≤ 20 segundos.",
+                expected_result="Pago aceptado con un identificador de operación nuevo en ≤ 20 segundos.",
                 labels=["pain001", "api-rest", "json"],
             ),
             case(
@@ -218,7 +261,7 @@ stories = [
                 "Envía un pago que supera el límite por operación.",
                 method="POST",
                 path="/payments",
-                body=payment("qa-breb-tc002", ORIGIN, KEY_A, OVER_LIMIT_CENTS),
+                body=payment(new_op("tc002"), ORIGIN, "email", SPBVI_A, OVER_LIMIT_CENTS),
                 expected_status=[422],
                 expected_response={"detail": "El monto supera el limite de 1000 UVB por operacion."},
                 preconditions=[*PREP, "UVB_VALUE_CENTS con su valor por defecto (1.155.200)."],
@@ -231,7 +274,7 @@ stories = [
                 "Envía un pago sin llave destino.",
                 method="POST",
                 path="/payments",
-                body={"operation_id": "qa-breb-lab009", "source_account_id": ORIGIN, "amount_cents": 1000},
+                body={"operation_id": new_op("lab009"), "source_account_id": ORIGIN, "amount_cents": 1000},
                 expected_status=[422],
                 expected_result="La API rechaza el JSON incompleto con 422 y el detalle de validación.",
                 labels=["pain001", "validacion", "json"],
@@ -239,13 +282,16 @@ stories = [
             case(
                 "LAB-TC-010",
                 "Validar idempotencia del pago inmediato",
-                "Reenvía la misma orden de TC-001.",
+                "Reenvía la misma orden de TC-001 (mismo identificador de operación y misma llave).",
                 method="POST",
                 path="/payments",
-                body=payment("qa-breb-tc001", ORIGIN, KEY_A, 125_000),
+                body=payment(op("tc001"), ORIGIN, "phone", SPBVI_A, 125_000),
                 expected_status=[200],
-                expected_response={"operation_id": "qa-breb-tc001", "replayed": True},
-                preconditions=["TC-001 ejecutado al menos una vez."],
+                expected_response={"operation_id": op("tc001"), "replayed": True},
+                preconditions=[
+                    "TC-001 ejecutado justo antes.",
+                    "Usar la misma llave celular que TC-001 (por defecto, la más reciente de la lista).",
+                ],
                 expected_result="La API devuelve el pago original (replayed) sin duplicar el abono.",
                 labels=["pain001", "idempotencia"],
             ),
@@ -277,9 +323,9 @@ stories = [
                 "Envía una transferencia de spbvi-a a spbvi-b.",
                 method="POST",
                 path="/payments/inter-spbvi",
-                body=payment("qa-breb-tc003", ORIGIN, KEY_B, 75_000),
-                expected_status=[200, 201],
-                expected_response={"status": "completed", "payment_type": "inter_spbvi", "destination_account_id": DEST_B},
+                body=payment(new_op("tc003"), ORIGIN, "alias", SPBVI_B, 75_000),
+                expected_status=[201],
+                expected_response={"operation_id": op("tc003"), "status": "completed", "payment_type": "inter_spbvi", "destination_account_id": DEST_B},
                 preconditions=PREP,
                 expected_result="Transferencia enrutada al SPBVI destino y liquidada; incluye pacs008_xml y pacs002_xml.",
                 labels=["pacs008", "enrutamiento", "json"],
@@ -290,7 +336,7 @@ stories = [
                 "Envía una transferencia desde una cuenta que no existe.",
                 method="POST",
                 path="/payments/inter-spbvi",
-                body=payment("qa-breb-lab011", "qa-breb-no-existe", KEY_B, 1_000),
+                body=payment(new_op("lab011"), "qa-breb-no-existe", "phone", SPBVI_B, 1_000),
                 expected_status=[404],
                 expected_response={"detail": "No se encontro la cuenta de origen."},
                 expected_result="Rechazo 404 sin movimientos.",
@@ -302,7 +348,7 @@ stories = [
                 "Envía una transferencia a una llave no registrada en el DICE.",
                 method="POST",
                 path="/payments/inter-spbvi",
-                body=payment("qa-breb-lab012", ORIGIN, "@qabrebnoexiste", 1_000),
+                body=payment(new_op("lab012"), ORIGIN, "alias", SPBVI_B, 1_000, key_value="@qabrebnoexiste"),
                 expected_status=[404],
                 expected_response={"detail": "DICE no encontro una llave confirmada o su cuenta receptora."},
                 preconditions=PREP,
@@ -315,7 +361,7 @@ stories = [
                 "Envía por el flujo inter una llave que pertenece al SPBVI de origen.",
                 method="POST",
                 path="/payments/inter-spbvi",
-                body=payment("qa-breb-lab013", ORIGIN, KEY_A, 1_000),
+                body=payment(new_op("lab013"), ORIGIN, "document", SPBVI_A, 1_000),
                 expected_status=[422],
                 preconditions=PREP,
                 expected_result="Rechazo 422: el pago debe ir por el flujo intra-SPBVI.",
@@ -365,7 +411,7 @@ stories = [
                 "Envía el monto como texto.",
                 method="POST",
                 path="/payments",
-                body={**payment("qa-breb-lab014", ORIGIN, KEY_A, 1), "amount_cents": "mil"},
+                body={**payment(new_op("lab014"), ORIGIN, "merchant_code", SPBVI_A, 1), "amount_cents": "mil"},
                 expected_status=[422],
                 expected_result="Rechazo 422 con el detalle de validación del campo amount_cents.",
                 labels=["manejo-errores", "json"],
@@ -376,7 +422,7 @@ stories = [
                 "Envía un pago desde la cuenta sin fondos.",
                 method="POST",
                 path="/payments",
-                body=payment("qa-breb-lab015", NO_FUNDS, KEY_A, 5_000),
+                body=payment(new_op("lab015"), NO_FUNDS, "email", SPBVI_A, 5_000),
                 expected_status=[409],
                 expected_response={"detail": "La cuenta de origen no tiene saldo suficiente."},
                 preconditions=PREP,
@@ -389,7 +435,7 @@ stories = [
                 "Envía una transferencia inter desde la cuenta sin fondos.",
                 method="POST",
                 path="/payments/inter-spbvi",
-                body=payment("qa-breb-lab016", NO_FUNDS, KEY_B, 5_000),
+                body=payment(new_op("lab016"), NO_FUNDS, "phone", SPBVI_B, 5_000),
                 expected_status=[409],
                 preconditions=PREP,
                 expected_result="Rechazo 409; el MOL no liquida y no hay movimientos.",
@@ -401,7 +447,7 @@ stories = [
                 "Envía un pago desde una cuenta inexistente.",
                 method="POST",
                 path="/payments",
-                body=payment("qa-breb-lab017", "qa-breb-no-existe", KEY_A, 1_000),
+                body=payment(new_op("lab017"), "qa-breb-no-existe", "document", SPBVI_A, 1_000),
                 expected_status=[404],
                 expected_response={"detail": "No se encontro la cuenta de origen."},
                 expected_result="Rechazo 404 con detalle claro.",
@@ -523,9 +569,9 @@ stories = [
                 "Validar consulta de estado de un pago liquidado",
                 "Consulta el estado del pago de TC-001.",
                 method="GET",
-                path="/payments/qa-breb-tc001",
+                path=f"/payments/{op('tc001')}",
                 expected_status=[200],
-                expected_response={"operation_id": "qa-breb-tc001", "status": "completed", "iso_status": "ACCP"},
+                expected_response={"operation_id": op("tc001"), "status": "completed", "iso_status": "ACCP"},
                 priority="medium",
                 preconditions=["TC-001 ejecutado."],
                 expected_result="Estado del pago recibido en JSON en ≤ 20 segundos.",
@@ -671,7 +717,7 @@ stories = [
                 "Validar confirmación ACCP de una transferencia liquidada",
                 "Consulta el estado de la transferencia de TC-003.",
                 method="GET",
-                path="/payments/qa-breb-tc003",
+                path=f"/payments/{op('tc003')}",
                 expected_status=[200],
                 expected_response={"payment_type": "inter_spbvi", "iso_status": "ACCP"},
                 preconditions=["TC-003 ejecutado."],
@@ -684,9 +730,9 @@ stories = [
                 "Envía una transferencia que supera 1.000 UVB.",
                 method="POST",
                 path="/payments/inter-spbvi",
-                body=payment("qa-breb-lab023", ORIGIN, KEY_B, OVER_LIMIT_CENTS),
+                body=payment(new_op("lab023"), ORIGIN, "alias", SPBVI_B, OVER_LIMIT_CENTS),
                 expected_status=[422],
-                expected_response={"operation_id": "qa-breb-lab023", "status": "rejected"},
+                expected_response={"operation_id": op("lab023"), "status": "rejected"},
                 preconditions=PREP,
                 expected_result="Rechazo con pacs002_xml RJCT y razón AMOUNT_LIMIT_EXCEEDED.",
                 labels=["pacs002", "rechazo"],

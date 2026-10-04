@@ -1,0 +1,5 @@
+{
+  "title": "Revisar resultados de la regresión de pagos",
+  "description": "Ejecutar los CP de la HU de pagos, revisar los fallidos y registrar bugs con su evidencia.",
+  "assignee_id": null
+}

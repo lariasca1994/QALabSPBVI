@@ -103,7 +103,7 @@ Pruebas de aceptación de la fase 1 (todas automáticas):
 ## Estado y fases siguientes
 Implementado y desplegado en el laboratorio multinube (ver README): llaves DIFE/DICE con catálogo de tipos Bre-B y ciclo de vida completo; pagos intra/inter-SPBVI con MOL simulado, límite de 1.000 UVB, consulta de estado y extracto conciliado; ISO 20022 de laboratorio; autenticación con MFA y reenvío; gestión QA (épica → HU → CP, tareas, bugs/fixes, edición versionada del JSON de CP, importación de programas, avisos con plantilla HTML); interfaz React con E2E en Playwright; CI/CD con GitHub Actions a Azure por OIDC.
 
-El programa `qa_programs/iso20022-breb-rest-json.json` (adaptado del documento de pruebas ISO 20022 Bre-B) se importa en una épica y sus 30 CP pasan en la prueba de integración.
+El programa `qa_programs/iso20022-breb-rest-json.json` (adaptado del documento de pruebas ISO 20022 Bre-B) se importa en una épica y sus 35 CP pasan en la prueba de integración y en el laboratorio. Las llaves de los CP se generan según el tipo Bre-B ({{key:new:TIPO}}) y las transacciones las toman de la lista de llaves de la épica ({{key:TIPO:SPBVI}}). Plantillas en qa_programs/plantillas/.
 
 Pendientes: endpoints pacs.004, camt.056, camt.029, camt.054 y pain.002 independiente; mock server de fallos de red; validación JSON Schema; pantalla de bugs/fixes; SQS, logs en Neon y entorno de producción con aprobación.
 

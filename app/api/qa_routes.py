@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
+    CaseExecuteRequest,
     BugCreateRequest,
     BugTransitionRequest,
     EpicCreateRequest,
@@ -38,6 +39,7 @@ from app.domains.qa.service import (
     import_program,
     execute_test_case,
     list_case_executions,
+    list_epic_key_pool,
     list_epic_bugs,
     retry_pending_notifications,
     transition_bug,
@@ -155,6 +157,7 @@ def post_program_import(
     database: QaDatabase,
     actor: AuthenticatedUser,
     mailer: MailerDependency,
+    update_existing: bool = False,
 ) -> dict:
     try:
         return import_program(
@@ -163,6 +166,7 @@ def post_program_import(
             actor=actor,
             mailer=mailer,
             program=payload.model_dump(),
+            update_existing=update_existing,
         )
     except (QaNotFoundError, QaForbiddenError, QaConflictError, QaValidationError) as error:
         _raise_http(error)
@@ -331,6 +335,7 @@ def post_case_execution(
     actor: AuthenticatedUser,
     mailer: MailerDependency,
     client: QaHttpClient,
+    payload: CaseExecuteRequest | None = None,
 ) -> dict:
     try:
         execution = execute_test_case(
@@ -342,9 +347,26 @@ def post_case_execution(
             cookies=dict(request.cookies),
             csrf_token=request.headers.get("x-csrf-token"),
             incoming_host=request.headers.get("host"),
+            selected_keys=payload.selected_keys if payload else None,
         )
         return execution
     except (QaNotFoundError, QaForbiddenError, QaConflictError, QaValidationError) as error:
+        _raise_http(error)
+
+
+@router.get("/epics/{epic_key}/keys")
+def get_epic_keys(
+    epic_key: str,
+    database: QaDatabase,
+    actor: AuthenticatedUser,
+    key_type: str | None = None,
+    spbvi_id: str | None = None,
+) -> list[dict]:
+    try:
+        return list_epic_key_pool(
+            database, epic_key=epic_key, actor=actor, key_type=key_type, spbvi_id=spbvi_id
+        )
+    except (QaNotFoundError, QaForbiddenError) as error:
         _raise_http(error)
 
 
