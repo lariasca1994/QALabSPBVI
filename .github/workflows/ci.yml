@@ -140,9 +140,10 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.LAB_STATIC_WEB_APPS_DEPLOYMENT_TOKEN }}
           action: upload
-          app_location: web
+          # Con skip_app_build la acción sube app_location tal cual: debe ser la carpeta compilada.
+          app_location: web/dist
           api_location: ""
-          output_location: dist
+          output_location: ""
           skip_app_build: true
 
       - name: Comprobar la ruta publica de la API
@@ -153,3 +154,20 @@ jobs:
           set -euo pipefail
           curl --fail --silent --show-error --retry 12 --retry-delay 10 --retry-all-errors \
             "$PUBLIC_APP_URL/api/health"
+
+      - name: Comprobar que el frontend publicado es la compilación
+        shell: bash
+        env:
+          PUBLIC_APP_URL: ${{ vars.LAB_PUBLIC_APP_URL }}
+        run: |
+          set -euo pipefail
+          # El index.html compilado referencia /assets/index-*.js; el de código fuente, /src/main.tsx.
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent "$PUBLIC_APP_URL/" | grep -q '/assets/index-'; then
+              echo "Frontend compilado publicado."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "El frontend publicado no es la compilación de web/dist." >&2
+          exit 1
