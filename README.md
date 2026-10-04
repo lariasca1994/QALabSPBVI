@@ -39,6 +39,20 @@ Es un proyecto de portafolio: **no se conecta a ninguna infraestructura real de 
 
 No hay cuentas públicas ni contraseñas por defecto: el acceso lo da un administrador.
 
+## Qué reúne este proyecto
+
+QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema lo que los demás proyectos trabajan por separado.
+
+| Área | Qué demuestra aquí |
+|---|---|
+| **Dominio de pagos** | Modelado de un ecosistema inspirado en Bre-B: directorio federado de llaves por entidad (DIFE) y central (DICE) con unicidad global; pagos intra-SPBVI (llave en DIFE) e inter-SPBVI (llave en DICE, liquidación en un MOL simulado); idempotencia, límite de 1.000 UVB y ledger que siempre suma cero. |
+| **Mensajería ISO 20022** | pacs.008 y pacs.002 de laboratorio validados contra XSD propios, generados por un gateway aparte con respaldo local. |
+| **Aseguramiento de calidad** | Plataforma tipo Jira con épicas, HU, CP, tareas, bugs y fixes. Cada CP es una solicitud REST/JSON que se ejecuta con un clic y muestra método, URL, solicitud y respuesta. Incluye un programa ISO 20022 de 35 CP que pasa completo en la nube, con llaves generadas según su tipo. |
+| **Backend y datos** | Monolito modular en FastAPI con cuatro motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle y MongoDB. Ninguno se comparte, y la coordinación entre DIFE y DICE es recuperable, sin transacciones distribuidas. |
+| **Seguridad** | Contraseñas Argon2id, MFA por correo con reenvío, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
+| **Cloud y DevOps** | Siete plataformas cloud, todas en capa gratuita (ver [Plataformas](#plataformas)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
+| **Pruebas** | 131 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles. |
+
 ## Funcionalidades
 
 **Llaves Bre-B (DIFE y DICE)**
