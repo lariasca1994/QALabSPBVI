@@ -8,7 +8,10 @@ targetScope = 'resourceGroup'
 param environmentName string = 'lab'
 
 @description('Región seleccionada para los recursos regionales del borrador.')
-param location string = 'centralus'
+param location string = 'eastus2'
+
+@description('Región del Azure SQL de DIFE. Puede diferir de location: eastus2 no admite servidores SQL nuevos en esta suscripción.')
+param sqlLocation string = location
 
 @description('Cuenta SQL inicial. Cambiala por un usuario administrador dedicado al entorno.')
 param sqlAdministratorLogin string
@@ -46,7 +49,9 @@ var registryName = toLower('azacr${resourceToken}')
 var keyVaultName = toLower('azkv${resourceToken}')
 var managedEnvironmentName = 'azcae${resourceToken}'
 var containerAppName = 'azca${resourceToken}'
-var sqlServerName = toLower('azsql${resourceToken}')
+// El SQL deriva su nombre de su propia región: un intento fallido en otra región deja el nombre reservado.
+var sqlToken = '${uniqueString(subscription().id, resourceGroup().id, sqlLocation, environmentName)}1'
+var sqlServerName = toLower('azsql${sqlToken}')
 var sqlDatabaseName = 'azdb${resourceToken}'
 var staticWebAppName = 'azswa${resourceToken}'
 var frontDoorProfileName = 'azafd${resourceToken}'
@@ -181,7 +186,7 @@ resource deploymentSecretsOfficerRoleAssignment 'Microsoft.Authorization/roleAss
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
   name: sqlServerName
-  location: location
+  location: sqlLocation
   properties: {
     administratorLogin: sqlAdministratorLogin
     administratorLoginPassword: sqlAdministratorPassword
@@ -193,7 +198,7 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
 resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   parent: sqlServer
   name: sqlDatabaseName
-  location: location
+  location: sqlLocation
   sku: {
     name: 'Basic'
     tier: 'Basic'
@@ -469,8 +474,10 @@ resource stripApiPrefixRule 'Microsoft.Cdn/profiles/ruleSets/rules@2024-02-01' =
 resource apiRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = {
   parent: frontDoorEndpoint
   name: apiRouteName
+  // Front Door rechaza la ruta si su grupo todavía no tiene un origen creado.
   dependsOn: [
     stripApiPrefixRule
+    apiOrigin
   ]
   properties: {
     originGroup: {
@@ -498,6 +505,9 @@ resource apiRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = {
 resource webRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = {
   parent: frontDoorEndpoint
   name: webRouteName
+  dependsOn: [
+    webOrigin
+  ]
   properties: {
     originGroup: {
       id: webOriginGroup.id

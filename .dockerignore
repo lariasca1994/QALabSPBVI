@@ -1,0 +1,20 @@
+# Contexto de build mínimo: la imagen solo necesita pyproject.toml, README.md y app/.
+# Nunca subir secretos ni datos locales al contexto (docker build / az acr build).
+.env
+.env.*
+!.env.example
+*.db
+.git
+.github
+.azure
+.claude
+.vscode
+.pytest_cache
+**/__pycache__
+*.egg-info
+infra
+tests
+web
+.mcp.json
+skills-lock.json
+runtime-validation-report.md

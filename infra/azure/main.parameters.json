@@ -6,10 +6,13 @@
       "value": "lab"
     },
     "location": {
-      "value": "centralus"
+      "value": "eastus2"
     },
     "sqlAdministratorLogin": {
       "value": "qalabadmin"
+    },
+    "sqlLocation": {
+      "value": "centralus"
     }
   }
 }
