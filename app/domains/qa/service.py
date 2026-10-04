@@ -40,8 +40,11 @@ HEADER_NAME = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 SECRET_AUTH_HEADER = re.compile(
     r"^(?:[A-Za-z][A-Za-z0-9+.-]*\s+)?\{\{secret:[A-Z0-9_]+\}\}$"
 )
+# "code" solo cuenta como sensible si es el código MFA (campo code u otp), no un código de
+# negocio como reason_code o merchant_code.
 SENSITIVE_FIELD = re.compile(
-    r"(password|secret|token|authorization|cookie|api.?key|access.?key|credential|private.?key|mfa|code)",
+    r"(password|secret|token|authorization|cookie|api.?key|access.?key|credential|private.?key"
+    r"|mfa|otp|^code$|verification.?code|auth.?code)",
     re.IGNORECASE,
 )
 BUG_TRANSITIONS = {

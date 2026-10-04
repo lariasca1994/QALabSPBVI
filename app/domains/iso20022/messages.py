@@ -8,9 +8,22 @@ from lxml import etree
 PACS_008_NAMESPACE = "urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08"
 PACS_002_NAMESPACE = "urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10"
 SCHEMAS_DIRECTORY = Path(__file__).with_name("schemas")
+# Perfiles posteriores al pago (devolución, cancelación, investigación, notificación y
+# reporte al cliente): mismos supuestos de laboratorio que pacs.008 / pacs.002.
+LIFECYCLE_PROFILES = (
+    "pacs.004.001.09",
+    "camt.056.001.08",
+    "camt.029.001.09",
+    "camt.054.001.08",
+    "pain.002.001.10",
+)
 SCHEMAS = {
     PACS_008_NAMESPACE: SCHEMAS_DIRECTORY / "pacs.008.001.08-lab.xsd",
     PACS_002_NAMESPACE: SCHEMAS_DIRECTORY / "pacs.002.001.10-lab.xsd",
+    **{
+        f"urn:iso:std:iso:20022:tech:xsd:{profile}": SCHEMAS_DIRECTORY / f"{profile}-lab.xsd"
+        for profile in LIFECYCLE_PROFILES
+    },
 }
 
 

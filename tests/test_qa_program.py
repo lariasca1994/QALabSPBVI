@@ -118,7 +118,7 @@ def test_iso20022_breb_program_imports_and_every_case_passes_twice(
 
     imported = client.post(f"/qa/epics/{epic_key}/import", json=program)
     assert imported.status_code == 201, imported.text
-    assert imported.json()["created"] == {"stories": 19, "test_cases": 35, "tasks": 22}
+    assert imported.json()["created"] == {"stories": 19, "test_cases": 55, "tasks": 22}
 
     cases = sorted(
         database.work_items.find({"epic_key": epic_key, "kind": "test_case"}),

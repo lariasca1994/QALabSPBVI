@@ -79,6 +79,50 @@ class LedgerEntry(Base):
     )
 
 
+class PaymentReturn(Base):
+    """Devolución (pacs.004) de un pago liquidado: total o parcial, idempotente por return_id."""
+
+    __tablename__ = "payment_returns"
+    __table_args__ = (
+        UniqueConstraint("return_id", name="uq_payment_return_id"),
+        CheckConstraint("amount_cents > 0"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    return_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    payment_id: Mapped[int] = mapped_column(ForeignKey("payments.id"), nullable=False, index=True)
+    amount_cents: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(4), nullable=False)
+    cancellation_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
+
+
+class CancellationRequest(Base):
+    """Solicitud de cancelación (camt.056) y su investigación, que se resuelve con camt.029."""
+
+    __tablename__ = "cancellation_requests"
+    __table_args__ = (UniqueConstraint("cancellation_id", name="uq_cancellation_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cancellation_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    payment_id: Mapped[int] = mapped_column(ForeignKey("payments.id"), nullable=False, index=True)
+    reason_code: Mapped[str] = mapped_column(String(4), nullable=False)
+    # pending → accepted (genera la devolución FOCR) o rejected (con motivo).
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    rejection_reason: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    return_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class UserRole(str, Enum):
     ADMIN = "admin"
     ADMINISTRADOR = "administrador"

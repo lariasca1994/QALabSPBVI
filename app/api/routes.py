@@ -21,6 +21,8 @@ from app.api.schemas import (
     InterSpbviPaymentResponse,
     PaymentCreateRequest,
     PaymentKeyResponse,
+    IntraSpbviPaymentResponse,
+    PaymentRejectionResponse,
     PaymentResponse,
     PaymentStatusResponse,
     StatementEntry,
@@ -60,6 +62,7 @@ from app.domains.payments.service import (
 )
 from app.domains.payments.mol import MolInsufficientFundsError, MolSettlementError
 from app.domains.iso20022.gateway import pacs002_xml, pacs008_xml
+from app.domains.iso20022.lifecycle import Pain002Data, build_pain002
 from app.domains.iso20022.messages import (
     Pacs002Data,
     Pacs008Data,
@@ -517,7 +520,7 @@ def resolve_local_key(
 
 @router.post(
     "/payments",
-    response_model=PaymentResponse,
+    response_model=IntraSpbviPaymentResponse,
     status_code=status.HTTP_201_CREATED,
     tags=["pagos"],
 )
@@ -530,7 +533,7 @@ def create_intra_spbvi_payment(
         User,
         Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR, UserRole.USUARIO)),
     ],
-) -> PaymentResponse:
+) -> IntraSpbviPaymentResponse | JSONResponse:
     try:
         payment, created = create_payment(
             db,
@@ -542,25 +545,26 @@ def create_intra_spbvi_payment(
             amount_cents=request.amount_cents,
         )
     except AmountLimitExceededError as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(error),
-        ) from error
+        return _intra_rejection(request.operation_id, str(error), "AM02", 422)
     except AccountNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No se encontro la cuenta de origen.",
         ) from error
-    except DestinationKeyNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontro una llave destino confirmada en el DIFE.",
-        ) from error
-    except InsufficientFundsError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="La cuenta de origen no tiene saldo suficiente.",
-        ) from error
+    except DestinationKeyNotFoundError:
+        return _intra_rejection(
+            request.operation_id,
+            "No se encontro una llave destino confirmada en el DIFE.",
+            "AC03",
+            404,
+        )
+    except InsufficientFundsError:
+        return _intra_rejection(
+            request.operation_id,
+            "La cuenta de origen no tiene saldo suficiente.",
+            "AM04",
+            409,
+        )
     except IdempotencyConflictError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -570,7 +574,10 @@ def create_intra_spbvi_payment(
     if not created:
         response.status_code = status.HTTP_200_OK
 
-    return PaymentResponse(
+    created_at = payment.created_at
+    if created_at.tzinfo is None or created_at.utcoffset() is None:
+        created_at = created_at.replace(tzinfo=UTC)
+    return IntraSpbviPaymentResponse(
         id=payment.id,
         operation_id=payment.operation_id,
         source_account_id=payment.source_account_id,
@@ -579,7 +586,34 @@ def create_intra_spbvi_payment(
         payment_type=payment.payment_type,
         status=payment.status,
         replayed=not created,
+        pain002_xml=build_pain002(
+            Pain002Data(
+                operation_id=payment.operation_id,
+                transaction_status="ACSC",
+                amount_cents=payment.amount_cents,
+                created_at=created_at,
+            )
+        ),
     )
+
+
+def _intra_rejection(operation_id: str, detail: str, reason_code: str, status_code: int) -> JSONResponse:
+    """Rechazo de negocio intra-SPBVI: el cliente recibe un pain.002 RJCT con el motivo ISO."""
+    rejection = PaymentRejectionResponse(
+        detail=detail,
+        operation_id=operation_id,
+        status="rejected",
+        reason_code=reason_code,
+        pain002_xml=build_pain002(
+            Pain002Data(
+                operation_id=operation_id,
+                transaction_status="RJCT",
+                reason_code=reason_code,
+                created_at=datetime.now(UTC),
+            )
+        ),
+    )
+    return JSONResponse(status_code=status_code, content=rejection.model_dump())
 
 
 @router.get(

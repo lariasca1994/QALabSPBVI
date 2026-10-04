@@ -33,11 +33,11 @@ async function registerKey(
 }
 
 async function responseJson(page: Page): Promise<Record<string, unknown>> {
-  const details = page.locator(".execution-card details").last();
+  const details = page.locator(".execution-card details").first();
   if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
     await details.locator("summary").click();
   }
-  const content = await page.locator(".execution-card pre").last().innerText();
+  const content = await details.locator("pre").innerText();
   return JSON.parse(content) as Record<string, unknown>;
 }
 
@@ -81,6 +81,48 @@ test("crea un pago intra-SPBVI idempotente y verifica su respuesta en móvil", a
     amount_cents: 1250,
     replayed: true,
   });
+  await expectNoHorizontalOverflow(page);
+
+  // Operaciones posteriores: pain.002, devolución parcial, cancelación aceptada y camt.054.
+  const operation = page.locator("#operation-action");
+  await operation.selectOption("status");
+  await page.locator("#operation-payment-id").fill(operationId);
+  await page.getByRole("button", { name: "Ejecutar operación" }).click();
+  await expect(page.locator(".execution-card .request-summary")).toContainText("/status-report");
+  await expect(await responseJson(page)).toMatchObject({ transaction_status: "ACSC" });
+  await expect(page.locator(".execution-card summary", { hasText: "Mensaje pain.002" })).toBeVisible();
+
+  await operation.selectOption("return");
+  await page.locator("#operation-payment-id").fill(operationId);
+  await page.locator("#operation-return-amount").fill("250");
+  await page.getByRole("button", { name: "Ejecutar operación" }).click();
+  await expect(page.locator(".execution-card .request-summary")).toContainText("/returns");
+  await expect(page.getByRole("status")).toContainText("Devolución registrada");
+  await expect(await responseJson(page)).toMatchObject({ amount_cents: 250, returned_total_cents: 250, reason_code: "MD06" });
+
+  const cancellationId = `e2e-cxl-${suffix}`.slice(0, 60);
+  await operation.selectOption("cancel");
+  await page.locator("#operation-payment-id").fill(operationId);
+  await page.locator("#operation-cancellation-new").fill(cancellationId);
+  await page.getByRole("button", { name: "Ejecutar operación" }).click();
+  await expect(page.locator(".execution-card .request-summary")).toContainText("202");
+  await expect(await responseJson(page)).toMatchObject({ status: "pending", reason_code: "DUPL" });
+
+  await operation.selectOption("resolve");
+  await page.locator("#operation-cancellation-id").fill(cancellationId);
+  await page.getByRole("button", { name: "Ejecutar operación" }).click();
+  await expect(page.getByRole("status")).toContainText("Cancelación aceptada");
+  await expect(await responseJson(page)).toMatchObject({
+    status: "accepted",
+    payment_return: { amount_cents: 1000, reason_code: "FOCR" },
+  });
+  await expect(page.locator(".execution-card summary", { hasText: "Mensaje pacs.004" })).toBeVisible();
+
+  await operation.selectOption("notifications");
+  await page.locator("#operation-account").fill(destinationAccount);
+  await page.getByRole("button", { name: "Ejecutar operación" }).click();
+  await expect(page.locator(".execution-card .request-summary")).toContainText("/notifications");
+  await expect(await responseJson(page)).toMatchObject({ total_credits_cents: 1250, total_debits_cents: 1250 });
   await expectNoHorizontalOverflow(page);
 });
 

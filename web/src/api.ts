@@ -462,4 +462,14 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  /** Operaciones posteriores al pago (devolución, cancelación, investigación, notificaciones, estado). */
+  async paymentOperation(method: "GET" | "POST", path: string, body?: unknown): Promise<ApiResponse<Record<string, unknown>>> {
+    if (method === "GET") return requestWithMetadata(path);
+    const token = await csrfToken();
+    return requestWithMetadata(path, {
+      method,
+      headers: { "X-CSRF-Token": token },
+      body: JSON.stringify(body ?? {}),
+    });
+  },
 };

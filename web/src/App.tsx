@@ -33,6 +33,7 @@ import {
 import { friendlyError, formatDate, Modal, PageHeading } from "./ui";
 import { QualityWorkspace } from "./QualityWorkspace";
 import { BugsWorkspace, type BugDraft } from "./BugsWorkspace";
+import { PaymentOperations } from "./PaymentOperations";
 import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
@@ -791,6 +792,18 @@ function MetricCard({
   return <article className="metric-card"><div className={`metric-icon metric-icon--${tone}`}>{icon}</div><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
 }
 
+/** Busca los campos *_xml (también anidados, como payment_return.pacs004_xml) de una respuesta. */
+function isoMessages(data: unknown): Array<[string, string]> {
+  if (typeof data !== "object" || data === null) return [];
+  return Object.entries(data as Record<string, unknown>).flatMap(([key, value]): Array<[string, string]> => {
+    if (key.endsWith("_xml") && typeof value === "string") {
+      const name = key.replace(/_xml$/, "").replace(/^([a-z]+)(\d{3})$/, "$1.$2");
+      return [[name, value]];
+    }
+    return typeof value === "object" ? isoMessages(value) : [];
+  });
+}
+
 function ActionResultCard({ result }: { result: ActionResult }) {
   return (
     <section className="surface-card execution-card execution-card--passed" aria-live="polite">
@@ -807,6 +820,12 @@ function ActionResultCard({ result }: { result: ActionResult }) {
         <summary>Ver JSON de respuesta</summary>
         <pre>{JSON.stringify(result.data, null, 2)}</pre>
       </details>
+      {isoMessages(result.data).map(([name, xml]) => (
+        <details className="response-details" key={name}>
+          <summary>Mensaje {name}</summary>
+          <pre>{xml}</pre>
+        </details>
+      ))}
     </section>
   );
 }
@@ -1119,6 +1138,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
             <button className="button button--primary" disabled={busy} type="submit"><ArrowUpRight size={15} />{busy ? "Procesando…" : "Ejecutar pago"}</button>
           </form>
         </section>
+        <PaymentOperations onError={setError} onNotice={setNotice} onResult={setResult} />
       </div>
       {result && <ActionResultCard result={result} />}
     </>

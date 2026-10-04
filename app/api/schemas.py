@@ -374,3 +374,111 @@ class KeyDeleteResponse(BaseModel):
     key_type: str
     key_value: str
     spbvi_id: str
+
+
+class IntraSpbviPaymentResponse(PaymentResponse):
+    # Reporte de estado para el cliente que ordenó el pago (pain.002, ACSC al liquidar).
+    pain002_xml: str
+
+
+class PaymentRejectionResponse(BaseModel):
+    """Rechazo de negocio de un pago intra-SPBVI con su pain.002 RJCT para el cliente."""
+
+    detail: str
+    operation_id: str
+    status: Literal["rejected"]
+    reason_code: str
+    pain002_xml: str
+
+
+def _trimmed(value: str) -> str:
+    value = value.strip()
+    if not value:
+        raise ValueError("El valor no puede quedar vacio.")
+    return value
+
+
+class PaymentReturnRequest(BaseModel):
+    """Devolución pacs.004: sin amount_cents se devuelve todo el saldo devolvible del pago."""
+
+    return_id: str = Field(min_length=1, max_length=100)
+    amount_cents: StrictInt | None = Field(default=None, gt=0)
+    reason_code: str = Field(min_length=4, max_length=4)
+
+    _trim = field_validator("return_id", "reason_code")(classmethod(lambda cls, value: _trimmed(value)))
+
+
+class PaymentReturnResponse(BaseModel):
+    return_id: str
+    operation_id: str
+    original_amount_cents: int
+    amount_cents: int
+    returned_total_cents: int
+    reason_code: str
+    reason: str
+    cancellation_id: str | None = None
+    status: Literal["completed"] = "completed"
+    replayed: bool = False
+    pacs004_xml: str
+    created_at: str
+
+
+class CancellationRequestCreate(BaseModel):
+    cancellation_id: str = Field(min_length=1, max_length=100)
+    reason_code: str = Field(min_length=4, max_length=4)
+
+    _trim = field_validator("cancellation_id", "reason_code")(classmethod(lambda cls, value: _trimmed(value)))
+
+
+class InvestigationResolutionRequest(BaseModel):
+    accepted: bool
+    rejection_reason: str | None = Field(default=None, min_length=4, max_length=4)
+
+
+class InvestigationResponse(BaseModel):
+    """Solicitud de cancelación (camt.056) y el estado de su investigación (camt.029)."""
+
+    cancellation_id: str
+    operation_id: str
+    status: Literal["pending", "accepted", "rejected"]
+    reason_code: str
+    reason: str
+    rejection_reason: str | None = None
+    rejection_detail: str | None = None
+    replayed: bool = False
+    camt056_xml: str
+    camt029_xml: str
+    payment_return: PaymentReturnResponse | None = None
+    created_at: str
+    resolved_at: str | None = None
+
+
+class AccountNotificationEntry(BaseModel):
+    entry_id: int
+    notification_type: Literal["credit", "debit"]
+    entry_type: str
+    amount_cents: int
+    currency: str
+    value_date: str
+    operation_id: str | None
+
+
+class AccountNotificationsResponse(BaseModel):
+    """Notificación de créditos y débitos de una cuenta (camt.054 de laboratorio)."""
+
+    account_id: str
+    spbvi_id: str
+    entries: list[AccountNotificationEntry]
+    total_credits_cents: int
+    total_debits_cents: int
+    camt054_xml: str
+
+
+class PaymentStatusReportResponse(BaseModel):
+    """Reporte de estado para el cliente (pain.002 independiente)."""
+
+    operation_id: str
+    payment_type: str
+    transaction_status: str
+    amount_cents: int
+    pain002_xml: str

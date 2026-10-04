@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Perfil de laboratorio de QALabSPBVI, limitado a los campos implementados.
+     Usa los nombres de elementos publicos de ISO 20022, pero NO es el esquema oficial
+     ni evidencia de conformidad con ISO 20022 o con el anexo 6 de la Circular DSP-465. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="urn:iso:std:iso:20022:tech:xsd:camt.029.001.09"
+           xmlns="urn:iso:std:iso:20022:tech:xsd:camt.029.001.09"
+           elementFormDefault="qualified">
+  <xs:simpleType name="Max100Text">
+    <xs:restriction base="xs:string"><xs:minLength value="1"/><xs:maxLength value="100"/></xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="Amount">
+    <xs:simpleContent>
+      <xs:extension base="xs:decimal">
+        <xs:attribute name="Ccy" use="required">
+          <xs:simpleType><xs:restriction base="xs:string"><xs:pattern value="[A-Z]{3}"/></xs:restriction></xs:simpleType>
+        </xs:attribute>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+  <xs:complexType name="OriginalGroup">
+    <xs:sequence>
+      <xs:element name="OrgnlMsgId" type="Max100Text"/>
+      <xs:element name="OrgnlMsgNmId" type="Max100Text"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Agent">
+    <xs:sequence>
+      <xs:element name="Agt"><xs:complexType><xs:sequence>
+        <xs:element name="FinInstnId"><xs:complexType><xs:sequence>
+          <xs:element name="Othr"><xs:complexType><xs:sequence>
+            <xs:element name="Id" type="Max100Text"/>
+          </xs:sequence></xs:complexType></xs:element>
+        </xs:sequence></xs:complexType></xs:element>
+      </xs:sequence></xs:complexType></xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Document">
+    <xs:complexType><xs:sequence><xs:element name="RsltnOfInvstgtn">
+      <xs:complexType><xs:sequence>
+        <xs:element name="Assgnmt"><xs:complexType><xs:sequence>
+          <xs:element name="Id" type="Max100Text"/>
+          <xs:element name="Assgnr" type="Agent"/>
+          <xs:element name="Assgne" type="Agent"/>
+          <xs:element name="CreDtTm" type="xs:dateTime"/>
+        </xs:sequence></xs:complexType></xs:element>
+        <xs:element name="Sts"><xs:complexType><xs:sequence>
+          <xs:element name="Conf"><xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="CNCL"/><xs:enumeration value="PECR"/><xs:enumeration value="RJCR"/></xs:restriction></xs:simpleType></xs:element>
+        </xs:sequence></xs:complexType></xs:element>
+        <xs:element name="CxlDtls"><xs:complexType><xs:sequence>
+          <xs:element name="TxInfAndSts"><xs:complexType><xs:sequence>
+            <xs:element name="CxlStsId" type="Max100Text"/>
+            <xs:element name="OrgnlGrpInf" type="OriginalGroup"/>
+            <xs:element name="OrgnlEndToEndId" type="Max100Text"/>
+            <xs:element name="TxCxlSts"><xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="ACCR"/><xs:enumeration value="PDCR"/><xs:enumeration value="RJCR"/></xs:restriction></xs:simpleType></xs:element>
+            <xs:element name="CxlStsRsnInf" minOccurs="0"><xs:complexType><xs:sequence><xs:element name="Rsn"><xs:complexType><xs:sequence><xs:element name="Cd"><xs:simpleType><xs:restriction base="xs:string"><xs:enumeration value="AC04"/><xs:enumeration value="AM04"/><xs:enumeration value="ARDT"/><xs:enumeration value="CUST"/><xs:enumeration value="LEGL"/><xs:enumeration value="NOAS"/><xs:enumeration value="NOOR"/></xs:restriction></xs:simpleType></xs:element></xs:sequence></xs:complexType></xs:element></xs:sequence></xs:complexType></xs:element>
+          </xs:sequence></xs:complexType></xs:element>
+        </xs:sequence></xs:complexType></xs:element>
+      </xs:sequence></xs:complexType>
+    </xs:element></xs:sequence></xs:complexType>
+  </xs:element>
+</xs:schema>
