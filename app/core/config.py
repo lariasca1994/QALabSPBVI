@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     # SUPUESTO: valor de la UVB en centavos; actualizarlo con el valor oficial vigente.
     payment_limit_uvb: int = 1000
     uvb_value_cents: int = 1_155_200
+    # "null": sin pool, cada solicitud abre y cierra su conexión. En la nube evita sesiones
+    # ociosas que impiden la pausa automática de Azure SQL (oferta gratuita) y la
+    # suspensión de Neon: las bases solo se activan cuando alguien usa la aplicación.
+    database_pool: str = "queue"
     auth_secret_key: str = ""
     brevo_api_key: str = ""
     brevo_sender_email: str = ""
@@ -38,3 +42,16 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def engine_options(url: str) -> dict:
+    """Opciones comunes de create_engine según DATABASE_POOL."""
+    from sqlalchemy.pool import NullPool
+
+    if url.startswith("sqlite"):
+        return {"connect_args": {"check_same_thread": False}}
+    if get_settings().database_pool == "null":
+        return {"poolclass": NullPool}
+    # pool_pre_ping descarta conexiones cortadas por el servidor (p. ej. Neon suspende el
+    # cómputo por inactividad); pool_recycle las renueva antes.
+    return {"pool_pre_ping": True, "pool_recycle": 240}

@@ -3,19 +3,10 @@ from collections.abc import Generator
 from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.config import get_settings
+from app.core.config import engine_options, get_settings
 
 database_url = get_settings().database_url
-connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-
-# pool_pre_ping descarta conexiones cortadas por el servidor (p. ej. Neon suspende el
-# cómputo por inactividad y termina las conexiones abiertas); pool_recycle las renueva antes.
-engine = create_engine(
-    database_url,
-    connect_args=connect_args,
-    pool_pre_ping=True,
-    pool_recycle=240,
-)
+engine = create_engine(database_url, **engine_options(database_url))
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 

@@ -105,6 +105,9 @@ var appPlainEnv = [
   // Multinube: avisos QA por AWS SQS + Lambda y mensajes ISO 20022 por Google Cloud Run.
   { name: 'NOTIFICATIONS_QUEUE_URL', value: notificationsQueueUrl }
   { name: 'AWS_REGION', value: 'us-east-1' }
+  // Sin pool de conexiones: las bases (Neon, Azure SQL gratuito, OCI) solo se activan con
+  // solicitudes reales y pueden pausarse; nada mantiene sesiones abiertas.
+  { name: 'DATABASE_POOL', value: 'null' }
   { name: 'ISO_GATEWAY_URL', value: isoGatewayUrl }
 ]
 
