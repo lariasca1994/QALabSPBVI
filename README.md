@@ -19,13 +19,13 @@
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 ![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)
 
-Laboratorio simulado de pagos inmediatos interoperables, inspirado en Bre-B (Banco de la República de Colombia). Sirve para practicar y mostrar aseguramiento de calidad automatizado: pruebas de API REST con JSON, mensajería ISO 20022 de laboratorio y recorridos E2E.
+Laboratorio simulado de pagos inmediatos interoperables, inspirado en los esquemas nacionales de pagos inmediatos con llaves. Sirve para practicar y mostrar aseguramiento de calidad automatizado: pruebas de API REST con JSON, mensajería ISO 20022 de laboratorio y recorridos E2E.
 
 Es un proyecto de portafolio: **no se conecta a ninguna infraestructura real de pagos** y la liquidación (MOL) es una simulación.
 
 ### En pocas palabras
 
-- **Qué hace:** simula el ecosistema Bre-B. Registra llaves (celular, correo, documento, alfanumérica `@` y código de comercio) en el directorio de cada SPBVI (DIFE) y en el central (DICE). Procesa pagos entre cuentas del mismo SPBVI o de SPBVI distintos, con idempotencia, límite de 1.000 UVB y mensajes pacs.008 / pacs.002 de laboratorio.
+- **Qué hace:** simula un ecosistema de pagos inmediatos con llaves. Registra llaves (celular, correo, documento, alfanumérica `@` y código de comercio) en el directorio de cada SPBVI (DIFE) y en el central (DICE). Procesa pagos entre cuentas del mismo SPBVI o de SPBVI distintos, con idempotencia, límite de 1.000 UVB y mensajes pacs.008 / pacs.002 de laboratorio.
 - **Para el equipo QA:** una plataforma tipo Jira (épica → HU → CP, tareas, bugs y fixes). Cada CP es una solicitud REST con JSON que se ejecuta con un clic. El resultado muestra método, URL, solicitud, respuesta y veredicto. El sistema genera las llaves de prueba según su tipo, y las transacciones las toman de la lista de llaves de la épica.
 - **Cómo probarlo:** entra a la [demo](https://qalabspbvi.vercel.app) con una cuenta creada por un administrador (acceso con contraseña y código por correo). La épica `EPIC-00001` ya trae el programa ISO 20022 cargado. Para correrlo en tu equipo, ve a [Instalación](#instalación) y [Puesta en marcha](#puesta-en-marcha).
 
@@ -43,7 +43,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 
 | Área | Qué demuestra aquí |
 |---|---|
-| **Dominio de pagos** | Modelado de un ecosistema inspirado en Bre-B: directorio federado de llaves por entidad (DIFE) y central (DICE) con unicidad global; pagos intra-SPBVI (llave en DIFE) e inter-SPBVI (llave en DICE, liquidación en un MOL simulado); idempotencia, límite de 1.000 UVB y ledger que siempre suma cero. |
+| **Dominio de pagos** | Modelado de un ecosistema de pagos inmediatos con llaves: directorio federado de llaves por entidad (DIFE) y central (DICE) con unicidad global; pagos intra-SPBVI (llave en DIFE) e inter-SPBVI (llave en DICE, liquidación en un MOL simulado); idempotencia, límite de 1.000 UVB y ledger que siempre suma cero. |
 | **Mensajería ISO 20022** | pacs.008 y pacs.002 de laboratorio validados contra XSD propios, generados por un gateway aparte con respaldo local. |
 | **Aseguramiento de calidad** | Plataforma tipo Jira con épicas, HU, CP, tareas, bugs y fixes. Cada CP es una solicitud REST/JSON que se ejecuta con un clic y muestra método, URL, solicitud y respuesta. Incluye un programa ISO 20022 de 35 CP que pasa completo en la nube, con llaves generadas según su tipo. |
 | **Backend y datos** | Monolito modular en FastAPI con cuatro motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle y MongoDB. Ninguno se comparte, y la coordinación entre DIFE y DICE es recuperable, sin transacciones distribuidas. |
@@ -53,7 +53,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 
 ## Funcionalidades
 
-**Llaves Bre-B (DIFE y DICE)**
+**Llaves de pago (DIFE y DICE)**
 - Catálogo de tipos de llave con validación y forma canónica (`GET /keys/types`).
 - Registro con unicidad global: DICE reserva (`pending`), DIFE activa y DICE confirma. Nunca hay duplicados, ni con registros simultáneos.
 - Ciclo de vida completo: asignación de titular, suspensión y reactivación (administrativa o personal) y eliminación con auditoría.
@@ -68,9 +68,9 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 **Plataforma QA**
 - Épicas, HU, CP, tareas, bugs y fixes con permisos por rol validados en el servidor.
 - CP ejecutables (API REST + JSON) con editor del JSON y versionado: cada cambio guarda la versión anterior en el historial.
-- Llaves generadas automáticamente según el tipo Bre-B y lista de llaves por épica, que las transacciones eligen según el tipo que indica el CP.
+- Llaves generadas automáticamente según su tipo y lista de llaves por épica, que las transacciones eligen según el tipo que indica el CP.
 - Importación de programas completos (HU, CP y tareas) y plantillas para crear la documentación.
-- Programa ISO 20022 Bre-B adaptado: 19 HU, 35 CP ejecutables y 22 tareas.
+- Programa ISO 20022 de laboratorio: 19 HU, 35 CP ejecutables y 22 tareas.
 - Avisos por correo a la épica con plantilla HTML propia y texto plano.
 
 **Acceso**
@@ -257,9 +257,9 @@ El primer `admin` se crea por CLI y los siguientes con `python -m app.cli create
 
 El código vence a los 5 minutos, admite 5 intentos y es de un solo uso. Toda operación que cambia estado exige el token CSRF (`GET /auth/csrf` y cabecera `X-CSRF-Token`).
 
-### Llaves Bre-B
+### Llaves de pago
 
-Tipos publicados por Banrep. Los formatos exactos no son públicos, así que estas reglas son **supuestos** del laboratorio:
+Los tipos y formatos son **supuestos** del laboratorio:
 
 | Código | Tipo | Ejemplo | Forma canónica |
 |---|---|---|---|
@@ -293,7 +293,7 @@ Reglas de los pagos:
 - **Límite por operación:** el monto no puede superar `PAYMENT_LIMIT_UVB × UVB_VALUE_CENTS`. Si lo supera, la API responde `422`; en un pago inter, además, devuelve un pacs.002 `RJCT`.
 - **Sin efectos parciales:** un rechazo o una falla a mitad del movimiento no deja débito ni crédito, y las entradas del ledger de cada pago suman cero.
 
-Los perfiles `pacs.008.001.08` y `pacs.002.001.10` usan XSD propios limitados a los campos implementados. **No son los XSD oficiales ni prueban conformidad con ISO 20022 o Banrep.**
+Los perfiles `pacs.008.001.08` y `pacs.002.001.10` usan XSD propios limitados a los campos implementados. **No son los XSD oficiales ni prueban conformidad con ISO 20022 ni con ningún esquema real.**
 
 ### Casos de prueba
 
@@ -321,7 +321,7 @@ El CP aprueba si el código HTTP está entre los esperados y la respuesta contie
 
 | Marcador | Resultado |
 |---|---|
-| `{{key:new:TIPO}}` | Genera una llave nueva y válida del tipo Bre-B. Si el registro responde 2xx, entra en la lista de llaves de la épica |
+| `{{key:new:TIPO}}` | Genera una llave nueva y válida de ese tipo. Si el registro responde 2xx, entra en la lista de llaves de la épica |
 | `{{key:TIPO:SPBVI}}` | Toma una llave de esa lista. Por defecto es la más reciente; al ejecutar se puede elegir otra del mismo tipo |
 | `{{op:NOMBRE:new}}` / `{{op:NOMBRE}}` | Genera un identificador de operación o reutiliza el último (reenvíos y consultas de estado) |
 | `{{secret:NOMBRE}}` | Valor de `QA_SECRET_NOMBRE`; nunca se guarda ni se muestra |
@@ -334,7 +334,7 @@ Bugs: `abierto → asignado → en_fix → listo_para_retest → cerrado`, o `re
 
 ### Programa ISO 20022 y plantillas
 
-`qa_programs/iso20022-breb-rest-json.json` adapta el documento "Programa de Pruebas ISO 20022 – Ecosistema BREB BanRep (Enfoque API REST / JSON)" a los endpoints del laboratorio:
+`qa_programs/iso20022-breb-rest-json.json` es un programa de pruebas ISO 20022 propio, con enfoque API REST / JSON, sobre los endpoints del laboratorio:
 
 - La HU de preparación (`LAB-HU-000`) crea las cuentas y genera una llave de cada tipo.
 - pain.001 → `POST /payments`
@@ -383,22 +383,13 @@ Si Brevo falla, la acción queda guardada y el aviso se reintenta con `POST /qa/
 
 ## Despliegue
 
-El laboratorio reparte sus componentes entre varias nubes, cada uno con su base dedicada (ver [Plataformas](#plataformas)). Las regiones son:
-
-- **eastus2:** API (Azure Container Apps).
-- **australiaeast:** DIFE (Azure SQL).
-- **sa-bogota-1:** DICE (OCI).
-- **us-east-2:** pagos (Neon).
-- **AWS us-east-1:** QA (Atlas) y avisos.
-- **Virginia:** gateway (Render).
+El laboratorio reparte sus componentes entre varias nubes, cada uno con su base dedicada (ver [Plataformas](#plataformas)).
 
 **Las bases duermen sin uso y se activan al entrar:**
 
 - La API escala a cero y no usa pool de conexiones en la nube (`DATABASE_POOL=null`): no quedan sesiones abiertas que mantengan despiertas a Azure SQL (pausa a los 60 minutos) o a Neon (suspensión a los 5 minutos).
 - `/health` no toca ninguna base, así que los monitores no las despiertan.
 - Al abrir la aplicación con sesión válida, `/auth/me` despierta DIFE y DICE en segundo plano. Mientras Azure SQL se reanuda (cerca de un minuto), la conexión se reintenta, y si aún no está lista la API responde `503` con "La base de datos se está activando".
-
-DIFE está en australiaeast, así que responde con algo más de latencia que el resto.
 
 El despliegue es continuo:
 
@@ -416,7 +407,7 @@ La infraestructura está en `infra/azure/main.bicep` y `infra/aws/notifications.
 
 ### Supuestos y pendientes
 
-Supuestos, que se ajustan al recibir el anexo 6 de la Circular DSP-465:
+Supuestos del laboratorio, que se ajustan si cambian las reglas:
 
 - Tipos y orden de los mensajes ISO 20022.
 - Formatos de llave.

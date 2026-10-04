@@ -36,13 +36,13 @@ Los CP son solo API REST con JSON. Al ejecutar, el sistema reemplaza estos marca
 
 | Marcador | Resultado |
 | --- | --- |
-| `{{key:new:TIPO}}` | Genera una llave nueva y válida del tipo Bre-B indicado. Si el registro responde 2xx, la llave entra en la **lista de llaves de la épica**. |
+| `{{key:new:TIPO}}` | Genera una llave nueva y válida del tipo indicado. Si el registro responde 2xx, la llave entra en la **lista de llaves de la épica**. |
 | `{{key:TIPO}}` / `{{key:TIPO:SPBVI}}` | Usa una llave de la lista de ese tipo (y SPBVI). Por defecto es la más reciente confirmada; al ejecutar puedes elegir otra de la lista. |
 | `{{op:NOMBRE:new}}` | Genera un identificador de operación nuevo y lo guarda en la épica. |
 | `{{op:NOMBRE}}` | Reutiliza el último identificador generado con ese nombre (reenvío idempotente, consulta de estado). |
 | `{{secret:NOMBRE}}` | Valor de la variable de entorno `QA_SECRET_NOMBRE`. Nunca se guarda ni se muestra. |
 
-Tipos de llave (`TIPO`) y valores que se generan (SUPUESTO: formatos del laboratorio, a ajustar con la especificación oficial):
+Tipos de llave (`TIPO`) y valores que se generan (SUPUESTO: formatos propios del laboratorio):
 
 | Tipo | Valor generado |
 | --- | --- |
