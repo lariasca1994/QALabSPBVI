@@ -150,6 +150,13 @@ export const api = {
       body: JSON.stringify({ email, code }),
     });
   },
+  async resendCode(): Promise<void> {
+    const token = await csrfToken();
+    await request("/auth/resend-code", {
+      method: "POST",
+      headers: { "X-CSRF-Token": token },
+    });
+  },
   async logout(): Promise<void> {
     const token = await csrfToken();
     await request("/auth/logout", {

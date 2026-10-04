@@ -14,6 +14,9 @@ test("rechaza una clave inválida, autentica con MFA y ejecuta un caso QA en mó
   await page.getByRole("button", { name: "Continuar" }).click();
   await expect(page.getByText("Si los datos son válidos, te enviamos un código de acceso al correo.")).toBeVisible();
   await expect.poll(readMfaCode).toBe("");
+  const resend = page.getByRole("button", { name: /Reenviar en \d:\d{2}/ });
+  await expect(resend).toBeVisible();
+  await expect(resend).toBeDisabled();
   await expectNoHorizontalOverflow(page);
 
   await signInAsAdmin(page, "auth");

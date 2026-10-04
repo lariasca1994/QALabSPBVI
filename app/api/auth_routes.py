@@ -30,9 +30,12 @@ from app.db.session import get_db
 from app.domains.auth.service import (
     InvalidChallengeError,
     LoginRateLimitError,
+    PENDING_LOGIN_SECONDS,
+    ResendCooldownError,
     complete_login,
     create_user,
     normalize_email,
+    resend_code,
     revoke_session,
     start_login,
     welcome_message,
@@ -40,6 +43,7 @@ from app.domains.auth.service import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["autenticacion"])
+PENDING_LOGIN_COOKIE = "qalab_pending_login"
 DbSession = Annotated[Session, Depends(get_db)]
 MailerDependency = Annotated[Mailer, Depends(get_mailer)]
 
@@ -63,14 +67,30 @@ def get_csrf_token(request: Request, response: Response) -> CsrfResponse:
     return CsrfResponse(csrf_token=token)
 
 
+def _set_pending_login_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=PENDING_LOGIN_COOKIE,
+        value=token,
+        max_age=PENDING_LOGIN_SECONDS,
+        secure=_secure_cookie(),
+        httponly=True,
+        samesite="strict",
+        path="/",
+    )
+
+
 @router.post("/login", status_code=status.HTTP_202_ACCEPTED)
 def login(
     request: Request,
+    response: Response,
     credentials: LoginRequest,
     db: DbSession,
     mailer: MailerDependency,
 ) -> dict[str, str]:
     verify_csrf(request)
+    # Siempre se emite: su presencia no indica si la contraseña era válida.
+    pending_token = secrets.token_urlsafe(32)
+    _set_pending_login_cookie(response, pending_token)
     try:
         start_login(
             db,
@@ -78,6 +98,7 @@ def login(
             password=credentials.password,
             client_ip=request.client.host if request.client else "unknown",
             mailer=mailer,
+            pending_token=pending_token,
         )
     except LoginRateLimitError as error:
         raise HTTPException(
@@ -96,6 +117,45 @@ def login(
         "message": (
             "Si los datos son validos, enviaremos un codigo de acceso al correo "
             "asociado a la cuenta."
+        )
+    }
+
+
+@router.post("/resend-code", status_code=status.HTTP_202_ACCEPTED)
+def resend_email_code(
+    request: Request,
+    db: DbSession,
+    mailer: MailerDependency,
+) -> dict[str, str]:
+    verify_csrf(request)
+    try:
+        resend_code(
+            db,
+            pending_token=request.cookies.get(PENDING_LOGIN_COOKIE),
+            mailer=mailer,
+        )
+    except ResendCooldownError as error:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Espera {error.retry_after} segundos antes de pedir otro codigo.",
+            headers={"Retry-After": str(error.retry_after)},
+        ) from error
+    except LoginRateLimitError as error:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Alcanzaste el maximo de codigos. Espera 15 minutos e inicia sesion de nuevo.",
+            headers={"Retry-After": "900"},
+        ) from error
+    except MailDeliveryError as error:
+        logger.exception("No se pudo reenviar el codigo MFA por correo.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo enviar el codigo. Intenta nuevamente mas tarde.",
+        ) from error
+    return {
+        "message": (
+            "Si hay un inicio de sesion pendiente, enviamos un codigo nuevo al correo "
+            "asociado. El codigo anterior deja de funcionar."
         )
     }
 

@@ -372,3 +372,25 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.resend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.resend-row .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resend-row .text-button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}

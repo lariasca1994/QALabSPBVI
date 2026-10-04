@@ -9,7 +9,14 @@ from sqlalchemy.orm import Session
 from app.core.email_templates import EmailMessage
 from app.core.mailer import MailDeliveryError, Mailer, send_message
 from app.core.security import code_digest, digest_token, keyed_digest
-from app.db.models import AuthSession, EmailLoginChallenge, LoginAttempt, User, UserRole
+from app.db.models import (
+    AuthSession,
+    EmailLoginChallenge,
+    LoginAttempt,
+    PendingLogin,
+    User,
+    UserRole,
+)
 
 PASSWORD_HASHER = PasswordHasher()
 DUMMY_PASSWORD_HASH = PASSWORD_HASHER.hash("dummy-password-used-only-for-timing")
@@ -19,6 +26,10 @@ LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_MAX_FAILURES = 10
 SESSION_IDLE_SECONDS = 30 * 60
 SESSION_ABSOLUTE_SECONDS = 8 * 60 * 60
+# Reenvío del código: ventana del inicio pendiente, espera entre envíos y tope de códigos.
+PENDING_LOGIN_SECONDS = 15 * 60
+RESEND_COOLDOWN_SECONDS = 60
+MAX_CODES_PER_WINDOW = 3
 
 
 class LoginRateLimitError(Exception):
@@ -27,6 +38,12 @@ class LoginRateLimitError(Exception):
 
 class InvalidChallengeError(Exception):
     pass
+
+
+class ResendCooldownError(Exception):
+    def __init__(self, retry_after: int) -> None:
+        super().__init__(retry_after)
+        self.retry_after = retry_after
 
 
 def normalize_email(email: str) -> str:
@@ -153,7 +170,14 @@ def start_login(
     password: str,
     client_ip: str,
     mailer: Mailer,
+    pending_token: str,
 ) -> None:
+    """Valida la contraseña y envía el código MFA.
+
+    `pending_token` es el valor de la cookie de inicio pendiente: la ruta la emite
+    siempre (también con contraseña incorrecta) para no revelar si la cuenta existe;
+    solo queda registrada aquí cuando la contraseña es válida.
+    """
     normalized_email = normalize_email(email)
     email_hash = _email_hash(normalized_email)
     ip_hash = keyed_digest(client_ip)
@@ -182,6 +206,21 @@ def start_login(
     if not succeeded or user is None:
         return
 
+    db.add(
+        PendingLogin(
+            user_id=user.id,
+            token_digest=digest_token(pending_token),
+            created_at_epoch=now,
+            expires_at_epoch=now + PENDING_LOGIN_SECONDS,
+            last_sent_epoch=now,
+        )
+    )
+    db.commit()
+    _issue_code(db, user=user, now=now, mailer=mailer)
+
+
+def _issue_code(db: Session, *, user: User, now: int, mailer: Mailer) -> None:
+    """Genera un código nuevo, invalida los anteriores y lo envía por correo."""
     recent_challenges = db.scalar(
         select(func.count())
         .select_from(EmailLoginChallenge)
@@ -190,8 +229,17 @@ def start_login(
             EmailLoginChallenge.created_at_epoch > now - LOGIN_WINDOW_SECONDS,
         )
     )
-    if recent_challenges >= 3:
+    if recent_challenges >= MAX_CODES_PER_WINDOW:
         raise LoginRateLimitError
+
+    previous = db.scalars(
+        select(EmailLoginChallenge).where(
+            EmailLoginChallenge.user_id == user.id,
+            EmailLoginChallenge.used_at_epoch.is_(None),
+        )
+    ).all()
+    for challenge in previous:
+        challenge.used_at_epoch = now
 
     code = f"{secrets.randbelow(1_000_000):06d}"
     challenge = EmailLoginChallenge(
@@ -212,6 +260,27 @@ def start_login(
         challenge.used_at_epoch = now
         db.commit()
         raise MailDeliveryError from error
+
+
+def resend_code(db: Session, *, pending_token: str | None, mailer: Mailer) -> None:
+    """Reenvía el código de un inicio pendiente. Un token desconocido no hace nada."""
+    if not pending_token:
+        return
+    now = int(time.time())
+    pending = db.scalar(
+        select(PendingLogin).where(PendingLogin.token_digest == digest_token(pending_token))
+    )
+    if pending is None or pending.expires_at_epoch <= now:
+        return
+    user = db.get(User, pending.user_id)
+    if user is None or not user.is_active:
+        return
+    wait = pending.last_sent_epoch + RESEND_COOLDOWN_SECONDS - now
+    if wait > 0:
+        raise ResendCooldownError(wait)
+    pending.last_sent_epoch = now
+    db.commit()
+    _issue_code(db, user=user, now=now, mailer=mailer)
 
 
 def complete_login(
@@ -249,6 +318,8 @@ def complete_login(
         raise InvalidChallengeError
 
     challenge.used_at_epoch = now
+    for pending in db.scalars(select(PendingLogin).where(PendingLogin.user_id == user.id)):
+        db.delete(pending)
     raw_token = secrets.token_urlsafe(48)
     session = AuthSession(
         user_id=user.id,

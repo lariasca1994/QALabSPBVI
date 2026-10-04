@@ -125,6 +125,27 @@ class EmailLoginChallenge(Base):
     used_at_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class PendingLogin(Base):
+    """Inicio de sesión con contraseña válida que espera el código MFA.
+
+    Permite reenviar el código sin volver a pedir la contraseña. El navegador solo
+    guarda el token en una cookie HttpOnly; aquí se persiste su digest.
+    """
+
+    __tablename__ = "pending_logins"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_digest: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+    expires_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+    last_sent_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class AuthSession(Base):
     __tablename__ = "auth_sessions"
 

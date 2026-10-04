@@ -415,3 +415,106 @@ def test_user_is_created_even_if_welcome_email_fails(
     )
     assert created.status_code == 201
     assert created.json()["notification_status"] == "failed"
+
+
+class FakeClock:
+    def __init__(self, start: float = 1_800_000_000.0) -> None:
+        self.now = start
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def start_pending_login(client: TestClient, password: str = "correct horse battery staple"):
+    prepare_csrf(client)
+    return client.post(
+        "/auth/login", json={"email": "admin@example.com", "password": password}
+    )
+
+
+def test_resend_code_replaces_previous_code_after_cooldown(
+    auth_environment: tuple[TestClient, FakeMailer, Session],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.domains.auth import service
+
+    clock = FakeClock()
+    monkeypatch.setattr(service.time, "time", clock)
+    client, mailer, _ = auth_environment
+    assert start_pending_login(client).status_code == 202
+    first_code = extract_code(mailer.messages[-1][2])
+
+    too_soon = client.post("/auth/resend-code")
+    assert too_soon.status_code == 429
+    assert int(too_soon.headers["Retry-After"]) > 0
+    assert len(mailer.messages) == 1
+
+    clock.now += 61
+    resent = client.post("/auth/resend-code")
+    assert resent.status_code == 202
+    assert len(mailer.messages) == 2
+    second_code = extract_code(mailer.messages[-1][2])
+
+    old_code = client.post(
+        "/auth/verify-email-code", json={"email": "admin@example.com", "code": first_code}
+    )
+    if first_code != second_code:
+        assert old_code.status_code == 401
+
+    verified = client.post(
+        "/auth/verify-email-code", json={"email": "admin@example.com", "code": second_code}
+    )
+    assert verified.status_code == 200
+    # Tras verificar, el inicio pendiente se elimina: reenviar ya no envía nada.
+    client.headers["x-csrf-token"] = client.cookies["qalab_csrf"]
+    clock.now += 61
+    assert client.post("/auth/resend-code").status_code == 202
+    assert len(mailer.messages) == 2
+
+
+def test_resend_code_is_limited_to_three_codes_per_window(
+    auth_environment: tuple[TestClient, FakeMailer, Session],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.domains.auth import service
+
+    clock = FakeClock()
+    monkeypatch.setattr(service.time, "time", clock)
+    client, mailer, _ = auth_environment
+    start_pending_login(client)
+    for _ in range(2):
+        clock.now += 61
+        assert client.post("/auth/resend-code").status_code == 202
+    clock.now += 61
+    limited = client.post("/auth/resend-code")
+    assert limited.status_code == 429
+    assert len(mailer.messages) == 3
+
+
+def test_resend_after_wrong_password_reveals_nothing_and_sends_nothing(
+    auth_environment: tuple[TestClient, FakeMailer, Session],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.domains.auth import service
+
+    clock = FakeClock()
+    monkeypatch.setattr(service.time, "time", clock)
+    client, mailer, _ = auth_environment
+    failed = start_pending_login(client, password="wrong password value")
+    assert failed.status_code == 202
+    assert "qalab_pending_login" in client.cookies
+
+    clock.now += 61
+    resent = client.post("/auth/resend-code")
+    assert resent.status_code == 202
+    assert resent.json() == client.post("/auth/resend-code").json()
+    assert mailer.messages == []
+
+
+def test_resend_requires_csrf(
+    auth_environment: tuple[TestClient, FakeMailer, Session],
+) -> None:
+    client, _, _ = auth_environment
+    start_pending_login(client)
+    del client.headers["x-csrf-token"]
+    assert client.post("/auth/resend-code").status_code == 403

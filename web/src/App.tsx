@@ -98,6 +98,7 @@ function AuthScreen({
   mode,
   onLogin,
   onVerify,
+  onResend,
   onBack,
   error,
   busy,
@@ -107,6 +108,7 @@ function AuthScreen({
   mode: "login" | "mfa";
   onLogin: (email: string, password: string) => Promise<void>;
   onVerify: (code: string) => Promise<void>;
+  onResend: () => Promise<void>;
   onBack: () => void;
   error: string;
   busy: boolean;
@@ -117,6 +119,37 @@ function AuthScreen({
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [notice, setNotice] = useState("");
+  // Espera entre reenvíos: coincide con RESEND_COOLDOWN_SECONDS del backend.
+  const [resendWait, setResendWait] = useState(0);
+  const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    if (mode === "mfa") {
+      setResendWait(RESEND_COOLDOWN_SECONDS);
+      setCode("");
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (resendWait <= 0) return;
+    const timer = window.setTimeout(() => setResendWait((current) => current - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendWait]);
+
+  async function resend() {
+    setNotice("");
+    setResending(true);
+    try {
+      await onResend();
+      setCode("");
+      setNotice("Te enviamos un código nuevo. El anterior ya no sirve.");
+    } catch {
+      // El mensaje de error lo muestra el contenedor.
+    } finally {
+      setResending(false);
+      setResendWait(RESEND_COOLDOWN_SECONDS);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -138,7 +171,7 @@ function AuthScreen({
       <section className="auth-visual">
         <div className="auth-visual-top">
           <Brand />
-          <span className="environment-pill"><span /> ENTORNO LOCAL</span>
+          <span className="environment-pill"><span /> {environmentLabel()}</span>
         </div>
         <div className="visual-content">
           <div className="eyebrow"><span /> PAGOS QUE CONECTAN</div>
@@ -219,7 +252,7 @@ function AuthScreen({
                   type="text"
                   value={code}
                 />
-                <p className="field-hint">El código es de un solo uso y vence en pocos minutos.</p>
+                <p className="field-hint">El código es de un solo uso y vence en 5 minutos.</p>
               </>
             )}
             {notice && <div className="inline-notice"><Check size={16} />{notice}</div>}
@@ -229,6 +262,20 @@ function AuthScreen({
               {busy ? "Un momento…" : mode === "login" ? "Continuar" : "Verificar e ingresar"}
             </button>
           </form>
+          {mode === "mfa" && (
+            <div className="resend-row">
+              <span>¿No te llegó el código?</span>
+              <button
+                className="text-button"
+                disabled={resendWait > 0 || resending || busy}
+                onClick={resend}
+                type="button"
+              >
+                {resending ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
+                {resendWait > 0 ? `Reenviar en ${formatWait(resendWait)}` : "Reenviar código"}
+              </button>
+            </div>
+          )}
           {mode === "mfa" && (
             <button className="text-button back-button" onClick={onBack} type="button">
               <ArrowLeftRight size={15} /> Volver al inicio de sesión
@@ -245,6 +292,17 @@ function AuthScreen({
       </section>
     </main>
   );
+}
+
+const RESEND_COOLDOWN_SECONDS = 60;
+
+function formatWait(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function environmentLabel(): string {
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" ? "ENTORNO LOCAL" : "ENTORNO DE LABORATORIO";
 }
 
 function App() {
@@ -333,6 +391,16 @@ function App() {
       throw error;
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleResend() {
+    setAuthError("");
+    try {
+      await api.resendCode();
+    } catch (error) {
+      setAuthError(friendlyError(error));
+      throw error;
     }
   }
 
@@ -431,6 +499,7 @@ function App() {
         onBack={() => { setAuth("login"); setAuthError(""); }}
         onLogin={handleLogin}
         onToggleTheme={() => setTheme((current) => current === "dark" ? "light" : "dark")}
+        onResend={handleResend}
         onVerify={handleVerify}
         theme={theme}
       />
