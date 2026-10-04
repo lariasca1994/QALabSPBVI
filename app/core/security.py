@@ -110,7 +110,7 @@ def require_roles(*roles: UserRole):
         if user.role not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tenes permisos para esta accion.",
+                detail="No tienes permisos para esta accion.",
             )
         return user
 

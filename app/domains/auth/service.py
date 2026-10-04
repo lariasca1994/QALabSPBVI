@@ -88,12 +88,12 @@ def mfa_code_message(display_name: str, code: str) -> EmailMessage:
         eyebrow="Acceso seguro",
         heading="Tu código de acceso",
         greeting=f"Hola {display_name},",
-        paragraphs=["Usá este código para completar el inicio de sesión en QALabSPBVI."],
+        paragraphs=["Usa este código para completar el inicio de sesión en QALabSPBVI."],
         code=code,
         code_caption=f"Vence en {OTP_TTL_SECONDS // 60} minutos y sirve una sola vez.",
         notice=(
             "No compartas este código con nadie: el equipo de QALabSPBVI nunca te lo va a "
-            "pedir. Si no intentaste iniciar sesión, ignorá este correo."
+            "pedir. Si no intentaste iniciar sesión, ignora este correo."
         ),
     )
 
@@ -114,7 +114,7 @@ def welcome_message(user: User, created_by: User) -> EmailMessage:
         greeting=f"Hola {user.display_name},",
         paragraphs=[
             "Se creó tu cuenta en QALabSPBVI, el laboratorio de pruebas de pagos inmediatos.",
-            "Para ingresar usá tu correo y la contraseña que te compartió quien creó la cuenta. "
+            "Para ingresar usa tu correo y la contraseña que te compartió quien creó la cuenta. "
             "En cada inicio de sesión te enviaremos un código de un solo uso a este correo.",
         ],
         details=[
@@ -123,7 +123,7 @@ def welcome_message(user: User, created_by: User) -> EmailMessage:
             ("Creada por", created_by.email),
         ],
         notice=(
-            "Si no esperabas esta cuenta, avisale al administrador de QALabSPBVI. "
+            "Si no esperabas esta cuenta, avísale al administrador de QALabSPBVI. "
             "Nunca te pediremos tu contraseña por correo."
         ),
     )

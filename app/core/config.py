@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     mongodb_url: str = "mongodb://127.0.0.1:27017"
     mongodb_database: str = "qalabspbvi_qa"
     qa_target_base_url: str = "http://127.0.0.1:8000"
+    # Límite Bre-B de 1.000 UVB por operación (parámetro configurable del laboratorio).
+    # SUPUESTO: valor de la UVB en centavos; actualizarlo con el valor oficial vigente.
+    payment_limit_uvb: int = 1000
+    uvb_value_cents: int = 1_155_200
     auth_secret_key: str = ""
     brevo_api_key: str = ""
     brevo_sender_email: str = ""

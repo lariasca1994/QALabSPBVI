@@ -649,3 +649,127 @@ def test_epic_member_updates_case_json_with_version_history(
     ).json()
     assert execution["request"]["method"] == "GET"
     assert execution["request"]["url"].endswith("/health")
+
+
+def sample_program() -> dict:
+    return {
+        "format": "qalabspbvi-qa-program/v1",
+        "name": "Programa de prueba",
+        "stories": [
+            {
+                "ref": "HU-001",
+                "title": "Validar pago inmediato",
+                "description": "Como analista de pruebas quiero validar el pago.",
+                "priority": "high",
+                "acceptance_criteria": ["Responde con el pago aceptado."],
+                "labels": ["pain001", "json"],
+                "story_points": 8,
+                "test_cases": [
+                    {
+                        "ref": "TC-001",
+                        "title": "Pago válido",
+                        "description": "Envía un pago válido.",
+                        "priority": "high",
+                        "preconditions": ["Datos preparados."],
+                        "steps": [{"action": "Enviar POST", "expected": "201"}],
+                        "expected_result": "Pago aceptado.",
+                        "labels": ["api-rest"],
+                        "request_method": "POST",
+                        "request_path": "/payments",
+                        "request_body": {"amount_cents": 125},
+                        "expected_status_codes": [200, 201],
+                        "expected_response": {"status": "completed"},
+                    }
+                ],
+            },
+            {
+                "ref": "HU-007",
+                "title": "Validar devoluciones",
+                "description": "Sin endpoint en el laboratorio.",
+                "priority": "high",
+                "acceptance_criteria": ["Pendiente de endpoint."],
+            },
+        ],
+        "tasks": [
+            {"ref": "TASK-001", "title": "Configurar validador", "description": "JSON Schema.", "labels": ["json-schema"]}
+        ],
+    }
+
+
+def test_manager_imports_program_once_with_single_summary_notification(
+    qa_environment: tuple[TestClient, mongomock.database.Database, FakeMailer],
+) -> None:
+    client, database, mailer = qa_environment
+    epic_key = create_epic(client)
+    program = sample_program()
+
+    by_admin = client.post(f"/qa/epics/{epic_key}/import", json=program)
+    assert by_admin.status_code == 403
+    by_user = client.post(
+        f"/qa/epics/{epic_key}/import", headers={"x-test-role": "usuario"}, json=program
+    )
+    assert by_user.status_code == 403
+
+    mailer.messages.clear()
+    client.headers["x-test-role"] = "administrador"
+    imported = client.post(f"/qa/epics/{epic_key}/import", json=program)
+    assert imported.status_code == 201
+    assert imported.json()["created"] == {"stories": 2, "test_cases": 1, "tasks": 1}
+    assert imported.json()["skipped"] == {"stories": 0, "test_cases": 0, "tasks": 0}
+    assert len(mailer.messages) == 3
+    assert all("importó" in message[1] or "import" in message[1].lower() for message in mailer.messages)
+
+    case = database.work_items.find_one({"kind": "test_case", "external_key": "TC-001"})
+    story = database.work_items.find_one({"kind": "story", "external_key": "HU-001"})
+    assert case["story_key"] == story["key"]
+    assert case["request"]["method"] == "POST"
+    assert case["labels"] == ["api-rest"]
+    assert story["story_points"] == 8
+
+    again = client.post(f"/qa/epics/{epic_key}/import", json=program)
+    assert again.status_code == 201
+    assert again.json()["created"] == {"stories": 0, "test_cases": 0, "tasks": 0}
+    assert again.json()["skipped"] == {"stories": 2, "test_cases": 1, "tasks": 1}
+    assert database.work_items.count_documents({"epic_key": epic_key}) == 4
+
+
+def test_program_with_invalid_case_is_rejected_without_partial_import(
+    qa_environment: tuple[TestClient, mongomock.database.Database, FakeMailer],
+) -> None:
+    client, database, _ = qa_environment
+    epic_key = create_epic(client)
+    program = sample_program()
+    program["stories"][0]["test_cases"][0]["request_path"] = "https://example.com/pagos"
+    client.headers["x-test-role"] = "administrador"
+
+    response = client.post(f"/qa/epics/{epic_key}/import", json=program)
+
+    assert response.status_code == 422
+    assert "TC-001" in response.json()["detail"]
+    assert database.work_items.count_documents({"epic_key": epic_key}) == 0
+
+
+def test_case_without_expected_response_only_checks_status_code(
+    qa_environment: tuple[TestClient, mongomock.database.Database, FakeMailer],
+) -> None:
+    client, _, _ = qa_environment
+    epic_key = create_epic(client)
+    case_key = create_story_and_case(client, epic_key)
+    client.put(
+        f"/qa/cases/{case_key}",
+        headers={"x-test-role": "usuario"},
+        json={
+            "request_method": "POST",
+            "request_path": "/api/payments",
+            "request_body": {"amount_cents": 125},
+            "expected_status_codes": [201],
+            "expected_response": None,
+            "change_note": "Solo validar el código HTTP.",
+        },
+    )
+
+    execution = client.post(
+        f"/qa/cases/{case_key}/execute", headers={"x-test-role": "usuario"}
+    ).json()
+
+    assert execution["passed"] is True

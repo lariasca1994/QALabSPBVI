@@ -49,7 +49,7 @@ def normalize_key_type(value: str) -> str:
     code = value.strip().lower()
     if code not in KEY_TYPE_CODES:
         allowed = ", ".join(sorted(KEY_TYPE_CODES))
-        raise InvalidKeyError(f"Tipo de llave no soportado. Usá uno de: {allowed}.")
+        raise InvalidKeyError(f"Tipo de llave no soportado. Usa uno de: {allowed}.")
     return code
 
 

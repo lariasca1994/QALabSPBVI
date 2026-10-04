@@ -4,7 +4,7 @@ import { ApiError } from "./api";
 
 export function friendlyError(error: unknown): string {
   if (error instanceof ApiError) return error.message;
-  return "No se pudo conectar con la API. Verificá que el backend esté disponible.";
+  return "No se pudo conectar con la API. Verifica que el backend esté disponible.";
 }
 
 export function formatDate(epoch?: number): string {

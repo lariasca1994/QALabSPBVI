@@ -654,3 +654,96 @@ def test_failure_while_writing_credit_rolls_back_both_sides(
         .select_from(LedgerEntry)
         .where(LedgerEntry.payment_id.is_not(None))
     ) == 0
+
+
+def test_payment_over_uvb_limit_is_rejected_without_moving_balances(
+    payment_client: tuple[TestClient, Session, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core import config
+
+    monkeypatch.setenv("PAYMENT_LIMIT_UVB", "1000")
+    monkeypatch.setenv("UVB_VALUE_CENTS", "1")
+    config.get_settings.cache_clear()
+    client, db, _ = payment_client
+    seed_payment_scenario(client)
+    try:
+        over = client.post("/payments", json=payment_payload(operation_id="op-limit", amount_cents=1001))
+        at_limit = client.post("/payments", json=payment_payload(operation_id="op-at-limit", amount_cents=1000))
+    finally:
+        config.get_settings.cache_clear()
+
+    assert over.status_code == 422
+    assert "1000 UVB" in over.json()["detail"]
+    assert at_limit.status_code == 201
+    assert db.scalar(select(func.count()).select_from(Payment).where(Payment.operation_id == "op-limit")) == 0
+
+
+def test_inter_payment_over_uvb_limit_returns_pacs002_rejection(
+    payment_client: tuple[TestClient, Session, object],
+    key_stores: tuple[object, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core import config
+
+    monkeypatch.setenv("PAYMENT_LIMIT_UVB", "1000")
+    monkeypatch.setenv("UVB_VALUE_CENTS", "1")
+    config.get_settings.cache_clear()
+    client, _, _ = payment_client
+    seed_inter_spbvi_scenario(client, key_stores)
+    try:
+        response = client.post(
+            "/payments/inter-spbvi",
+            json=inter_payment_payload(operation_id="inter-limit", amount_cents=1001),
+        )
+    finally:
+        config.get_settings.cache_clear()
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["status"] == "rejected"
+    validate_message(body["pacs002_xml"])
+    assert "AMOUNT_LIMIT_EXCEEDED" in body["pacs002_xml"]
+    assert "RJCT" in body["pacs002_xml"]
+
+
+def test_payment_status_query_returns_status_or_not_found(
+    payment_client: tuple[TestClient, Session, object],
+) -> None:
+    client, _, _ = payment_client
+    seed_payment_scenario(client)
+    assert client.post("/payments", json=payment_payload(operation_id="op-status")).status_code == 201
+
+    found = client.get("/payments/op-status")
+    missing = client.get("/payments/op-inexistente")
+
+    assert found.status_code == 200
+    assert found.json()["operation_id"] == "op-status"
+    assert found.json()["status"] == "completed"
+    assert found.json()["iso_status"] == "ACCP"
+    assert found.json()["amount_cents"] == 1250
+    assert missing.status_code == 404
+
+
+def test_account_statement_reconciles_opening_movements_and_closing_balance(
+    payment_client: tuple[TestClient, Session, object],
+) -> None:
+    client, _, _ = payment_client
+    seed_payment_scenario(client)
+    client.post("/payments", json=payment_payload(operation_id="op-st-1", amount_cents=1000))
+    client.post("/payments", json=payment_payload(operation_id="op-st-2", amount_cents=500))
+
+    statement = client.get("/accounts/source/statement")
+    missing = client.get("/accounts/no-existe/statement")
+
+    assert statement.status_code == 200
+    body = statement.json()
+    assert body["account_id"] == "source"
+    assert body["opening_balance_cents"] == 0
+    assert [entry["amount_cents"] for entry in body["entries"]] == [5000, -1000, -500]
+    assert body["entries"][1]["operation_id"] == "op-st-1"
+    assert body["total_credits_cents"] == 5000
+    assert body["total_debits_cents"] == 1500
+    assert body["closing_balance_cents"] == 3500
+    assert body["reconciled"] is True
+    assert missing.status_code == 404

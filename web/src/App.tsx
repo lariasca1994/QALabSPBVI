@@ -193,10 +193,10 @@ function AuthScreen({
         <div className="auth-form-wrap">
           <div className="auth-icon"><ShieldCheck size={23} /></div>
           <span className="eyebrow eyebrow--muted">{mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
-          <h2>{mode === "login" ? "Qué bueno verte." : "Revisá tu correo."}</h2>
+          <h2>{mode === "login" ? "Qué bueno verte." : "Revisa tu correo."}</h2>
           <p className="auth-description">
             {mode === "login"
-              ? "Ingresá a tu espacio de pruebas y operaciones."
+              ? "Ingresa a tu espacio de pruebas y operaciones."
               : "Te enviamos un código de un solo uso para confirmar tu identidad."}
           </p>
           <form className="form-stack" onSubmit={submit}>
@@ -219,7 +219,7 @@ function AuthScreen({
                   className="text-input"
                   id="login-password"
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Ingresá tu contraseña"
+                  placeholder="Ingresa tu contraseña"
                   required
                   type="password"
                   value={password}
@@ -275,7 +275,7 @@ function AuthScreen({
           </div>
         </div>
         <footer className="auth-panel-footer">
-          <span>¿Necesitás ayuda?</span><a href="mailto:soporte@qalabspbvi.local">Contactá al equipo</a>
+          <span>¿Necesitas ayuda?</span><a href="mailto:soporte@qalabspbvi.local">Contacta al equipo</a>
         </footer>
       </section>
     </main>
@@ -480,7 +480,7 @@ function App() {
       setUserNotice(
         `Cuenta ${created.email} creada con rol ${created.role}. ` +
         (created.notification_status === "failed"
-          ? "No se pudo enviar el correo de bienvenida; compartile el acceso por otro canal."
+          ? "No se pudo enviar el correo de bienvenida; compártele el acceso por otro canal."
           : "Le enviamos un correo de bienvenida (sin la contraseña)."),
       );
       formElement.reset();
@@ -693,7 +693,7 @@ function Overview({
         <div className="surface-card epic-card">
           <div className="card-heading"><div><h2>Épicas</h2><p>Avance de cada espacio de trabajo QA.</p></div><Command size={18} className="muted-icon" /></div>
           {epics.length === 0 ? (
-            <div className="empty-state"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>No hay épicas asignadas</strong><p>{user?.role === "admin" ? "Creá la primera épica desde Calidad y pruebas." : "Cuando te asocien a una épica, aparecerá en este espacio."}</p></div>
+            <div className="empty-state"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>No hay épicas asignadas</strong><p>{user?.role === "admin" ? "Crea la primera épica desde Calidad y pruebas." : "Cuando te asocien a una épica, aparecerá en este espacio."}</p></div>
           ) : (
             <div className="epic-list">
               {visibleEpics.map((epic) => {
@@ -711,9 +711,9 @@ function Overview({
           )}
         </div>
         <div className="surface-card health-card">
-          <div className="card-heading"><div><h2>Mis tareas</h2><p>Pendientes asignadas a vos.</p></div><span className="updated-label">{myTasks.length} ABIERTAS</span></div>
+          <div className="card-heading"><div><h2>Mis tareas</h2><p>Pendientes asignadas a ti.</p></div><span className="updated-label">{myTasks.length} ABIERTAS</span></div>
           {myTasks.length === 0 ? (
-            <div className="empty-state"><div className="empty-icon"><Check size={19} /></div><strong>Sin pendientes</strong><p>No tenés tareas abiertas asignadas.</p></div>
+            <div className="empty-state"><div className="empty-icon"><Check size={19} /></div><strong>Sin pendientes</strong><p>No tienes tareas abiertas asignadas.</p></div>
           ) : (
             <div className="task-list">
               {myTasks.slice(0, 6).map((task) => (
@@ -741,8 +741,8 @@ function Overview({
       <section className="welcome-banner">
         <div className="welcome-copy">
           <span className="banner-overline">LABORATORIO INTEROPERABLE</span>
-          <h2>Probá con confianza.<br /><span>Mejorá con evidencia.</span></h2>
-          <p>Orquestá tus escenarios de prueba en un entorno dedicado y controlado.</p>
+          <h2>Prueba con confianza.<br /><span>Mejora con evidencia.</span></h2>
+          <p>Orquesta tus escenarios de prueba en un entorno dedicado y controlado.</p>
           <button className="button button--banner" onClick={() => onOpenEpic(epics[0]?.key ?? "")} disabled={epics.length === 0} type="button">
             Explorar calidad <ArrowUpRight size={16} />
           </button>
@@ -859,7 +859,7 @@ function KeysPage({ role }: { role: User["role"] }) {
         });
         setNotice("Se encontró la llave activa en el DIFE indicado.");
       } else {
-        if (action === "delete" && !window.confirm(`¿Querés eliminar la llave ${keyType}:${keyValue}? Esta acción libera la llave.`)) {
+        if (action === "delete" && !window.confirm(`¿Quieres eliminar la llave ${keyType}:${keyValue}? Esta acción libera la llave.`)) {
           return;
         }
         let endpointAction: "suspend" | "reactivate" | "owner" | "delete";
@@ -918,11 +918,11 @@ function KeysPage({ role }: { role: User["role"] }) {
       <PageHeading
         eyebrow="DIRECTORIOS DIFE / DICE"
         title="Gestión de llaves"
-        description="Registrá llaves en ambos directorios y ejecutá el ciclo de vida con sus permisos correspondientes."
+        description="Registra llaves en ambos directorios y ejecuta el ciclo de vida con sus permisos correspondientes."
       />
       <div className="role-policy">
         <KeyRound size={17} />
-        <span><strong>La autorización la valida FastAPI.</strong> Las acciones personales requieren que el correo de la sesión sea el titular. No hay todavía un endpoint para listar llaves: para consultar, ingresá el SPBVI y la llave; la consulta resuelve solo llaves activas.</span>
+        <span><strong>La autorización la valida FastAPI.</strong> Las acciones personales requieren que el correo de la sesión sea el titular. No hay todavía un endpoint para listar llaves: para consultar, ingresa el SPBVI y la llave; la consulta resuelve solo llaves activas.</span>
       </div>
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
       {error && <div className="alert alert--error" role="alert">{error}</div>}
@@ -946,7 +946,7 @@ function KeysPage({ role }: { role: User["role"] }) {
         </section>
 
         <section className="surface-card operation-card">
-          <div className="card-heading"><div><h2>Consultar o administrar</h2><p>Indicá la llave objetivo y la acción.</p></div><ArrowRightLeft size={19} className="muted-icon" /></div>
+          <div className="card-heading"><div><h2>Consultar o administrar</h2><p>Indica la llave objetivo y la acción.</p></div><ArrowRightLeft size={19} className="muted-icon" /></div>
           <form className="form-stack operation-form" onSubmit={(event) => void manageKey(event)}>
             <label className="field-label" htmlFor="key-action">Operación</label>
             <select className="text-input select-input" id="key-action" value={action} onChange={(event) => setAction(event.target.value)}>
@@ -1062,7 +1062,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
       <PageHeading
         eyebrow="ORQUESTACIÓN Y LEDGER"
         title="Pagos de laboratorio"
-        description="Creá cuentas de prueba y ejecutá pagos intra o inter-SPBVI con saldos enteros en centavos."
+        description="Crea cuentas de prueba y ejecuta pagos intra o inter-SPBVI con saldos enteros en centavos."
       />
       <div className="role-policy"><ShieldCheck size={17} /><span><strong>Entorno simulado: no mueve dinero real.</strong> Las operaciones son transaccionales e idempotentes. Inter-SPBVI usa DICE y el MOL local simulado.</span></div>
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
@@ -1070,7 +1070,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
       <div className="operation-grid">
         {canCreateAccount && (
           <section className="surface-card operation-card">
-            <div className="card-heading"><div><h2>Cuenta de laboratorio</h2><p>Prepará una cuenta origen o destino.</p></div><WalletCards size={19} className="muted-icon" /></div>
+            <div className="card-heading"><div><h2>Cuenta de laboratorio</h2><p>Prepara una cuenta origen o destino.</p></div><WalletCards size={19} className="muted-icon" /></div>
             <form className="form-stack operation-form" onSubmit={(event) => void createAccount(event)}>
               <label className="field-label" htmlFor="account-id">Identificador de cuenta</label>
               <input className="text-input" id="account-id" name="account_id" required maxLength={100} />
@@ -1078,7 +1078,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
               <input className="text-input" id="account-spbvi" name="spbvi_id" placeholder="spbvi-a" required maxLength={100} />
               <label className="field-label" htmlFor="account-balance">Saldo inicial (centavos)</label>
               <input className="text-input" id="account-balance" name="balance_cents" type="number" min="0" step="1" inputMode="numeric" defaultValue="0" required />
-              <p className="field-hint">Ingresá un entero. Ejemplo: 125000 equivale a COP 1.250,00.</p>
+              <p className="field-hint">Ingresa un entero. Ejemplo: 125000 equivale a COP 1.250,00.</p>
               <button className="button button--quiet" disabled={busy} type="submit"><Plus size={15} />Crear cuenta</button>
             </form>
           </section>
@@ -1131,7 +1131,7 @@ function UsersPage({
         description="Cuentas visibles del equipo y permisos asignados desde el backend."
         actions={<button className="button button--primary" onClick={onCreate} type="button"><Plus size={16} /> Crear cuenta</button>}
       />
-      <div className="role-policy"><ShieldCheck size={17} /><span><strong>Privilegios verificados por el servidor.</strong> {currentRole === "admin" ? "Como admin podés crear administradores y usuarios; el rol admin no se asigna por API." : "Como administrador podés crear cuentas con rol usuario; solo el admin crea administradores."} La interfaz no crea cuentas ocultas ni define contraseñas predeterminadas.</span></div>
+      <div className="role-policy"><ShieldCheck size={17} /><span><strong>Privilegios verificados por el servidor.</strong> {currentRole === "admin" ? "Como admin puedes crear administradores y usuarios; el rol admin no se asigna por API." : "Como administrador puedes crear cuentas con rol usuario; solo el admin crea administradores."} La interfaz no crea cuentas ocultas ni define contraseñas predeterminadas.</span></div>
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
       {error && <div className="alert alert--error" role="alert">{error}</div>}
       <section className="surface-card users-card">

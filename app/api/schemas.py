@@ -108,6 +108,57 @@ class TestCaseDefinitionUpdateRequest(BaseModel):
     change_note: str = Field(min_length=1, max_length=500)
 
 
+PRIORITY_PATTERN = r"^(lowest|low|medium|high|highest)$"
+
+
+class ProgramTestCase(BaseModel):
+    """CP de un programa importable: criterios tipo Jira + contrato REST/JSON ejecutable."""
+
+    ref: str = Field(min_length=1, max_length=50)
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=10000)
+    priority: str = Field(default="medium", pattern=PRIORITY_PATTERN)
+    preconditions: list[str] = Field(default_factory=list, max_length=100)
+    steps: list[TestStep] = Field(min_length=1, max_length=100)
+    expected_result: str = Field(min_length=1, max_length=5000)
+    labels: list[str] = Field(default_factory=list, max_length=30)
+    request_method: str = Field(min_length=3, max_length=10)
+    request_path: str = Field(min_length=1, max_length=500)
+    request_query: dict[str, Any] = Field(default_factory=dict)
+    request_headers: dict[str, str] = Field(default_factory=dict, max_length=50)
+    request_body: dict[str, Any] | list[Any] | None = None
+    expected_status_codes: list[int] = Field(min_length=1, max_length=20)
+    expected_response: dict[str, Any] | list[Any] | None = None
+
+
+class ProgramStory(BaseModel):
+    ref: str = Field(min_length=1, max_length=50)
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=10000)
+    priority: str = Field(default="medium", pattern=PRIORITY_PATTERN)
+    acceptance_criteria: list[str] = Field(min_length=1, max_length=100)
+    labels: list[str] = Field(default_factory=list, max_length=30)
+    story_points: int | None = Field(default=None, ge=0, le=100)
+    test_cases: list[ProgramTestCase] = Field(default_factory=list, max_length=100)
+
+
+class ProgramTask(BaseModel):
+    ref: str = Field(min_length=1, max_length=50)
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=10000)
+    labels: list[str] = Field(default_factory=list, max_length=30)
+    story_points: int | None = Field(default=None, ge=0, le=100)
+
+
+class ProgramImportRequest(BaseModel):
+    """Programa de pruebas (HU, CP y tareas) para cargar en una épica existente."""
+
+    format: Literal["qalabspbvi-qa-program/v1"]
+    name: str = Field(min_length=1, max_length=200)
+    stories: list[ProgramStory] = Field(default_factory=list, max_length=200)
+    tasks: list[ProgramTask] = Field(default_factory=list, max_length=300)
+
+
 class TaskAssignRequest(BaseModel):
     assignee_id: int
 
@@ -186,6 +237,40 @@ class PaymentCreateRequest(BaseModel):
             self.destination_key_type, self.destination_key_value
         )
         return self
+
+
+class PaymentStatusResponse(BaseModel):
+    """Consulta de estado de un pago (equivalente de laboratorio a pacs.028 → pacs.002)."""
+
+    operation_id: str
+    payment_type: str
+    status: str
+    iso_status: str
+    source_account_id: str
+    destination_account_id: str
+    amount_cents: int
+    created_at: str
+
+
+class StatementEntry(BaseModel):
+    entry_id: int
+    entry_type: str
+    amount_cents: int
+    operation_id: str | None
+    created_at: str
+
+
+class AccountStatementResponse(BaseModel):
+    """Extracto de cuenta (equivalente de laboratorio a camt.052/053), conciliado con el saldo."""
+
+    account_id: str
+    spbvi_id: str
+    opening_balance_cents: int
+    entries: list[StatementEntry]
+    total_credits_cents: int
+    total_debits_cents: int
+    closing_balance_cents: int
+    reconciled: bool
 
 
 class PaymentResponse(BaseModel):

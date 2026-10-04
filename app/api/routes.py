@@ -3,12 +3,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
     AccountCreateRequest,
     AccountResponse,
+    AccountStatementResponse,
     KeyLifecycleRequest,
     KeyOwnerUpdateRequest,
     KeyRegistrationRequest,
@@ -20,9 +22,11 @@ from app.api.schemas import (
     PaymentCreateRequest,
     PaymentKeyResponse,
     PaymentResponse,
+    PaymentStatusResponse,
+    StatementEntry,
 )
 from app.core.security import require_roles
-from app.db.models import Account, KeyStatus, LedgerEntry, User, UserRole
+from app.db.models import Account, KeyStatus, LedgerEntry, Payment, User, UserRole
 from app.db.session import get_db
 from app.domains.keys.dife import resolve_key
 from app.domains.keys.key_types import (
@@ -46,6 +50,7 @@ from app.domains.keys.service import (
 )
 from app.domains.payments.service import (
     AccountNotFoundError,
+    AmountLimitExceededError,
     DestinationKeyNotFoundError,
     IdempotencyConflictError,
     InsufficientFundsError,
@@ -127,6 +132,64 @@ def create_account(
         raise
     db.refresh(account)
     return account
+
+
+@router.get(
+    "/accounts/{account_id}/statement",
+    response_model=AccountStatementResponse,
+    tags=["cuentas"],
+)
+def get_account_statement(
+    account_id: str,
+    db: DbSession,
+    _: Annotated[
+        User,
+        Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR, UserRole.USUARIO)),
+    ],
+) -> AccountStatementResponse:
+    account = db.get(Account, account_id)
+    if account is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontro la cuenta.",
+        )
+    rows = db.execute(
+        select(LedgerEntry, Payment.operation_id)
+        .outerjoin(Payment, Payment.id == LedgerEntry.payment_id)
+        .where(LedgerEntry.account_id == account_id)
+        .order_by(LedgerEntry.id)
+    ).all()
+    entries = [
+        StatementEntry(
+            entry_id=entry.id,
+            entry_type=entry.entry_type,
+            amount_cents=entry.amount_cents,
+            operation_id=operation_id,
+            created_at=_iso_datetime(entry.created_at),
+        )
+        for entry, operation_id in rows
+    ]
+    credits = sum(entry.amount_cents for entry in entries if entry.amount_cents > 0)
+    debits = -sum(entry.amount_cents for entry in entries if entry.amount_cents < 0)
+    # El saldo inicial de la cuenta se registra como asiento "opening"; antes de él es 0.
+    opening = 0
+    closing = opening + credits - debits
+    return AccountStatementResponse(
+        account_id=account.id,
+        spbvi_id=account.spbvi_id,
+        opening_balance_cents=opening,
+        entries=entries,
+        total_credits_cents=credits,
+        total_debits_cents=debits,
+        closing_balance_cents=closing,
+        reconciled=closing == account.balance_cents,
+    )
+
+
+def _iso_datetime(value: datetime) -> str:
+    if value.tzinfo is None or value.utcoffset() is None:
+        value = value.replace(tzinfo=UTC)
+    return value.isoformat()
 
 
 @router.post(
@@ -479,6 +542,11 @@ def create_intra_spbvi_payment(
             destination_key_value=request.destination_key_value,
             amount_cents=request.amount_cents,
         )
+    except AmountLimitExceededError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
     except AccountNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -512,6 +580,37 @@ def create_intra_spbvi_payment(
         payment_type=payment.payment_type,
         status=payment.status,
         replayed=not created,
+    )
+
+
+@router.get(
+    "/payments/{operation_id}",
+    response_model=PaymentStatusResponse,
+    tags=["pagos"],
+)
+def get_payment_status(
+    operation_id: str,
+    db: DbSession,
+    _: Annotated[
+        User,
+        Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR, UserRole.USUARIO)),
+    ],
+) -> PaymentStatusResponse:
+    payment = db.scalar(select(Payment).where(Payment.operation_id == operation_id))
+    if payment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontro el pago con ese identificador de operacion.",
+        )
+    return PaymentStatusResponse(
+        operation_id=payment.operation_id,
+        payment_type=payment.payment_type,
+        status=payment.status,
+        iso_status=pacs002_group_status_for_payment(payment.status),
+        source_account_id=payment.source_account_id,
+        destination_account_id=payment.destination_account_id,
+        amount_cents=payment.amount_cents,
+        created_at=_iso_datetime(payment.created_at),
     )
 
 
@@ -566,6 +665,8 @@ def create_inter_spbvi_payment_route(
             status_code=status.HTTP_409_CONFLICT,
             detail="El identificador de operacion ya existe con otros datos.",
         ) from error
+    except AmountLimitExceededError as error:
+        return _inter_rejection(request.operation_id, str(error), "AMOUNT_LIMIT_EXCEEDED", 422)
     except MolInsufficientFundsError as error:
         pacs002 = build_pacs002(
             Pacs002Data(
@@ -643,3 +744,24 @@ def create_inter_spbvi_payment_route(
         pacs008_xml=pacs008,
         pacs002_xml=pacs002,
     )
+
+
+def _inter_rejection(operation_id: str, detail: str, reason: str, status_code: int) -> JSONResponse:
+    """Rechazo de negocio inter-SPBVI con pacs.002 RJCT y su razón propietaria."""
+    pacs002 = build_pacs002(
+        Pacs002Data(
+            message_id=f"pacs002-{operation_id}",
+            original_message_id=f"pacs008-{operation_id}",
+            original_message_name="pacs.008.001.08",
+            group_status=pacs002_group_status_for_payment("rejected"),
+            created_at=datetime.now(UTC),
+            status_reason=reason,
+        )
+    )
+    rejection = InterSpbviPaymentRejectionResponse(
+        detail=detail,
+        operation_id=operation_id,
+        status="rejected",
+        pacs002_xml=pacs002,
+    )
+    return JSONResponse(status_code=status_code, content=rejection.model_dump())

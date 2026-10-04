@@ -1,0 +1,1890 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "Programa de pruebas ISO 20022 Bre-B (API REST / JSON)",
+  "epic": {
+    "ref": "EPIC-001",
+    "title": "Implementar y validar programa de pruebas ISO 20022 para integración con Bre-B",
+    "description": "Programa integral de pruebas para validar la mensajería ISO 20022 adaptada a payloads JSON en el contexto Bre-B, asegurando interoperabilidad, cumplimiento de especificaciones y estabilidad antes de conectar con módulos centralizados. Fecha objetivo: 2026-12-15.",
+    "note": "La épica la crea el admin desde la plataforma; la importación agrega HU, CP y tareas."
+  },
+  "stories": [
+    {
+      "ref": "LAB-HU-000",
+      "title": "Preparar datos de prueba del laboratorio",
+      "description": "Como analista de pruebas, quiero crear las cuentas y llaves fijas que usan los demás casos, para que el programa sea repetible. HU agregada por el laboratorio; cada CP acepta 201 (creado) o 409 (ya existía).",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Existen las cuentas qa-breb-* en spbvi-a y spbvi-b.",
+        "Las llaves @qabrebdestino (spbvi-a) y @qabrebremoto (spbvi-b) están confirmadas en DIFE y DICE.",
+        "Reejecutar la preparación no duplica datos."
+      ],
+      "labels": [
+        "datos-prueba",
+        "laboratorio"
+      ],
+      "story_points": 2,
+      "test_cases": [
+        {
+          "ref": "LAB-TC-001",
+          "title": "Crear cuenta qa-breb-a-origen",
+          "description": "Crea la cuenta qa-breb-a-origen en spbvi-a con saldo inicial de 500000000 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qa-breb-a-origen",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 500000000
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-002",
+          "title": "Crear cuenta qa-breb-a-destino",
+          "description": "Crea la cuenta qa-breb-a-destino en spbvi-a con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qa-breb-a-destino",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-003",
+          "title": "Crear cuenta qa-breb-a-sinfondos",
+          "description": "Crea la cuenta qa-breb-a-sinfondos en spbvi-a con saldo inicial de 100 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qa-breb-a-sinfondos",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 100
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-004",
+          "title": "Crear cuenta qa-breb-a-vacia",
+          "description": "Crea la cuenta qa-breb-a-vacia en spbvi-a con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qa-breb-a-vacia",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-005",
+          "title": "Crear cuenta qa-breb-b-destino",
+          "description": "Crea la cuenta qa-breb-b-destino en spbvi-b con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qa-breb-b-destino",
+            "spbvi_id": "spbvi-b",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-006",
+          "title": "Registrar llave @qabrebdestino en spbvi-a",
+          "description": "Registra la llave alfanumérica del destino intra-SPBVI (DIFE → DICE).",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada (409 si ya estaba registrada).",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "@qabrebdestino",
+            "deposit_product_id": "qa-breb-a-destino"
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-007",
+          "title": "Registrar llave @qabrebremoto en spbvi-b",
+          "description": "Registra la llave del destino inter-SPBVI.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada (409 si ya estaba registrada).",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "@qabrebremoto",
+            "deposit_product_id": "qa-breb-b-destino"
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-008",
+          "title": "Resolver llave destino en el DIFE",
+          "description": "Consulta la llave en el directorio federado del SPBVI de origen.",
+          "priority": "high",
+          "preconditions": [
+            "LAB-TC-006 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "El DIFE devuelve la llave activa y su producto de depósito.",
+          "labels": [
+            "llaves",
+            "dife"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "alias",
+            "key_value": "@qabrebdestino"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_value": "@qabrebdestino",
+            "spbvi_id": "spbvi-a",
+            "deposit_product_id": "qa-breb-a-destino"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-001",
+      "title": "Validar mensajes PAIN.001 para pago inmediato",
+      "description": "Como analista de pruebas, quiero enviar solicitudes de pago inmediato en JSON y validar su respuesta, para cumplir las especificaciones Bre-B antes de producción. ADAPTACIÓN: en el laboratorio la solicitud pain.001 se mapea a POST /payments (pago intra-SPBVI); el mapeo exacto depende del anexo 6 de la Circular DSP-465 (supuesto).",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Payload JSON con origen, llave destino, monto en centavos e identificador de operación (endToEndId del laboratorio).",
+        "Campos obligatorios validados: una solicitud incompleta se rechaza con 422.",
+        "Regla de negocio: monto ≤ 1.000 UVB por operación; tiempo de respuesta ≤ 20 segundos.",
+        "Respuesta positiva con estado completed (aceptación).",
+        "Respuesta negativa con código de rechazo y razón clara.",
+        "Reenviar el mismo identificador de operación no duplica el abono."
+      ],
+      "labels": [
+        "pain001",
+        "iso20022",
+        "breb",
+        "pruebas-integracion",
+        "json"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "TC-001",
+          "title": "Validar envío de pago inmediato con JSON válido",
+          "description": "Envía un pago intra-SPBVI válido por llave alfanumérica.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200, 201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Pago aceptado (201 la primera vez, 200 en reenvíos idempotentes) en ≤ 20 segundos.",
+          "labels": [
+            "pain001",
+            "api-rest",
+            "json"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-tc001",
+            "source_account_id": "qa-breb-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebdestino",
+            "amount_cents": 125000
+          },
+          "expected_status_codes": [
+            200,
+            201
+          ],
+          "expected_response": {
+            "status": "completed",
+            "payment_type": "intra_spbvi",
+            "amount_cents": 125000
+          }
+        },
+        {
+          "ref": "TC-002",
+          "title": "Validar rechazo de pago con monto > 1.000 UVB",
+          "description": "Envía un pago que supera el límite por operación.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos).",
+            "UVB_VALUE_CENTS con su valor por defecto (1.155.200)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 422 con la razón «monto excede límite» y sin movimientos.",
+          "labels": [
+            "pain001",
+            "validacion-reglas",
+            "json"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-tc002",
+            "source_account_id": "qa-breb-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebdestino",
+            "amount_cents": 1155200001
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": {
+            "detail": "El monto supera el limite de 1000 UVB por operacion."
+          }
+        },
+        {
+          "ref": "LAB-TC-009",
+          "title": "Validar rechazo por campos obligatorios faltantes",
+          "description": "Envía un pago sin llave destino.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La API rechaza el JSON incompleto con 422 y el detalle de validación.",
+          "labels": [
+            "pain001",
+            "validacion",
+            "json"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab009",
+            "source_account_id": "qa-breb-a-origen",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-010",
+          "title": "Validar idempotencia del pago inmediato",
+          "description": "Reenvía la misma orden de TC-001.",
+          "priority": "high",
+          "preconditions": [
+            "TC-001 ejecutado al menos una vez."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La API devuelve el pago original (replayed) sin duplicar el abono.",
+          "labels": [
+            "pain001",
+            "idempotencia"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-tc001",
+            "source_account_id": "qa-breb-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebdestino",
+            "amount_cents": 125000
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "qa-breb-tc001",
+            "replayed": true
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-002",
+      "title": "Validar mensajes PACS.008 para transferencias interbancarias",
+      "description": "Como analista de pruebas, quiero validar transferencias inter-SPBVI por API REST JSON, para asegurar la interoperabilidad en Bre-B. ADAPTACIÓN: POST /payments/inter-spbvi resuelve la llave en el DICE, liquida en el MOL simulado y devuelve pacs.008 y pacs.002 de laboratorio. Las cuentas usan el formato local del laboratorio (no CLABE).",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Petición POST con payload JSON válido según el contrato de la API.",
+        "Origen, llave destino y SPBVI de cada parte presentes (instructingAgent / instructedAgent en el pacs.008).",
+        "Enrutamiento correcto hacia el SPBVI destino simulado vía DICE.",
+        "Confirmación de liquidación recibida (pacs.002 ACCP).",
+        "Escenarios: éxito, cuenta inválida, llave o institución destino no disponible."
+      ],
+      "labels": [
+        "pacs008",
+        "iso20022",
+        "breb",
+        "liquidacion",
+        "json",
+        "api"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "TC-003",
+          "title": "Validar enrutamiento de PACS.008 vía API REST JSON",
+          "description": "Envía una transferencia de spbvi-a a spbvi-b.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200, 201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Transferencia enrutada al SPBVI destino y liquidada; incluye pacs008_xml y pacs002_xml.",
+          "labels": [
+            "pacs008",
+            "enrutamiento",
+            "json"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-tc003",
+            "source_account_id": "qa-breb-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebremoto",
+            "amount_cents": 75000
+          },
+          "expected_status_codes": [
+            200,
+            201
+          ],
+          "expected_response": {
+            "status": "completed",
+            "payment_type": "inter_spbvi",
+            "destination_account_id": "qa-breb-b-destino"
+          }
+        },
+        {
+          "ref": "LAB-TC-011",
+          "title": "Validar rechazo por cuenta de origen inexistente",
+          "description": "Envía una transferencia desde una cuenta que no existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 404 sin movimientos.",
+          "labels": [
+            "pacs008",
+            "cuenta-invalida"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab011",
+            "source_account_id": "qa-breb-no-existe",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebremoto",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "detail": "No se encontro la cuenta de origen."
+          }
+        },
+        {
+          "ref": "LAB-TC-012",
+          "title": "Validar rechazo por institución o llave destino no disponible",
+          "description": "Envía una transferencia a una llave no registrada en el DICE.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 404: el DICE no puede enrutar el pago.",
+          "labels": [
+            "pacs008",
+            "dice"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab012",
+            "source_account_id": "qa-breb-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebnoexiste",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "detail": "DICE no encontro una llave confirmada o su cuenta receptora."
+          }
+        },
+        {
+          "ref": "LAB-TC-013",
+          "title": "Validar rechazo de flujo inter con llave del mismo SPBVI",
+          "description": "Envía por el flujo inter una llave que pertenece al SPBVI de origen.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 422: el pago debe ir por el flujo intra-SPBVI.",
+          "labels": [
+            "pacs008",
+            "validacion-reglas"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab013",
+            "source_account_id": "qa-breb-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebdestino",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-003",
+      "title": "Automatizar pruebas de regresión ISO 20022",
+      "description": "Como analista de pruebas, quiero ejecutar regresiones automatizadas de los endpoints REST antes de cada despliegue. ADAPTACIÓN: la regresión corre en GitHub Actions (pytest + Playwright) en cada push y el programa de CP se ejecuta desde la plataforma; no hay integración con Jira/Xray (los resultados quedan en las ejecuciones de cada CP).",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Suite automatizada con ≥ 20 casos (este programa incluye más de 20 CP ejecutables).",
+        "Integración con el pipeline CI/CD (GitHub Actions).",
+        "Resultados registrados por ejecución con solicitud, respuesta y veredicto.",
+        "Alertas por correo a la épica en cada ejecución."
+      ],
+      "labels": [
+        "automatizacion",
+        "iso20022",
+        "breb",
+        "ci-cd",
+        "api-testing"
+      ],
+      "story_points": 13
+    },
+    {
+      "ref": "HU-004",
+      "title": "Validar manejo de errores y rechazos ISO 20022",
+      "description": "Como analista de soporte, quiero validar escenarios de error y códigos HTTP/JSON, para asegurar que el sistema maneje excepciones antes de la certificación Bre-B. ADAPTACIÓN: el timeout no se simula en el laboratorio (no hay mock server).",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Casos para JSON inválido, cuenta no existente y fondos insuficientes.",
+        "Errores devueltos en JSON con detalle claro; los rechazos inter incluyen pacs.002 RJCT.",
+        "Ningún rechazo modifica saldos."
+      ],
+      "labels": [
+        "manejo-errores",
+        "iso20022",
+        "breb",
+        "soporte",
+        "json"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "LAB-TC-014",
+          "title": "Validar rechazo por tipo de dato inválido en el JSON",
+          "description": "Envía el monto como texto.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 422 con el detalle de validación del campo amount_cents.",
+          "labels": [
+            "manejo-errores",
+            "json"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab014",
+            "source_account_id": "qa-breb-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebdestino",
+            "amount_cents": "mil"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-015",
+          "title": "Validar rechazo intra por fondos insuficientes",
+          "description": "Envía un pago desde la cuenta sin fondos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 409 sin débito ni crédito.",
+          "labels": [
+            "manejo-errores",
+            "fondos-insuficientes"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab015",
+            "source_account_id": "qa-breb-a-sinfondos",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebdestino",
+            "amount_cents": 5000
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": {
+            "detail": "La cuenta de origen no tiene saldo suficiente."
+          }
+        },
+        {
+          "ref": "LAB-TC-016",
+          "title": "Validar rechazo inter por fondos insuficientes",
+          "description": "Envía una transferencia inter desde la cuenta sin fondos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 409; el MOL no liquida y no hay movimientos.",
+          "labels": [
+            "manejo-errores",
+            "fondos-insuficientes",
+            "pacs002"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab016",
+            "source_account_id": "qa-breb-a-sinfondos",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebremoto",
+            "amount_cents": 5000
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "LAB-TC-017",
+          "title": "Validar rechazo intra por cuenta no existente",
+          "description": "Envía un pago desde una cuenta inexistente.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 404 con detalle claro.",
+          "labels": [
+            "manejo-errores",
+            "cuenta-invalida"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab017",
+            "source_account_id": "qa-breb-no-existe",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebdestino",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "detail": "No se encontro la cuenta de origen."
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-005",
+      "title": "Generar datos de prueba realistas ISO 20022",
+      "description": "Como analista de datos, quiero generar payloads JSON que reflejen escenarios Bre-B. ADAPTACIÓN: este programa se genera con qa_programs/build_iso20022_breb.py y sus datos cumplen el límite de 1.000 UVB y usan cuentas y llaves válidas del laboratorio.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Script Python que genera los payloads JSON del programa.",
+        "Datos con montos ≤ 1.000 UVB (salvo los casos de rechazo), cuentas válidas y SPBVI participantes.",
+        "Datos exportados en JSON reutilizable (archivo del programa).",
+        "Estructura y reglas documentadas en el README."
+      ],
+      "labels": [
+        "datos-prueba",
+        "python",
+        "breb",
+        "json"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "HU-006",
+      "title": "Validar endpoints REST de extractos y conciliación (CAMT / equivalente JSON)",
+      "description": "Como analista de pruebas, quiero validar extractos y conciliación en JSON, para asegurar la consistencia de saldos. ADAPTACIÓN: GET /accounts/{id}/statement devuelve saldo inicial, movimientos (con operation_id como endToEndId del laboratorio) y saldo final, e indica si concilia con el saldo de la cuenta.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Estructura JSON del extracto validada contra el contrato de la API.",
+        "Saldo inicial + movimientos = saldo final, igual al saldo de la cuenta (reconciled = true).",
+        "Cada movimiento de pago referencia su operation_id."
+      ],
+      "labels": [
+        "reconciliation",
+        "iso20022",
+        "breb",
+        "api",
+        "json"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "LAB-TC-018",
+          "title": "Validar conciliación del extracto de la cuenta origen",
+          "description": "Consulta el extracto de la cuenta que originó los pagos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos).",
+            "TC-001 y TC-003 ejecutados."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/qa-breb-a-origen/statement con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "El extracto concilia: saldo final igual al saldo de la cuenta.",
+          "labels": [
+            "reconciliation",
+            "json"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/qa-breb-a-origen/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "account_id": "qa-breb-a-origen",
+            "reconciled": true
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-007",
+      "title": "Validar mensajes PACS.004 para devoluciones",
+      "description": "Como analista de pruebas, quiero validar devoluciones de transferencias. ADAPTACIÓN AL LABORATORIO: QALabSPBVI todavía no expone un endpoint para este mensaje, por lo que la HU se carga sin CP ejecutables. Los casos del documento original (TC-004, TC-005) quedan como referencia hasta implementar el servicio.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Campos obligatorios: originalMessageId, originalEndToEndId, returnReason, amount, currency.",
+        "El mensaje original existe y está liquidado.",
+        "Escenarios: devolución total, parcial y motivo inválido."
+      ],
+      "labels": [
+        "pacs004",
+        "iso20022",
+        "breb",
+        "devoluciones",
+        "pendiente-endpoint"
+      ],
+      "story_points": 8
+    },
+    {
+      "ref": "HU-008",
+      "title": "Validar mensajes CAMT.056 para solicitudes de cancelación",
+      "description": "Como analista de pruebas, quiero validar solicitudes de cancelación. ADAPTACIÓN AL LABORATORIO: QALabSPBVI todavía no expone un endpoint para este mensaje, por lo que la HU se carga sin CP ejecutables. Los casos del documento original (TC-006, TC-007) quedan como referencia hasta implementar el servicio. Nota: el MOL simulado liquida de forma síncrona, así que toda transferencia existente ya está liquidada.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Campos obligatorios: cancellationRequestId, originalMessageId, originalEndToEndId, reason.",
+        "El mensaje original está en estado cancelable.",
+        "Escenarios: cancelación exitosa, mensaje ya liquidado, motivo inválido."
+      ],
+      "labels": [
+        "camt056",
+        "iso20022",
+        "breb",
+        "cancelacion",
+        "pendiente-endpoint"
+      ],
+      "story_points": 8
+    },
+    {
+      "ref": "HU-009",
+      "title": "Validar mensajes CAMT.029 para resolución de investigaciones",
+      "description": "Como analista de pruebas, quiero validar resoluciones de investigaciones. ADAPTACIÓN AL LABORATORIO: QALabSPBVI todavía no expone un endpoint para este mensaje, por lo que la HU se carga sin CP ejecutables. Los casos del documento original (TC-008, TC-009) quedan como referencia hasta implementar el servicio.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Campos obligatorios: investigationId, originalMessageId, resolutionStatus, resolutionDetails.",
+        "La investigación referenciada existe.",
+        "Escenarios: resolución aceptada, rechazada, investigación no encontrada."
+      ],
+      "labels": [
+        "camt029",
+        "iso20022",
+        "breb",
+        "investigaciones",
+        "pendiente-endpoint"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "HU-010",
+      "title": "Validar mensajes PACS.028 para solicitudes de estado de pago",
+      "description": "Como analista de pruebas, quiero consultar el estado de un pago. ADAPTACIÓN: GET /payments/{operation_id} responde el estado y su equivalente pacs.002 (iso_status).",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "El mensaje original (operation_id) existe.",
+        "Respuesta JSON con el estado actual del pago (ACCP / PDNG / RJCT).",
+        "Escenarios: pago liquidado y mensaje no encontrado."
+      ],
+      "labels": [
+        "pacs028",
+        "iso20022",
+        "breb",
+        "consulta-estado",
+        "json",
+        "api"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-010",
+          "title": "Validar consulta de estado de un pago liquidado",
+          "description": "Consulta el estado del pago de TC-001.",
+          "priority": "medium",
+          "preconditions": [
+            "TC-001 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/qa-breb-tc001 con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Estado del pago recibido en JSON en ≤ 20 segundos.",
+          "labels": [
+            "pacs028",
+            "api-rest",
+            "json"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/qa-breb-tc001",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "qa-breb-tc001",
+            "status": "completed",
+            "iso_status": "ACCP"
+          }
+        },
+        {
+          "ref": "TC-011",
+          "title": "Validar consulta con mensaje original no encontrado",
+          "description": "Consulta un identificador de operación inexistente.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/qa-breb-no-existe con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 404 con la razón «mensaje no encontrado».",
+          "labels": [
+            "pacs028",
+            "validacion-reglas",
+            "json"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/qa-breb-no-existe",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "detail": "No se encontro el pago con ese identificador de operacion."
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-011",
+      "title": "Validar mensajes CAMT.052 para reportes de movimientos intradía",
+      "description": "Como analista de pruebas, quiero obtener movimientos intradía en JSON. ADAPTACIÓN: GET /accounts/{id}/statement devuelve todos los movimientos de la cuenta (el laboratorio no filtra todavía por fromDateTime / toDateTime).",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Respuesta JSON con estructura de movimientos validada.",
+        "Saldo inicial, movimientos y saldo final consistentes.",
+        "Escenarios: movimientos existentes, sin movimientos, cuenta inválida."
+      ],
+      "labels": [
+        "camt052",
+        "iso20022",
+        "breb",
+        "intradia",
+        "json",
+        "api"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "TC-012",
+          "title": "Validar movimientos de una cuenta con abonos",
+          "description": "Consulta el extracto de la cuenta destino de TC-001.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos).",
+            "TC-001 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/qa-breb-a-destino/statement con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Movimientos recibidos en JSON y conciliados.",
+          "labels": [
+            "camt052",
+            "api-rest",
+            "json"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/qa-breb-a-destino/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "account_id": "qa-breb-a-destino",
+            "reconciled": true
+          }
+        },
+        {
+          "ref": "LAB-TC-019",
+          "title": "Validar cuenta sin movimientos",
+          "description": "Consulta el extracto de una cuenta sin movimientos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/qa-breb-a-vacia/statement con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Extracto vacío con saldos en cero.",
+          "labels": [
+            "camt052",
+            "json"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/qa-breb-a-vacia/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "account_id": "qa-breb-a-vacia",
+            "total_credits_cents": 0,
+            "total_debits_cents": 0,
+            "closing_balance_cents": 0,
+            "reconciled": true
+          }
+        },
+        {
+          "ref": "LAB-TC-020",
+          "title": "Validar extracto de cuenta inválida",
+          "description": "Consulta el extracto de una cuenta inexistente.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/qa-breb-no-existe/statement con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo 404.",
+          "labels": [
+            "camt052",
+            "cuenta-invalida"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/qa-breb-no-existe/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "detail": "No se encontro la cuenta."
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-012",
+      "title": "Validar mensajes CAMT.053 para extractos de cuenta",
+      "description": "Como analista de pruebas, quiero obtener extractos de cuenta en JSON. ADAPTACIÓN: usa el mismo endpoint de extracto (sin filtro fromDate / toDate en el laboratorio).",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Estructura de extracto validada contra el contrato de la API.",
+        "Saldos inicial, movimientos y final consistentes.",
+        "Escenarios: con movimientos, sin movimientos, cuenta inválida."
+      ],
+      "labels": [
+        "camt053",
+        "iso20022",
+        "breb",
+        "extractos",
+        "json",
+        "api"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "LAB-TC-021",
+          "title": "Validar extracto de la cuenta destino inter-SPBVI",
+          "description": "Consulta el extracto de la cuenta que recibió TC-003 en spbvi-b.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos).",
+            "TC-003 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/qa-breb-b-destino/statement con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Extracto conciliado con el abono liquidado por el MOL.",
+          "labels": [
+            "camt053",
+            "json"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/qa-breb-b-destino/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "account_id": "qa-breb-b-destino",
+            "spbvi_id": "spbvi-b",
+            "reconciled": true
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-013",
+      "title": "Validar mensajes CAMT.054 para notificaciones de crédito/débito",
+      "description": "Como analista de pruebas, quiero validar notificaciones de crédito y débito. ADAPTACIÓN AL LABORATORIO: QALabSPBVI todavía no expone un endpoint para este mensaje, por lo que la HU se carga sin CP ejecutables. Los casos del documento original (sin casos en el documento) quedan como referencia hasta implementar el servicio.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Campos obligatorios: accountId, notificationType, amount, currency, valueDate.",
+        "La notificación está asociada a una transacción válida.",
+        "Escenarios: crédito, débito y cuenta inválida."
+      ],
+      "labels": [
+        "camt054",
+        "iso20022",
+        "breb",
+        "notificaciones",
+        "pendiente-endpoint"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "HU-014",
+      "title": "Validar mensajes PACS.002 para confirmaciones de liquidación",
+      "description": "Como analista de pruebas, quiero validar las confirmaciones de liquidación. ADAPTACIÓN: el pacs.002 se devuelve en la respuesta de la transferencia y su estado se consulta con GET /payments/{operation_id}.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Liquidación exitosa confirmada con ACCP.",
+        "Liquidación rechazada con RJCT y razón.",
+        "Mensaje no encontrado responde 404."
+      ],
+      "labels": [
+        "pacs002",
+        "iso20022",
+        "breb",
+        "liquidacion",
+        "json",
+        "api"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "LAB-TC-022",
+          "title": "Validar confirmación ACCP de una transferencia liquidada",
+          "description": "Consulta el estado de la transferencia de TC-003.",
+          "priority": "high",
+          "preconditions": [
+            "TC-003 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/qa-breb-tc003 con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Estado ACCP de la liquidación.",
+          "labels": [
+            "pacs002",
+            "liquidacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/qa-breb-tc003",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "payment_type": "inter_spbvi",
+            "iso_status": "ACCP"
+          }
+        },
+        {
+          "ref": "LAB-TC-023",
+          "title": "Validar pacs.002 RJCT por monto sobre el límite",
+          "description": "Envía una transferencia que supera 1.000 UVB.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de LAB-HU-000 (preparación de datos)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo con pacs002_xml RJCT y razón AMOUNT_LIMIT_EXCEEDED.",
+          "labels": [
+            "pacs002",
+            "rechazo"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "qa-breb-lab023",
+            "source_account_id": "qa-breb-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "@qabrebremoto",
+            "amount_cents": 1155200001
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": {
+            "operation_id": "qa-breb-lab023",
+            "status": "rejected"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-015",
+      "title": "Validar mensajes PAIN.002 para respuestas de pago inmediato",
+      "description": "Como analista de pruebas, quiero recibir respuestas pain.002 como mensaje independiente. ADAPTACIÓN AL LABORATORIO: QALabSPBVI todavía no expone un endpoint para este mensaje, por lo que la HU se carga sin CP ejecutables. Los casos del documento original (sin casos en el documento) quedan como referencia hasta implementar el servicio. La aceptación o rechazo del pago intra ya se valida en HU-001.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Campos obligatorios: originalMessageId, originalEndToEndId, transactionStatus, statusReason.",
+        "Escenarios: pago aceptado, rechazado y mensaje no encontrado."
+      ],
+      "labels": [
+        "pain002",
+        "iso20022",
+        "breb",
+        "pago-inmediato",
+        "pendiente-endpoint"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "HU-016",
+      "title": "Validar autenticación y autorización en la API REST",
+      "description": "Como analista de seguridad, quiero validar que solo clientes autorizados procesen mensajes. ADAPTACIÓN: el laboratorio usa sesión con cookie HttpOnly + MFA por correo y roles validados en el backend, no JWT/OAuth2. El rechazo de credenciales inválidas (TC-023) se cubre en las pruebas automatizadas del backend, porque el ejecutor de CP siempre reenvía la sesión del usuario que ejecuta.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Una sesión válida accede a los endpoints protegidos.",
+        "Sin sesión o con sesión inválida la API responde 401 (cubierto por pytest).",
+        "Los permisos por rol se validan en el servidor."
+      ],
+      "labels": [
+        "seguridad",
+        "autenticacion",
+        "iso20022",
+        "breb",
+        "api"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "TC-022",
+          "title": "Validar acceso con sesión válida",
+          "description": "Consulta el usuario autenticado con la sesión de quien ejecuta.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /auth/me con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Petición aceptada y procesada con la sesión vigente.",
+          "labels": [
+            "seguridad",
+            "sesion"
+          ],
+          "request_method": "GET",
+          "request_path": "/auth/me",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "is_active": true
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-017",
+      "title": "Validar trazabilidad y auditoría de mensajes ISO 20022",
+      "description": "Como analista de cumplimiento, quiero trazabilidad completa en JSON. ADAPTACIÓN: cada ejecución de CP guarda método, URL, solicitud y respuesta redactadas, duración y autor; los pagos se correlacionan por operation_id. No hay exportación de logs ni uetr todavía.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Correlación entre mensajes por operation_id (endToEndId del laboratorio).",
+        "Registro de tiempos de ejecución y respuesta.",
+        "Exportación de logs para análisis externo (pendiente)."
+      ],
+      "labels": [
+        "auditoria",
+        "trazabilidad",
+        "iso20022",
+        "breb",
+        "json"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "HU-018",
+      "title": "Validar resiliencia ante fallos de red en la API REST",
+      "description": "Como analista de pruebas, quiero validar el comportamiento ante timeouts y desconexiones. ADAPTACIÓN: el laboratorio no tiene mock server; el ejecutor aplica un timeout de 15 segundos y registra la falla. Pendiente de TASK-004 / TASK-010.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Simulación de fallos de red con un mock server.",
+        "Reintentos automáticos validados.",
+        "Fallos registrados en la auditoría."
+      ],
+      "labels": [
+        "resiliencia",
+        "red",
+        "latencia",
+        "iso20022",
+        "breb",
+        "pendiente-endpoint"
+      ],
+      "story_points": 8
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-001",
+      "title": "Configurar validador de contratos JSON Schema",
+      "description": "Configurar la validación de payloads contra el contrato de la API Bre-B (JSON Schema). Hoy la API valida con Pydantic y los mensajes XML con XSD propios de laboratorio.",
+      "labels": [
+        "configuracion",
+        "json-schema"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-002",
+      "title": "Organizar el repositorio de casos de prueba",
+      "description": "Estructurar HU y CP por tipo de mensaje. En QALabSPBVI cumple este rol la épica importada, con HU, CP enlazados y ejecuciones (sin Jira/Xray).",
+      "labels": [
+        "organizacion"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-003",
+      "title": "Documentar especificaciones técnicas Bre-B para QA",
+      "description": "Recopilar contratos OpenAPI (disponible en /docs de la API), reglas de negocio y códigos de error; enlazar las fuentes oficiales de Banrep.",
+      "labels": [
+        "documentacion",
+        "swagger"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-004",
+      "title": "Configurar simulador API REST (mock server)",
+      "description": "Simular el nodo central con respuestas JSON configurables para éxito, latencia y errores HTTP.",
+      "labels": [
+        "simulador",
+        "api"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-005",
+      "title": "Implementar validador JSON Schema para mensajes ISO 20022",
+      "description": "Cargar esquemas JSON Schema por tipo de mensaje y validar payloads de ejemplo.",
+      "labels": [
+        "json-schema",
+        "validacion"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-006",
+      "title": "Configurar monitoreo de latencia y rendimiento",
+      "description": "Medir latencia de los endpoints críticos y alertar si supera 20 segundos.",
+      "labels": [
+        "monitoreo",
+        "rendimiento"
+      ],
+      "story_points": 8
+    },
+    {
+      "ref": "TASK-007",
+      "title": "Implementar pruebas de seguridad para la API REST",
+      "description": "Ejecutar pruebas OWASP (p. ej. ZAP) sobre los endpoints críticos y documentar hallazgos.",
+      "labels": [
+        "seguridad",
+        "owasp"
+      ],
+      "story_points": 8
+    },
+    {
+      "ref": "TASK-008",
+      "title": "Integrar las pruebas automatizadas al CI/CD",
+      "description": "Ejecutar las pruebas en cada despliegue. Cubierto con GitHub Actions; pendiente reportar resultados a una herramienta externa.",
+      "labels": [
+        "ci-cd",
+        "automatizacion"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-009",
+      "title": "Implementar generador de datos de prueba en JSON",
+      "description": "Mantener qa_programs/build_iso20022_breb.py y ampliar la generación (≥ 100 payloads) respetando el límite de 1.000 UVB.",
+      "labels": [
+        "datos-prueba",
+        "python"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-010",
+      "title": "Configurar simulador de errores y latencia",
+      "description": "Simular HTTP 400, 500 y timeout en el mock server.",
+      "labels": [
+        "simulador",
+        "errores",
+        "latencia"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-011",
+      "title": "Configurar pruebas de autenticación",
+      "description": "Automatizar pruebas de sesión válida, inválida y expirada (el laboratorio usa cookie de sesión + MFA, no JWT/OAuth2).",
+      "labels": [
+        "seguridad",
+        "autenticacion"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-012",
+      "title": "Implementar trazabilidad avanzada en pruebas automatizadas",
+      "description": "Correlacionar logs JSON por operation_id y exportarlos para análisis.",
+      "labels": [
+        "auditoria",
+        "trazabilidad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-013",
+      "title": "Simular fallos de red en pruebas automatizadas",
+      "description": "Configurar timeout, desconexión y latencia; validar reintentos.",
+      "labels": [
+        "resiliencia",
+        "simulacion"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "SUB-041",
+      "title": "Diseñar sesiones válidas e inválidas para pruebas (HU-016)",
+      "description": "Subtarea de HU-016.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-042",
+      "title": "Implementar pruebas automatizadas de autenticación (HU-016)",
+      "description": "Subtarea de HU-016.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-043",
+      "title": "Documentar resultados de autenticación (HU-016)",
+      "description": "Subtarea de HU-016.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-044",
+      "title": "Configurar logs JSON avanzados (HU-017)",
+      "description": "Subtarea de HU-017.",
+      "labels": [
+        "auditoria"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-045",
+      "title": "Integrar trazabilidad en scripts automatizados (HU-017)",
+      "description": "Subtarea de HU-017.",
+      "labels": [
+        "auditoria"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-046",
+      "title": "Documentar auditoría (HU-017)",
+      "description": "Subtarea de HU-017.",
+      "labels": [
+        "auditoria"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-047",
+      "title": "Configurar escenarios de fallos de red (HU-018)",
+      "description": "Subtarea de HU-018.",
+      "labels": [
+        "resiliencia"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-048",
+      "title": "Ejecutar pruebas de resiliencia (HU-018)",
+      "description": "Subtarea de HU-018.",
+      "labels": [
+        "resiliencia"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-049",
+      "title": "Documentar resultados de resiliencia (HU-018)",
+      "description": "Subtarea de HU-018.",
+      "labels": [
+        "resiliencia"
+      ],
+      "story_points": null
+    }
+  ]
+}

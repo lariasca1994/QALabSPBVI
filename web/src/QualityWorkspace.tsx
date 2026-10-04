@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Plus,
   RefreshCw,
+  Upload,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -32,6 +33,7 @@ type ModalState =
   | { type: "definition"; testCase: WorkItem }
   | { type: "history"; testCase: WorkItem }
   | { type: "task" }
+  | { type: "import" }
   | null;
 
 const PRIORITIES = [
@@ -155,7 +157,7 @@ function DefinitionEditor({ value, onChange }: { value: string; onChange: (value
         {problem || "JSON válido. Se ejecuta como una solicitud HTTP a la API REST del laboratorio."}
       </p>
       <p className="field-hint">
-        Las credenciales no se escriben en el JSON: usá referencias como <code>{"{{secret:PAYMENTS_API_TOKEN}}"}</code>, que se resuelven al ejecutar.
+        Las credenciales no se escriben en el JSON: usa referencias como <code>{"{{secret:PAYMENTS_API_TOKEN}}"}</code>, que se resuelven al ejecutar.
       </p>
     </div>
   );
@@ -250,6 +252,7 @@ export function QualityWorkspace({
     setNotice("");
     if (next?.type === "case") setDefinitionText(JSON.stringify(EMPTY_DEFINITION, null, 2));
     if (next?.type === "definition") setDefinitionText(JSON.stringify(definitionOf(next.testCase), null, 2));
+    if (next?.type === "import") setDefinitionText("");
     setModal(next);
   }
 
@@ -322,19 +325,20 @@ export function QualityWorkspace({
       {error && <div className="alert alert--error" role="alert">{error}</div>}
 
       <section className="surface-card quality-toolbar">
-        <div className="select-wrap"><label htmlFor="epic-select">ÉPICA</label><select className="text-input select-input" id="epic-select" value={selectedEpic} onChange={(event) => onSelectEpic(event.target.value)}><option value="">Seleccioná una épica</option>{epics.map((item) => <option key={item.key} value={item.key}>{item.key} · {item.title}</option>)}</select></div>
+        <div className="select-wrap"><label htmlFor="epic-select">ÉPICA</label><select className="text-input select-input" id="epic-select" value={selectedEpic} onChange={(event) => onSelectEpic(event.target.value)}><option value="">Selecciona una épica</option>{epics.map((item) => <option key={item.key} value={item.key}>{item.key} · {item.title}</option>)}</select></div>
         {epic && (
           <div className="epic-context">
             <span className="epic-key">{epic.key}</span>
             <span>{epic.members?.length ?? 0} integrantes</span>
             {isManager && <button className="button button--small button--quiet" onClick={() => open({ type: "members" })} type="button"><Users size={14} /> Integrantes</button>}
+            {createsWork && <button className="button button--small button--quiet" onClick={() => open({ type: "import" })} type="button"><Upload size={14} /> Importar programa</button>}
             <button className="icon-button" onClick={() => void loadItems()} aria-label="Actualizar épica" title="Actualizar" type="button"><RefreshCw className={loadingItems ? "spin" : ""} size={16} /></button>
           </div>
         )}
       </section>
 
       {!epic ? (
-        <div className="surface-card empty-state quality-empty"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>{epics.length ? "Elegí una épica para empezar" : "Todavía no hay épicas"}</strong><p>{epics.length ? "Vas a ver sus historias de usuario, casos de prueba y tareas." : isAdmin ? "Creá la primera épica y asociá a su equipo." : "Cuando el admin te asocie a una épica, aparecerá aquí."}</p></div>
+        <div className="surface-card empty-state quality-empty"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>{epics.length ? "Elige una épica para empezar" : "Todavía no hay épicas"}</strong><p>{epics.length ? "Vas a ver sus historias de usuario, casos de prueba y tareas." : isAdmin ? "Crea la primera épica y asocia a su equipo." : "Cuando el admin te asocie a una épica, aparecerá aquí."}</p></div>
       ) : (
         <>
           <section className="surface-card epic-summary">
@@ -357,7 +361,7 @@ export function QualityWorkspace({
               {createsWork && <button className="button button--small button--primary" onClick={() => open({ type: "story" })} type="button"><Plus size={14} /> Nueva HU</button>}
             </div>
             {storyGroups.length === 0 ? (
-              <div className="empty-state"><div className="empty-icon"><BookOpen size={19} /></div><strong>Sin historias de usuario</strong><p>{createsWork ? "Creá la primera HU para empezar a escribir sus CP." : "El administrador crea las HU de la épica."}</p></div>
+              <div className="empty-state"><div className="empty-icon"><BookOpen size={19} /></div><strong>Sin historias de usuario</strong><p>{createsWork ? "Crea la primera HU para empezar a escribir sus CP." : "El administrador crea las HU de la épica."}</p></div>
             ) : storyGroups.map((story) => {
               const storyCases = story.key ? cases.filter((testCase) => testCase.story_key === story.key) : orphanCases;
               return (
@@ -400,7 +404,7 @@ export function QualityWorkspace({
               {isManager && <button className="button button--small button--primary" onClick={() => open({ type: "task" })} type="button"><Plus size={14} /> Nueva tarea</button>}
             </div>
             {tasks.length === 0 ? (
-              <div className="empty-state"><div className="empty-icon"><ListChecks size={19} /></div><strong>Sin tareas</strong><p>{isManager ? "Creá una tarea y asignala a un integrante." : "Cuando te asignen tareas, aparecerán aquí."}</p></div>
+              <div className="empty-state"><div className="empty-icon"><ListChecks size={19} /></div><strong>Sin tareas</strong><p>{isManager ? "Crea una tarea y asignala a un integrante." : "Cuando te asignen tareas, aparecerán aquí."}</p></div>
             ) : (
               <div className="task-list">
                 {tasks.map((task) => {
@@ -591,6 +595,43 @@ export function QualityWorkspace({
               </details>
             ))}
           </div>
+        </Modal>
+      )}
+
+      {modal?.type === "import" && epic && (
+        <Modal eyebrow="GESTIÓN QA" title={`Importar programa en ${epic.key}`} wide onClose={() => setModal(null)}>
+          <form className="form-stack modal-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            void save(async () => {
+              let program: unknown;
+              try {
+                program = JSON.parse(definitionText);
+              } catch (parseError) {
+                throw new Error(`El archivo no es un JSON válido: ${(parseError as Error).message}`);
+              }
+              const summary = await api.importProgram(epic.key, program);
+              const { created, skipped } = summary;
+              return `${summary.program}: ${created.stories} HU, ${created.test_cases} CP y ${created.tasks} tareas nuevas` +
+                (skipped.stories + skipped.test_cases + skipped.tasks > 0
+                  ? `; ${skipped.stories + skipped.test_cases + skipped.tasks} elementos ya existían y se omitieron.`
+                  : ".") + delivery(summary.notification_status);
+            });
+          }}>
+            <p className="field-hint">
+              Carga HU, CP y tareas desde un archivo con formato <code>qalabspbvi-qa-program/v1</code> (por ejemplo
+              <code> qa_programs/iso20022-breb-rest-json.json</code>). Todo se valida antes de guardar y lo que ya existe
+              con la misma referencia se omite, así que importar dos veces no duplica nada. El equipo recibe un solo correo resumen.
+            </p>
+            <label className="field-label" htmlFor="program-file">Archivo JSON</label>
+            <input accept="application/json,.json" className="text-input file-input" id="program-file" onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void file.text().then(setDefinitionText);
+            }} type="file" />
+            <label className="field-label" htmlFor="program-json">Contenido</label>
+            <textarea className="text-input json-input" id="program-json" onChange={(event) => setDefinitionText(event.target.value)} rows={12} spellCheck={false} value={definitionText} />
+            {modalError && <div className="alert alert--error" role="alert">{modalError}</div>}
+            <div className="modal-actions"><button className="button button--quiet" onClick={() => setModal(null)} type="button">Cancelar</button><button className="button button--primary" disabled={saving || !definitionText.trim()} type="submit"><Upload size={16} /> Importar</button></div>
+          </form>
         </Modal>
       )}
 

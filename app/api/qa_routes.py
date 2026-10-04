@@ -10,6 +10,7 @@ from app.api.schemas import (
     EpicMembersRequest,
     FixCreateRequest,
     FixTransitionRequest,
+    ProgramImportRequest,
     StoryCreateRequest,
     TaskAssignRequest,
     TaskCreateRequest,
@@ -34,6 +35,7 @@ from app.domains.qa.service import (
     create_story,
     create_task,
     create_test_case,
+    import_program,
     execute_test_case,
     list_case_executions,
     list_epic_bugs,
@@ -54,7 +56,7 @@ def _raise_http(error: Exception) -> None:
     if isinstance(error, QaNotFoundError):
         raise HTTPException(status_code=404, detail="No se encontro el elemento solicitado.")
     if isinstance(error, QaForbiddenError):
-        raise HTTPException(status_code=403, detail="No tenes permisos para esta accion.")
+        raise HTTPException(status_code=403, detail="No tienes permisos para esta accion.")
     if isinstance(error, QaConflictError):
         raise HTTPException(status_code=409, detail="El elemento no permite ese cambio de estado.")
     if isinstance(error, QaValidationError):
@@ -141,6 +143,26 @@ def post_story(
             description=payload.description,
             priority=payload.priority,
             acceptance_criteria=payload.acceptance_criteria,
+        )
+    except (QaNotFoundError, QaForbiddenError, QaConflictError, QaValidationError) as error:
+        _raise_http(error)
+
+
+@router.post("/epics/{epic_key}/import", status_code=status.HTTP_201_CREATED)
+def post_program_import(
+    epic_key: str,
+    payload: ProgramImportRequest,
+    database: QaDatabase,
+    actor: AuthenticatedUser,
+    mailer: MailerDependency,
+) -> dict:
+    try:
+        return import_program(
+            database,
+            epic_key=epic_key,
+            actor=actor,
+            mailer=mailer,
+            program=payload.model_dump(),
         )
     except (QaNotFoundError, QaForbiddenError, QaConflictError, QaValidationError) as error:
         _raise_http(error)

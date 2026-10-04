@@ -2,6 +2,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.models import Account, LedgerEntry, Payment
 from app.domains.keys.dice import resolve_inter_spbvi_key
 from app.domains.keys.dife import resolve_key
@@ -27,6 +28,19 @@ class IdempotencyConflictError(Exception):
 
 class SameSpbviPaymentError(Exception):
     pass
+
+
+class AmountLimitExceededError(Exception):
+    def __init__(self, limit_uvb: int) -> None:
+        super().__init__(f"El monto supera el limite de {limit_uvb} UVB por operacion.")
+        self.limit_uvb = limit_uvb
+
+
+def check_amount_limit(amount_cents: int) -> None:
+    """Regla Bre-B: ninguna operación supera PAYMENT_LIMIT_UVB (en centavos, sin floats)."""
+    settings = get_settings()
+    if amount_cents > settings.payment_limit_uvb * settings.uvb_value_cents:
+        raise AmountLimitExceededError(settings.payment_limit_uvb)
 
 
 def _same_request(
@@ -97,6 +111,7 @@ def create_payment(
     destination_key_value: str,
     amount_cents: int,
 ) -> tuple[Payment, bool]:
+    check_amount_limit(amount_cents)
     operation_id = operation_id.strip()
     source_account_id = source_account_id.strip()
     destination_key_type = destination_key_type.strip().lower()
@@ -217,6 +232,7 @@ def create_inter_spbvi_payment(
     destination_key_value: str,
     amount_cents: int,
 ) -> tuple[Payment, bool]:
+    check_amount_limit(amount_cents)
     operation_id = operation_id.strip()
     source_account_id = source_account_id.strip()
     destination_key_type = destination_key_type.strip().lower()

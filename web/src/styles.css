@@ -457,3 +457,5 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
   .case-actions { width: 100%; justify-content: flex-start; }
   .json-input { min-height: 220px; }
 }
+
+.file-input { min-height: 0; padding: 9px 12px; cursor: pointer; }

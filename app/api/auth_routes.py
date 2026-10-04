@@ -255,7 +255,7 @@ def create_user_account(
     if actor.role not in {UserRole.ADMIN, UserRole.ADMINISTRADOR}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tenes permisos para crear usuarios.",
+            detail="No tienes permisos para crear usuarios.",
         )
     if payload.role is UserRole.ADMIN:
         raise HTTPException(

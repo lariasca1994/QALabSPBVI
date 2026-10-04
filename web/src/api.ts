@@ -115,6 +115,14 @@ export interface CaseVersion {
   change_note?: string;
 }
 
+export interface ImportSummary {
+  epic_key: string;
+  program: string;
+  created: { stories: number; test_cases: number; tasks: number };
+  skipped: { stories: number; test_cases: number; tasks: number };
+  notification_status: string;
+}
+
 export interface WorkItem {
   key: string;
   kind: "story" | "test_case" | "task" | string;
@@ -292,6 +300,9 @@ export const api = {
   },
   async transitionTask(taskKey: string, status: string): Promise<WorkItem> {
     return mutate<WorkItem>(`/qa/tasks/${encodeURIComponent(taskKey)}/transition`, "POST", { status });
+  },
+  async importProgram(epicKey: string, program: unknown): Promise<ImportSummary> {
+    return mutate<ImportSummary>(`/qa/epics/${encodeURIComponent(epicKey)}/import`, "POST", program);
   },
   caseExecutions(caseKey: string): Promise<Execution[]> {
     return request(`/qa/cases/${encodeURIComponent(caseKey)}/executions`);

@@ -171,6 +171,7 @@ QA_EVENT_LABELS: dict[str, tuple[str, str]] = {
     "task_status_changed": ("Estado de tarea", "Cambió el estado de una tarea"),
     "task_assigned": ("Asignación de tarea", "Te asignaron una tarea"),
     "test_case_updated": ("CP actualizado", "Se actualizó el JSON de un CP"),
+    "program_imported": ("Importación", "Se importó un programa de pruebas"),
 }
 
 
@@ -184,14 +185,14 @@ def qa_notification_message(notification: dict[str, Any]) -> EmailMessage:
         heading=heading,
         greeting="Hola,",
         paragraphs=[
-            f"{notification['title']}. Te llega este aviso porque sos integrante de la épica."
+            f"{notification['title']}. Te llega este aviso porque eres integrante de la épica."
         ],
         details=[
             ("Épica", notification["epic_key"]),
             ("Elemento", notification["item_key"]),
             ("Realizado por", notification["actor_email"]),
         ],
-        notice="Ingresá a QALabSPBVI para ver el detalle completo.",
+        notice="Ingresa a QALabSPBVI para ver el detalle completo.",
     )
 
 
@@ -759,6 +760,165 @@ def update_test_case_definition(
     return _response_document(case)
 
 
+def import_program(
+    database: Database,
+    *,
+    epic_key: str,
+    actor: User,
+    mailer: Mailer,
+    program: dict[str, Any],
+) -> dict[str, Any]:
+    """Carga HU, CP y tareas de un programa en una épica existente.
+
+    Valida todo antes de escribir (un CP inválido rechaza el programa completo) y es
+    idempotente por `ref`: lo que ya existe en la épica con esa referencia se omite.
+    Envía un único aviso resumen en lugar de uno por elemento.
+    """
+    if actor.role is not UserRole.ADMINISTRADOR:
+        raise QaForbiddenError
+    epic = _required_document(database, "epics", epic_key, "epic")
+    if actor.id not in {member["user_id"] for member in epic["members"]}:
+        raise QaForbiddenError
+
+    refs: set[str] = set()
+    for item in [
+        *program["stories"],
+        *(case for story in program["stories"] for case in story["test_cases"]),
+        *program["tasks"],
+    ]:
+        if item["ref"] in refs:
+            raise QaValidationError(f"La referencia {item['ref']} está repetida en el programa.")
+        refs.add(item["ref"])
+
+    validated_methods: dict[str, str] = {}
+    for story in program["stories"]:
+        for case in story["test_cases"]:
+            try:
+                validated_methods[case["ref"]] = _validate_case_request(
+                    request_method=case["request_method"],
+                    request_path=case["request_path"],
+                    request_query=case["request_query"],
+                    request_headers=case["request_headers"],
+                    request_body=case["request_body"],
+                    expected_status_codes=case["expected_status_codes"],
+                    expected_response=case["expected_response"],
+                )
+            except QaValidationError as error:
+                raise QaValidationError(f"{case['ref']}: {error}") from error
+
+    existing = {
+        document["external_key"]: document
+        for document in database.work_items.find(
+            {"epic_key": epic_key, "external_key": {"$exists": True}}
+        )
+    }
+    created = {"stories": 0, "test_cases": 0, "tasks": 0}
+    skipped = {"stories": 0, "test_cases": 0, "tasks": 0}
+    now = int(time.time())
+    base = {
+        "epic_key": epic_key,
+        "created_by": _actor(actor),
+        "created_at_epoch": now,
+        "notifications": {},
+        "imported_from": program["name"],
+    }
+
+    for story in program["stories"]:
+        story_document = existing.get(story["ref"])
+        if story_document is None:
+            story_document = {
+                **base,
+                "key": _next_key(database, STORY_SEQUENCE, "HU"),
+                "kind": "story",
+                "external_key": story["ref"],
+                "title": story["title"].strip(),
+                "description": story["description"],
+                "priority": story["priority"],
+                "acceptance_criteria": story["acceptance_criteria"],
+                "labels": story["labels"],
+                "story_points": story["story_points"],
+            }
+            database.work_items.insert_one(story_document)
+            created["stories"] += 1
+        else:
+            skipped["stories"] += 1
+        for case in story["test_cases"]:
+            if case["ref"] in existing:
+                skipped["test_cases"] += 1
+                continue
+            database.work_items.insert_one(
+                {
+                    **base,
+                    "key": _next_key(database, CASE_SEQUENCE, "CP"),
+                    "kind": "test_case",
+                    "external_key": case["ref"],
+                    "story_key": story_document["key"],
+                    "title": case["title"].strip(),
+                    "description": case["description"],
+                    "priority": case["priority"],
+                    "preconditions": case["preconditions"],
+                    "steps": case["steps"],
+                    "expected_result": case["expected_result"],
+                    "labels": case["labels"],
+                    "expected_status_codes": case["expected_status_codes"],
+                    "expected_response": case["expected_response"],
+                    "request": {
+                        "method": validated_methods[case["ref"]],
+                        "path": case["request_path"],
+                        "query": case["request_query"],
+                        "headers": case["request_headers"],
+                        "body": case["request_body"],
+                    },
+                }
+            )
+            created["test_cases"] += 1
+
+    for task in program["tasks"]:
+        if task["ref"] in existing:
+            skipped["tasks"] += 1
+            continue
+        database.work_items.insert_one(
+            {
+                **base,
+                "key": _next_key(database, TASK_SEQUENCE, "TASK"),
+                "kind": "task",
+                "external_key": task["ref"],
+                "title": task["title"].strip(),
+                "description": task["description"],
+                "labels": task["labels"],
+                "story_points": task["story_points"],
+                "status": "open",
+                "assignee": None,
+            }
+        )
+        created["tasks"] += 1
+
+    notification = _new_notification(
+        event_type="program_imported",
+        epic=epic,
+        actor=actor,
+        recipients=epic["members"],
+        item_key=epic_key,
+        title=(
+            f"Se importó {program['name']}: {created['stories']} HU, "
+            f"{created['test_cases']} CP y {created['tasks']} tareas nuevas"
+        ),
+    )
+    database.epics.update_one(
+        {"_id": epic["_id"]},
+        {"$set": {f"notifications.{notification['id']}": notification}},
+    )
+    epic = database.epics.find_one({"_id": epic["_id"]})
+    notification_status = _deliver_event(database, "epics", epic, notification, mailer)
+    return {
+        "epic_key": epic_key,
+        "program": program["name"],
+        "created": created,
+        "skipped": skipped,
+        "notification_status": notification_status,
+    }
+
+
 def _contains_sensitive_field(value: Any) -> bool:
     if isinstance(value, dict):
         return any(
@@ -961,8 +1121,9 @@ def execute_test_case(
     passed = (
         result_record.get("status_code") in case.get("expected_status_codes", [200])
         and "error" not in result_record
+        # Sin respuesta esperada (null) el CP valida solo el código HTTP.
         and (
-            "expected_response" not in case
+            expected_response is None
             or _json_matches(response_body_unredacted, expected_response)
         )
     )
