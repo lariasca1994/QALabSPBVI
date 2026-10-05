@@ -510,3 +510,7 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 .attempt-list div { display: flex; flex-wrap: wrap; gap: 10px; }
 .attempt-list span { color: var(--text); }
 .attempt-list small { color: var(--muted); }
+.audit-filters { display: flex; width: 100%; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.audit-filters .select-wrap { flex: 1 1 180px; }
+.audit-table code { overflow-wrap: anywhere; }
+.link-button { padding: 0; border: 0; color: var(--blue); background: none; font: inherit; text-align: left; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; }

@@ -17,6 +17,7 @@ os.environ.update(
         "DATABASE_URL": f"sqlite:///{(data_dir / 'payments.sqlite').as_posix()}",
         "DIFE_DATABASE_URL": f"sqlite:///{(data_dir / 'dife.sqlite').as_posix()}",
         "DICE_DATABASE_URL": f"sqlite:///{(data_dir / 'dice.sqlite').as_posix()}",
+        "LOGS_DATABASE_URL": f"sqlite:///{(data_dir / 'logs.sqlite').as_posix()}",
         "MONGODB_URL": "mongodb://127.0.0.1:1",
         "MONGODB_DATABASE": "qalabspbvi_e2e_isolated",
         "QA_TARGET_BASE_URL": "http://127.0.0.1:8010",

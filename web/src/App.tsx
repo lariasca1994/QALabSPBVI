@@ -22,6 +22,7 @@ import {
   Moon,
   Plus,
   RefreshCw,
+  ScrollText,
   Search,
   ShieldCheck,
   Sun,
@@ -34,10 +35,11 @@ import { friendlyError, formatDate, Modal, PageHeading } from "./ui";
 import { QualityWorkspace } from "./QualityWorkspace";
 import { BugsWorkspace, type BugDraft } from "./BugsWorkspace";
 import { PaymentOperations } from "./PaymentOperations";
+import { AuditPage } from "./AuditPage";
 import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
-type View = "overview" | "keys" | "payments" | "quality" | "bugs" | "users";
+type View = "overview" | "keys" | "payments" | "quality" | "bugs" | "audit" | "users";
 type AuthState = "checking" | "login" | "mfa" | "app";
 
 interface ActionResult {
@@ -501,7 +503,10 @@ function App() {
     { id: "quality" as const, label: "Calidad y pruebas", mobileLabel: "QA", icon: ClipboardCheck },
     { id: "bugs" as const, label: "Bugs y fixes", mobileLabel: "Bugs", icon: Bug },
     ...(user && user.role !== "usuario"
-      ? [{ id: "users" as const, label: "Usuarios y roles", mobileLabel: "Usuarios", icon: Users }]
+      ? [
+          { id: "audit" as const, label: "Auditoría", mobileLabel: "Logs", icon: ScrollText },
+          { id: "users" as const, label: "Usuarios y roles", mobileLabel: "Usuarios", icon: Users },
+        ]
       : []),
   ], [user]);
 
@@ -608,6 +613,7 @@ function App() {
               user={user}
             />
           )}
+          {view === "audit" && user && user.role !== "usuario" && <AuditPage />}
           {view === "keys" && user && <KeysPage role={user.role} />}
           {view === "payments" && user && <PaymentsPage role={user.role} />}
           {view === "users" && user && user.role !== "usuario" && (

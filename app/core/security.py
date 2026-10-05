@@ -100,6 +100,8 @@ def current_user(
 
     session.last_seen_epoch = now
     db.commit()
+    # Para el registro de auditoría: quién hizo la solicitud.
+    request.state.user_id = user.id
     return user
 
 

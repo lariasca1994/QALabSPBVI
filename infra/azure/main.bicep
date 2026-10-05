@@ -51,6 +51,9 @@ param enableQaAutomation bool = false
 @description('URL del gateway ISO 20022 en Render. Vacía: los mensajes se generan en proceso. Requiere el secreto iso-gateway-token en Key Vault.')
 param isoGatewayUrl string = ''
 
+@description('Registro de solicitudes en una base PostgreSQL propia (Neon); requiere el secreto logs-database-url.')
+param enableRequestLogs bool = false
+
 var resourceToken = '${uniqueString(subscription().id, resourceGroup().id, location, environmentName)}1'
 var logAnalyticsName = 'azla${resourceToken}'
 var identityName = 'azid${resourceToken}'
@@ -87,6 +90,9 @@ var appSecretMap = concat(
   enableQaAutomation ? [
     { name: 'qa-automation-token', env: 'QA_AUTOMATION_TOKEN' }
     { name: 'qa-automation-emails', env: 'QA_AUTOMATION_EMAILS' }
+  ] : [],
+  enableRequestLogs ? [
+    { name: 'logs-database-url', env: 'LOGS_DATABASE_URL' }
   ] : []
 )
 var appSecrets = [

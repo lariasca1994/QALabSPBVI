@@ -124,6 +124,17 @@ test("crea un pago intra-SPBVI idempotente y verifica su respuesta en móvil", a
   await expect(page.locator(".execution-card .request-summary")).toContainText("/notifications");
   await expect(await responseJson(page)).toMatchObject({ total_credits_cents: 1250, total_debits_cents: 1250 });
   await expectNoHorizontalOverflow(page);
+
+  // Auditoría: todas las solicitudes del pago quedan correlacionadas por su operation_id.
+  await page.getByRole("button", { name: "Logs" }).click();
+  await page.getByLabel("OPERACIÓN").fill(operationId);
+  await page.getByRole("button", { name: "Filtrar" }).click();
+  const rows = page.locator(".audit-table tbody tr");
+  await expect(rows.filter({ hasText: "/payments/{operation_id}/returns" })).toHaveCount(1);
+  await expect(rows.filter({ hasText: "/payments/{operation_id}/cancellation-requests" })).toHaveCount(1);
+  await expect(rows.filter({ hasText: "/payments/{operation_id}/status-report" })).toHaveCount(1);
+  await expect(rows.filter({ has: page.locator("code", { hasText: /^\/payments$/ }) })).toHaveCount(2);
+  await expectNoHorizontalOverflow(page);
 });
 
 test("liquida un pago inter-SPBVI con MOL local y presenta los mensajes ISO", async ({ page }) => {

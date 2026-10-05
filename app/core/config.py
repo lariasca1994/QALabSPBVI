@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Gateway ISO 20022 en Render (vacío: el adaptador corre en proceso).
     iso_gateway_url: str = ""
     iso_gateway_token: str = ""
+    # Registro de solicitudes (auditoría) en una base PostgreSQL propia, en Neon en la nube.
+    # Vacío: no se registra nada y GET /audit/logs responde 503.
+    logs_database_url: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -217,6 +217,20 @@ export interface Bug {
   notification_status?: string;
 }
 
+export interface ApiLog {
+  id: number;
+  created_at: string;
+  environment: string;
+  request_id: string;
+  method: string;
+  path: string;
+  route: string | null;
+  status_code: number;
+  duration_ms: number;
+  user_id: number | null;
+  operation_id: string | null;
+}
+
 export interface PaymentKey {
   id: number;
   key_type: string;
@@ -471,6 +485,19 @@ export const api = {
       headers: { "X-CSRF-Token": token },
       body: JSON.stringify(payload),
     });
+  },
+  auditLogs(filters: { operation_id?: string; status_code?: string; limit?: number }): Promise<ApiLog[]> {
+    const query = new URLSearchParams();
+    if (filters.operation_id) query.set("operation_id", filters.operation_id);
+    if (filters.status_code) query.set("status_code", filters.status_code);
+    query.set("limit", String(filters.limit ?? 200));
+    return request(`/audit/logs?${query.toString()}`);
+  },
+  async auditExport(operationId?: string): Promise<Blob> {
+    const query = operationId ? `?operation_id=${encodeURIComponent(operationId)}` : "";
+    const response = await fetch(`/api/audit/logs/export${query}`, { credentials: "include" });
+    if (!response.ok) throw new ApiError(`No se pudo exportar el registro (${response.status}).`, response.status);
+    return response.blob();
   },
   /** Operaciones posteriores al pago (devolución, cancelación, investigación, notificaciones, estado). */
   async paymentOperation(method: "GET" | "POST", path: string, body?: unknown): Promise<ApiResponse<Record<string, unknown>>> {

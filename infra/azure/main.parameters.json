@@ -22,6 +22,9 @@
     },
     "enableQaAutomation": {
       "value": true
+    },
+    "enableRequestLogs": {
+      "value": true
     }
   }
 }
