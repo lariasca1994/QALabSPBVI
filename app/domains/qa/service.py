@@ -20,6 +20,7 @@ from app.core.email_templates import EmailMessage
 from app.core.mailer import MailDeliveryError, Mailer, send_message
 from app.db.models import User, UserRole
 from app.domains.qa.contracts import validate_response_contract
+from app.domains.qa.mongo import EXECUTION_TIMEOUT_SECONDS
 from app.domains.qa.placeholders import (
     PlaceholderError,
     Resolver,
@@ -51,7 +52,7 @@ SENSITIVE_FIELD = re.compile(
 MAX_EXECUTION_ATTEMPTS = 3
 RETRY_BACKOFF_SECONDS = 0.5
 RETRYABLE_STATUS = {502, 503, 504}
-# Errores de red que justifican reintentar; los timeouts no se reintentan (ya esperaron 15 s).
+# Errores de red que justifican reintentar; los timeouts no se reintentan (ya esperaron el timeout completo).
 RETRYABLE_ERRORS = {
     "ConnectError",
     "ReadError",
@@ -1149,7 +1150,7 @@ def execute_test_case(
     if csrf_token and incoming_host and incoming_host.casefold() == configured_host:
         headers["x-csrf-token"] = csrf_token
     owned_client = client is None
-    http_client = client or httpx.Client(timeout=15.0, follow_redirects=False)
+    http_client = client or httpx.Client(timeout=EXECUTION_TIMEOUT_SECONDS, follow_redirects=False)
     expected_codes = set(case.get("expected_status_codes", [200]))
     attempts: list[dict[str, Any]] = []
     total_started = time.perf_counter()

@@ -52,10 +52,15 @@ def ensure_qa_indexes(database: Database) -> None:
 QaDatabase = Annotated[Database, Depends(get_qa_database)]
 
 
+# 30 s: alcanza para que una base pausada (Azure SQL en australiaeast) se reanude en la
+# primera solicitud; un CP no debe fallar solo por un arranque en frío.
+EXECUTION_TIMEOUT_SECONDS = 30.0
+
+
 @lru_cache
 def _shared_http_client() -> httpx.Client:
     # Crear un cliente por ejecución cuesta cientos de ms (contexto TLS); se comparte uno.
-    return httpx.Client(timeout=15.0, follow_redirects=False)
+    return httpx.Client(timeout=EXECUTION_TIMEOUT_SECONDS, follow_redirects=False)
 
 
 def get_qa_http_client() -> httpx.Client:
