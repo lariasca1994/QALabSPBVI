@@ -44,12 +44,13 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | Área | Qué demuestra aquí |
 |---|---|
 | **Dominio de pagos** | Modelado de un ecosistema de pagos inmediatos con llaves: directorio federado de llaves por entidad (DIFE) y central (DICE) con unicidad global; pagos intra-SPBVI (llave en DIFE) e inter-SPBVI (llave en DICE, liquidación en un MOL simulado); idempotencia, límite de 1.000 UVB y ledger que siempre suma cero. |
-| **Mensajería ISO 20022** | pacs.008 y pacs.002 de laboratorio validados contra XSD propios, generados por un gateway aparte con respaldo local. |
-| **Aseguramiento de calidad** | Plataforma tipo Jira con épicas, HU, CP, tareas, bugs y fixes. Cada CP es una solicitud REST/JSON que se ejecuta con un clic y muestra método, URL, solicitud y respuesta. Incluye un programa ISO 20022 de 35 CP que pasa completo en la nube, con llaves generadas según su tipo. |
+| **Mensajería ISO 20022** | pacs.008 y pacs.002 (generados por un gateway aparte con respaldo local), pacs.004 (devoluciones), camt.056 y camt.029 (cancelación e investigación), camt.054 (notificaciones) y pain.002 (estado para el cliente), todos validados contra XSD propios de laboratorio. |
+| **Aseguramiento de calidad** | Plataforma tipo Jira con épicas, HU, CP, tareas, bugs y fixes. Cada CP es una solicitud REST/JSON que se ejecuta con un clic y muestra método, URL, solicitud y respuesta. Cada respuesta se valida además contra el contrato OpenAPI (JSON Schema) y el ejecutor reintenta los fallos de red. Incluye un programa ISO 20022 de 60 CP que pasa completo en la nube, con llaves generadas según su tipo, y un mock server de fallos de red para las pruebas de resiliencia. |
 | **Backend y datos** | Monolito modular en FastAPI con cuatro motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle y MongoDB. Ninguno se comparte, y la coordinación entre DIFE y DICE es recuperable, sin transacciones distribuidas. |
 | **Seguridad** | Contraseñas Argon2id, MFA por correo con reenvío, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
 | **Cloud y DevOps** | Siete plataformas cloud con una función cada una (ver [Plataformas](#plataformas)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
-| **Pruebas** | 131 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles. |
+| **Pruebas** | 155 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles. |
+| **Trazabilidad** | Registro de cada solicitud en una base propia, con identificador de correlación y `operation_id` para seguir todos los mensajes de un pago, pantalla de auditoría y exportación CSV. |
 
 ## Funcionalidades
 
@@ -64,14 +65,24 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 - Pago inter-SPBVI: resuelve en el DICE, liquida con el MOL simulado y devuelve `pacs008_xml` y `pacs002_xml`.
 - Idempotencia por `operation_id`, límite de 1.000 UVB por operación y rechazos sin efectos sobre los saldos.
 - Consulta de estado (equivalente a pacs.028) y extracto conciliado (equivalente a camt.052/053).
+- Devoluciones totales o parciales (pacs.004) que nunca superan el monto pagado.
+- Solicitud de cancelación (camt.056) que abre una investigación; el SPBVI receptor la acepta, y entonces devuelve el pago con motivo FOCR, o la rechaza con motivo (camt.029).
+- Notificaciones de crédito y débito por cuenta (camt.054) y reporte de estado para el cliente (pain.002), también en las respuestas del pago intra.
 
 **Plataforma QA**
 - Épicas, HU, CP, tareas, bugs y fixes con permisos por rol validados en el servidor.
 - CP ejecutables (API REST + JSON) con editor del JSON y versionado: cada cambio guarda la versión anterior en el historial.
 - Llaves generadas automáticamente según su tipo y lista de llaves por épica, que las transacciones eligen según el tipo que indica el CP.
 - Importación de programas completos (HU, CP y tareas) y plantillas para crear la documentación.
-- Programa ISO 20022 de laboratorio: 19 HU, 35 CP ejecutables y 22 tareas.
+- Programa ISO 20022 de laboratorio: 19 HU, 60 CP ejecutables y 22 tareas.
+- Validación de contrato: cada respuesta se compara con el JSON Schema del endpoint en OpenAPI; si no lo cumple, el CP falla y muestra los errores.
+- Reintentos automáticos ante cortes de conexión y 502/503/504, con cada intento registrado en la ejecución.
+- Pantalla de bugs y fixes: reporte desde una ejecución fallida, asignación, registro de fixes, retest e historial.
 - Avisos por correo a la épica con plantilla HTML propia y texto plano.
+
+**Resiliencia y trazabilidad**
+- Mock server (`/mock/*`) que simula latencia, timeout de un servicio aguas arriba, errores HTTP, cortes de conexión y un servicio inestable.
+- Registro asíncrono de cada solicitud (método, ruta, código, duración, usuario y `operation_id`) con encabezado `X-Request-ID`, pantalla de auditoría y exportación CSV.
 
 **Acceso**
 - Contraseña (Argon2id) y código MFA por correo, con reenvío sin volver a pedir la contraseña.
@@ -87,6 +98,8 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | DIFE | SQL Server (Azure SQL Database) con pyodbc y ODBC Driver 18 |
 | DICE | Oracle Autonomous Database (OCI) con python-oracledb |
 | QA | MongoDB (Atlas) con pymongo |
+| Logs | PostgreSQL (Neon), base propia |
+| Contratos | jsonschema sobre el OpenAPI de la API |
 | ISO 20022 | lxml con XSD propios de laboratorio; gateway propio en Render |
 | Avisos | AWS SQS (con DLQ) y AWS Lambda que entrega por Brevo |
 | Pruebas | pytest con mongomock y SQLite en memoria; Playwright para E2E |
@@ -104,6 +117,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | Brevo (API HTTP) | Código MFA, bienvenida y avisos QA | Sí para iniciar sesión (el MFA llega por correo) |
 | AWS SQS + Lambda | Cola y entrega de los avisos QA | No: sin `NOTIFICATIONS_QUEUE_URL` los avisos salen directo por Brevo |
 | Gateway ISO 20022 (Render) | Genera los pacs.008 / pacs.002 | No: sin `ISO_GATEWAY_URL` o si no responde, se generan en proceso |
+| PostgreSQL de logs | Registro de solicitudes y auditoría | No: sin `LOGS_DATABASE_URL` no se registra nada |
 
 Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte ni reutiliza datos de otros proyectos.
 
@@ -133,7 +147,7 @@ Cada plataforma cumple una función distinta; ninguna concentra todo el sistema.
 | **Azure SQL Database** | DIFE: directorio federado de llaves de cada SPBVI y auditoría de su ciclo de vida. Resuelve las llaves de los pagos **intra-SPBVI**. |
 | **Azure Key Vault** | Guarda las cadenas de conexión y claves de la API, que las lee con identidad administrada. |
 | **Oracle Cloud (OCI)** | DICE en Autonomous Database: índice central de llaves con unicidad global. Resuelve las llaves de los pagos **inter-SPBVI**. |
-| **Neon** | PostgreSQL de cuentas, ledger, pagos, usuarios y sesiones; ahí liquidan los pagos intra e inter. |
+| **Neon** | PostgreSQL de cuentas, ledger, pagos, usuarios y sesiones; ahí liquidan los pagos intra e inter. En una base aparte guarda el registro de solicitudes que alimenta la auditoría. |
 | **MongoDB Atlas** | Artefactos QA: épicas, HU, CP con su JSON versionado, ejecuciones, bugs, fixes y la lista de llaves de cada épica. |
 | **AWS** | Cola SQS con DLQ y Lambda que entrega por Brevo los avisos QA. La API solo puede enviar a la cola; la API key de Brevo vive en SSM Parameter Store. |
 | **Render** | Gateway ISO 20022: servicio aparte que genera los pacs.008 / pacs.002 de laboratorio. Se suspende sin uso; mientras despierta, la API los genera en proceso. |
@@ -202,6 +216,7 @@ Completa `.env`. Los nombres deben coincidir exactamente: la configuración igno
 | `QA_SECRET_…` | Secretos que un CP referencia como `{{secret:…}}`, sin guardarlos |
 | `NOTIFICATIONS_QUEUE_URL`, `AWS_REGION` | Cola SQS de avisos (opcional); credenciales en `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` |
 | `ISO_GATEWAY_URL`, `ISO_GATEWAY_TOKEN` | Gateway ISO 20022 en Render (opcional) |
+| `LOGS_DATABASE_URL` | PostgreSQL de logs para la auditoría (opcional) |
 
 Ningún secreto va al repositorio: solo `.env` (ignorado por git) o el gestor de secretos de la nube.
 
@@ -286,6 +301,13 @@ Los tipos y formatos son **supuestos** del laboratorio:
 | `POST /payments/inter-spbvi` | Pago inter-SPBVI con pacs.008 / pacs.002 de laboratorio |
 | `GET /payments/{operation_id}` | Estado del pago (`ACCP`, `PDNG`, `RJCT`) |
 | `GET /accounts/{account_id}/statement` | Extracto con movimientos, totales y conciliación |
+| `POST /payments/{operation_id}/returns` | Devolución total (sin `amount_cents`) o parcial con pacs.004 |
+| `GET /payments/{operation_id}/returns` | Devoluciones del pago |
+| `POST /payments/{operation_id}/cancellation-requests` | Solicitud de cancelación (camt.056); responde `202` con la investigación pendiente |
+| `GET /investigations/{cancellation_id}` | Estado de la investigación con camt.056 y camt.029 |
+| `POST /investigations/{cancellation_id}/resolution` | El SPBVI receptor acepta (devolución FOCR) o rechaza con motivo (camt.029) |
+| `GET /accounts/{account_id}/notifications` | Créditos y débitos de la cuenta con camt.054 (filtro opcional por `operation_id`) |
+| `GET /payments/{operation_id}/status-report` | Reporte de estado para el cliente (pain.002) |
 
 Reglas de los pagos:
 
@@ -293,7 +315,7 @@ Reglas de los pagos:
 - **Límite por operación:** el monto no puede superar `PAYMENT_LIMIT_UVB × UVB_VALUE_CENTS`. Si lo supera, la API responde `422`; en un pago inter, además, devuelve un pacs.002 `RJCT`.
 - **Sin efectos parciales:** un rechazo o una falla a mitad del movimiento no deja débito ni crédito, y las entradas del ledger de cada pago suman cero.
 
-Los perfiles `pacs.008.001.08` y `pacs.002.001.10` usan XSD propios limitados a los campos implementados. **No son los XSD oficiales ni prueban conformidad con ISO 20022 ni con ningún esquema real.**
+Los motivos de devolución, cancelación y rechazo usan los códigos externos públicos de ISO 20022 (por ejemplo `MD06`, `DUPL`, `NOAS`, `AM04`). Los perfiles `pacs.008.001.08`, `pacs.002.001.10`, `pacs.004.001.09`, `camt.056.001.08`, `camt.029.001.09`, `camt.054.001.08` y `pain.002.001.10` usan XSD propios limitados a los campos implementados. **No son los XSD oficiales ni prueban conformidad con ISO 20022 ni con ningún esquema real.**
 
 ### Casos de prueba
 
@@ -317,7 +339,7 @@ Todo CP ejecutable es una solicitud REST con JSON:
 }
 ```
 
-El CP aprueba si el código HTTP está entre los esperados y la respuesta contiene los campos de `expected_response`. Con `null`, solo se valida el código. Al ejecutarlo, el sistema reemplaza los marcadores:
+El CP aprueba si el código HTTP está entre los esperados, la respuesta contiene los campos de `expected_response` y cumple el JSON Schema que el contrato OpenAPI documenta para ese método, ruta y código. Con `null` en `expected_response`, se validan el código y el contrato. Al ejecutarlo, el sistema reemplaza los marcadores:
 
 | Marcador | Resultado |
 |---|---|
@@ -330,7 +352,28 @@ El JSON de cada CP se edita desde **Calidad y pruebas → JSON** o con `PUT /qa/
 
 El ejecutor solo admite rutas relativas al destino configurado y no sigue redirecciones. La sesión de quien ejecuta solo se reenvía al mismo host; por eso, en la nube, `QA_TARGET_BASE_URL` apunta al dominio de la Container App.
 
-Bugs: `abierto → asignado → en_fix → listo_para_retest → cerrado`, o `reabierto` si falla el retest. Tareas: `abierta → en curso → hecha`.
+Ante un corte de conexión o un 502/503/504 que el CP no espera, el ejecutor reintenta hasta tres veces y registra cada intento. El timeout por solicitud es de 30 segundos, para tolerar la reanudación de una base pausada.
+
+Bugs (pantalla **Bugs y fixes**): `abierto → asignado → en_fix → listo_para_retest → cerrado`, o `reabierto` si falla el retest. Tareas: `abierta → en curso → hecha`.
+
+### Mock server de resiliencia
+
+| Método y ruta | Simula |
+|---|---|
+| `GET /mock/latency?delay_ms=` | Respuesta lenta (hasta 10 s) |
+| `GET /mock/upstream?latency_ms=&timeout_ms=` | Servicio aguas arriba lento: si supera el timeout, responde `504` al vencerlo |
+| `GET /mock/status/{code}` | Error HTTP (400, 401, 403, 404, 408, 429, 500, 502, 503, 504), con `Retry-After` en 429 y 503 |
+| `GET /mock/disconnect` | Corte de conexión a mitad de la respuesta |
+| `GET /mock/flaky/{escenario}?failures=&mode=` | Servicio inestable: las primeras N llamadas fallan (503, 502, 504 o corte) y después responde `200` |
+
+### Auditoría
+
+| Método y ruta | Descripción |
+|---|---|
+| `GET /audit/logs` | Últimas solicitudes, con filtros por `operation_id`, `request_id`, ruta y código (`admin` y `administrador`) |
+| `GET /audit/logs/export` | Las mismas solicitudes en CSV |
+
+Cada respuesta lleva `X-Request-ID`. La escritura es asíncrona y por lotes: si la base de logs no responde, la API no se detiene. `/health` no se registra.
 
 ### Programa ISO 20022 y plantillas
 
@@ -341,8 +384,13 @@ Bugs: `abierto → asignado → en_fix → listo_para_retest → cerrado`, o `re
 - pacs.008 / pacs.002 → `POST /payments/inter-spbvi`
 - pacs.028 → `GET /payments/{id}`
 - camt.052 / camt.053 → `GET /accounts/{id}/statement`
+- pacs.004 → `POST /payments/{id}/returns`
+- camt.056 / camt.029 → `POST /payments/{id}/cancellation-requests` y `POST /investigations/{id}/resolution`
+- camt.054 → `GET /accounts/{id}/notifications`
+- pain.002 → `GET /payments/{id}/status-report`
+- Resiliencia → `/mock/*`
 
-Las HU de mensajes que todavía no tienen endpoint (pacs.004, camt.056, camt.029, camt.054) se cargan sin CP y lo indican en su descripción. El programa se regenera con `python qa_programs/build_iso20022_breb.py`.
+El programa se regenera con `python qa_programs/build_iso20022_breb.py`.
 
 En [`qa_programs/plantillas/`](qa_programs/plantillas/README.md) hay plantillas para cada pieza. El `admin` usa la de épica. Las de programa, HU, CP, tarea, bug y fix sirven para el resto de la documentación.
 
@@ -359,8 +407,10 @@ cd web; npm run build; npm run test:e2e   # compilación y E2E con Playwright
   - Fase 1: llaves duplicadas en paralelo, rechazos sin efectos, idempotencia, rollback, ledger que suma cero y cero consultas al DICE en pagos intra.
   - Llaves, pagos inter con ISO 20022, autenticación y MFA, roles y gestión QA.
   - Plantillas validadas contra los esquemas.
-  - Programa ISO 20022 completo: 35 CP en dos rondas, con llaves nuevas en cada una.
-- **E2E:** levantan una API aislada (puerto 8010) y Vite (5174). Recorren MFA, ejecución y edición de un CP, ciclo de llaves y pagos intra e inter, en anchos de 320 a 375 px.
+  - Devoluciones, cancelaciones, investigaciones, notificaciones y pain.002, con sus XML validados.
+  - Validación de contrato, mock server y registro de auditoría.
+  - Programa ISO 20022 completo: 60 CP en dos rondas contra un servidor real, con llaves nuevas en cada una.
+- **E2E:** levantan una API aislada (puerto 8010) y Vite (5174). Recorren MFA, ejecución y edición de un CP, ciclo de llaves, pagos intra e inter con devolución, cancelación y notificaciones, auditoría y el ciclo completo de un bug, en anchos de 320 a 1280 px.
 
 ## Correos
 
@@ -416,12 +466,7 @@ Supuestos del laboratorio, que se ajustan si cambian las reglas:
 
 Pendientes:
 
-- Endpoints de pacs.004, camt.056, camt.029, camt.054 y pain.002 independiente.
-- Mock server de latencia y fallos de red.
-- Validación con JSON Schema.
-- Pantalla de bugs y fixes.
-- Avisos por correo: los rechazados por Brevo quedan en la DLQ de SQS y se pueden reenviar.
-- Logs en Neon y entorno de producción.
+- Entorno de producción: bases, cola de avisos, infraestructura parametrizada y job de despliegue con aprobación ya preparados; falta crear la API y la interfaz de producción.
 
 ## Autor
 

@@ -77,13 +77,13 @@ El pago inter-SPBVI genera y valida `pacs.008.001.08` y `pacs.002.001.10` de lab
 - Nunca incluir credenciales, tokens de sesión, secretos, datos sensibles de pagos ni contenido privado de respuestas en el correo. El código MFA es la excepción funcional: mostrar solo el código de un uso y su vencimiento, con aviso de no compartirlo.
 
 ## Infraestructura prevista (se conecta DESPUES del núcleo)
-- Backend: un solo host. Recomendado Azure Container Apps (el entorno laboratorio-pagos-env ya existe en el grupo PersonalEAN, eastus). Alternativa: Cloud Run en el proyecto prpagos de GCP.
+- Backend: Azure Container Apps (rg-qalabspbvi-lab, eastus2), imagen pública en GHCR, escala a cero. GCP quedó descartado (exige facturación); el proyecto qalabsspbvi se eliminó.
 - Plataforma QA (HU, casos tipo Jira, JSON, ejecuciones, solicitudes, respuestas y evidencias): base MongoDB nueva, limpia y dedicada a QALabSPBVI; no reutilizar el cluster `cluster0` ni bases de otros proyectos.
 - Oracle Autonomous DB en OCI queda como posibilidad separada, únicamente mediante una base nueva, limpia y aislada; nunca reutilizar una base existente. No es el repositorio canónico de los artefactos QA mientras MongoDB cumpla ese rol.
-- Logs: Postgres en Neon (falta confirmar que sirva).
+- Logs: proyecto Neon QALabSPBVI-logs (base qalab_logs para lab, qalab_logs_prod para prod). Middleware ASGI puro (app/domains/audit), escritura asíncrona por lotes, X-Request-ID, GET /audit/logs y CSV. /health no se registra.
 - Cola de avisos QA: SQS + DLQ y Lambda `qalabspbvi-notifier` en AWS us-east-1 (infra/aws/notifications.yaml, implementado). La API solo envía a la cola con un usuario IAM limitado; el MFA sigue directo por Brevo.
 - Gateway ISO 20022 (services/iso20022_gateway) en Render (plan gratuito, sin tarjeta): Cloud Run quedó descartado porque exige facturación activa. La API cae al adaptador en proceso si el gateway no responde o está suspendido.
-- Frontend: React + TypeScript + Vite en `web/`, solo local durante la fase actual. Evaluar despliegue después de estabilizar y validar la experiencia local.
+- Frontend: React + TypeScript + Vite en `web/`, publicado en Vercel (qalabspbvi.vercel.app) con proxy /api a la Container App.
 - Proyectos propios para reutilizar ideas: gestor-casos-qa, qa-evidencia (CodeBuild + Playwright + correo), verificador-api.
 
 ## Fase 1 (empezar aquí): intra-SPBVI de punta a punta, sin nubes
@@ -106,6 +106,10 @@ Implementado y desplegado en el laboratorio multinube (ver README): llaves DIFE/
 
 El programa `qa_programs/iso20022-breb-rest-json.json` (adaptado del documento de pruebas ISO 20022 Bre-B) se importa en una épica y sus 35 CP pasan en la prueba de integración y en el laboratorio. Las llaves de los CP se generan según el tipo Bre-B ({{key:new:TIPO}}) y las transacciones las toman de la lista de llaves de la épica ({{key:TIPO:SPBVI}}). Plantillas en qa_programs/plantillas/.
 
-Pendientes: endpoints pacs.004, camt.056, camt.029, camt.054 y pain.002 independiente; mock server de fallos de red; validación JSON Schema; pantalla de bugs/fixes; logs en Neon y entorno de producción con aprobación.
+Implementado además: pacs.004 (devoluciones), camt.056/camt.029 (cancelación e investigación; aceptar devuelve con FOCR), camt.054 (notificaciones por cuenta) y pain.002 (en el pago intra y en /status-report), con XSD propios de laboratorio; validación de contrato JSON Schema (OpenAPI) en cada ejecución de CP; mock server /mock/* y reintentos del ejecutor (3 intentos, timeout 30 s); pantallas de bugs/fixes, operaciones sobre un pago y auditoría. El programa tiene 60 CP y pasa completo en local y en el lab.
+
+Entorno de producción (en curso): creados el stack AWS qalabspbvi-prod-notifications, el proyecto Neon QALabSPBVI-prod, la base qalab_logs_prod, la base Atlas qalabspbvi_qa_prod (usuario qalab_qa_prod) y el usuario Oracle QALABDICEPROD; credenciales en .env.prod (ignorado). Falta: resource group rg-qalabspbvi-prod con el Bicep (infra/azure/main.parameters.prod.json), secretos en su Key Vault, credencial federada OIDC para el environment production, environment "production" con aprobación en GitHub, proyecto Vercel de producción sin enlace a git y variables PROD_* del job deploy-production (inactivo hasta PROD_DEPLOY_ENABLED=true).
+
+Avisos por correo pausados (2026-10-05): el mapeo SQS → Lambda de qalabspbvi-notifier y qalabspbvi-prod-notifier está desactivado hasta terminar producción; antes de reactivarlo, decidir si se envía o se purga lo acumulado en la cola. El MFA sigue saliendo directo por Brevo.
 
 Diagrama de referencia de los flujos intra e inter: https://claude.ai/artifact/VzbGmnH3VLvvogB9hwDjJW (privado; si no abre, no es crítico).
