@@ -439,6 +439,7 @@ El laboratorio reparte sus componentes entre varias nubes, cada uno con su base 
 
 - La API escala a cero y no usa pool de conexiones en la nube (`DATABASE_POOL=null`): no quedan sesiones abiertas que mantengan despiertas a Azure SQL (pausa a los 60 minutos) o a Neon (suspensión a los 5 minutos).
 - `/health` no toca ninguna base, así que los monitores no las despiertan.
+- `/health/databases` (requiere sesión) despierta y comprueba las bases: responde `503` mientras alguna se reanuda y `200` cuando todas están listas. La interfaz lo consulta al entrar y habilita la ejecución de CP cuando están listas, y el ejecutor lo usa antes de cada ejecución.
 - Al abrir la aplicación con sesión válida, `/auth/me` despierta DIFE y DICE en segundo plano. Mientras Azure SQL se reanuda (cerca de un minuto), la conexión se reintenta, y si aún no está lista la API responde `503` con "La base de datos se está activando".
 
 El despliegue es continuo:
@@ -450,12 +451,13 @@ El despliegue es continuo:
 3. Se crea una revisión nueva de la Container App, se publica el código de la Lambda y se despliega el gateway en Render.
 4. Vercel publica la interfaz por su integración con el repositorio.
 5. Al final se comprueba que la API responde por la URL pública y que el sitio publicado es la compilación.
+6. Con el laboratorio desplegado, la misma imagen pasa a **producción**, un entorno separado con sus propias bases, cola de avisos y registro de solicitudes. Ese paso exige aprobación manual en GitHub; la interfaz de producción se publica desde una rama propia que solo escribe ese paso.
 
 GitHub entra a Azure y AWS por OIDC con permisos mínimos, sin contraseñas guardadas en el repositorio. En AWS, el rol de GitHub solo puede actualizar el código de la Lambda.
 
 La infraestructura está en `infra/azure/main.bicep` y `infra/aws/notifications.yaml` y se aprovisiona por CLI.
 
-### Supuestos y pendientes
+### Supuestos
 
 Supuestos del laboratorio, que se ajustan si cambian las reglas:
 
@@ -463,10 +465,6 @@ Supuestos del laboratorio, que se ajustan si cambian las reglas:
 - Formatos de llave.
 - Valor de la UVB.
 - Mapeo de pain.001, pacs.028 y camt.052/053 a los endpoints.
-
-Pendientes:
-
-- Entorno de producción: bases, cola de avisos, infraestructura parametrizada y job de despliegue con aprobación ya preparados; falta crear la API y la interfaz de producción.
 
 ## Autor
 
