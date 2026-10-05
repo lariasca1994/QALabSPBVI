@@ -207,6 +207,12 @@ export function ExecutionResult({ execution, onReportBug }: { execution: Executi
           {Object.entries(execution.placeholders).map(([token, value]) => <div key={token}><code>{token}</code><strong>{value}</strong></div>)}
         </div>
       )}
+      {(execution.result?.attempts?.length ?? 0) > 1 && (
+        <div className="attempt-list">
+          <span className="eyebrow eyebrow--muted">REINTENTOS AUTOMÁTICOS · {execution.result?.attempts?.length} INTENTOS · {execution.result?.total_duration_ms} MS</span>
+          {execution.result?.attempts?.map((item) => <div key={item.attempt}><strong>Intento {item.attempt}</strong><span>{item.error ?? `HTTP ${item.status_code}`}</span><small>{item.duration_ms} ms</small></div>)}
+        </div>
+      )}
       {execution.contract && (
         <div className={`contract-line ${execution.contract.valid === false ? "contract-line--failed" : ""}`}>
           <span className="eyebrow eyebrow--muted">CONTRATO JSON SCHEMA</span>

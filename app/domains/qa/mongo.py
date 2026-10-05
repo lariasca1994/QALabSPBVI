@@ -52,9 +52,14 @@ def ensure_qa_indexes(database: Database) -> None:
 QaDatabase = Annotated[Database, Depends(get_qa_database)]
 
 
-def get_qa_http_client():
-    with httpx.Client(timeout=15.0, follow_redirects=False) as client:
-        yield client
+@lru_cache
+def _shared_http_client() -> httpx.Client:
+    # Crear un cliente por ejecución cuesta cientos de ms (contexto TLS); se comparte uno.
+    return httpx.Client(timeout=15.0, follow_redirects=False)
+
+
+def get_qa_http_client() -> httpx.Client:
+    return _shared_http_client()
 
 
 QaHttpClient = Annotated[httpx.Client, Depends(get_qa_http_client)]

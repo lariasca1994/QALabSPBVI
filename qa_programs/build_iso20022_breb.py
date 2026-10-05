@@ -1106,17 +1106,80 @@ stories = [
         "title": "Validar resiliencia ante fallos de red en la API REST",
         "description": (
             "Como analista de pruebas, quiero validar el comportamiento ante timeouts y "
-            "desconexiones. ADAPTACIÓN: el laboratorio no tiene mock server; el ejecutor aplica un "
-            "timeout de 15 segundos y registra la falla. Pendiente de TASK-004 / TASK-010."
+            "desconexiones. El mock server de la API (/mock/*) simula latencia, el timeout de un "
+            "servicio aguas arriba (504), errores HTTP, cortes de conexión y un servicio inestable "
+            "que falla N veces. El ejecutor reintenta hasta 3 veces los cortes y los 502/503/504 "
+            "(salvo que el CP espere ese código) y registra cada intento en la ejecución."
         ),
         "priority": "high",
         "acceptance_criteria": [
             "Simulación de fallos de red con un mock server.",
             "Reintentos automáticos validados.",
-            "Fallos registrados en la auditoría.",
+            "Fallos registrados en la auditoría (intentos de cada ejecución).",
         ],
-        "labels": ["resiliencia", "red", "latencia", "iso20022", "breb", "pendiente-endpoint"],
+        "labels": ["resiliencia", "red", "latencia", "iso20022", "breb", "mock-server"],
         "story_points": 8,
+        "test_cases": [
+            case(
+                "LAB-TC-043",
+                "Validar una respuesta con latencia alta",
+                "El mock responde después de 1,5 segundos; la ejecución registra la duración.",
+                method="GET",
+                path="/mock/latency",
+                query={"delay_ms": 1500},
+                expected_status=[200],
+                expected_response={"simulated": True, "scenario": "latency", "delay_ms": 1500},
+                expected_result="200 con una duración registrada de al menos 1.500 ms.",
+                labels=["resiliencia", "latencia"],
+            ),
+            case(
+                "LAB-TC-044",
+                "Validar el timeout de un servicio aguas arriba",
+                "El servicio tarda 3 s y el gateway corta a 1 s: responde 504 sin esperar todo.",
+                method="GET",
+                path="/mock/upstream",
+                query={"latency_ms": 3000, "timeout_ms": 1000},
+                expected_status=[504],
+                expected_response={"scenario": "upstream-timeout"},
+                expected_result="504 en cerca de 1 s; el ejecutor no reintenta porque el CP espera 504.",
+                labels=["resiliencia", "timeout"],
+            ),
+            case(
+                "LAB-TC-045",
+                "Validar un servicio no disponible",
+                "El mock responde 503 con Retry-After.",
+                method="GET",
+                path="/mock/status/503",
+                expected_status=[503],
+                expected_response={"simulated": True, "detail": "Servicio no disponible (simulado)."},
+                expected_result="503 registrado como respuesta esperada, en un solo intento.",
+                labels=["resiliencia", "errores"],
+            ),
+            case(
+                "LAB-TC-046",
+                "Validar reintentos ante un servicio inestable",
+                "El servicio responde 503 dos veces y a la tercera 200: el ejecutor reintenta solo.",
+                method="GET",
+                path=f"/mock/flaky/{new_op('inestable')}",
+                query={"failures": 2, "mode": "503"},
+                expected_status=[200],
+                expected_response={"scenario": f"flaky:{op('inestable')}", "attempts": 3},
+                expected_result="Aprobado en el tercer intento; la ejecución guarda los tres intentos.",
+                labels=["resiliencia", "reintentos"],
+            ),
+            case(
+                "LAB-TC-047",
+                "Validar reintentos ante cortes de conexión",
+                "La conexión se corta dos veces a mitad de la respuesta y a la tercera responde.",
+                method="GET",
+                path=f"/mock/flaky/{new_op('corte')}",
+                query={"failures": 2, "mode": "disconnect"},
+                expected_status=[200],
+                expected_response={"scenario": f"flaky:{op('corte')}", "attempts": 3},
+                expected_result="Aprobado tras dos desconexiones registradas como intentos fallidos.",
+                labels=["resiliencia", "reintentos", "desconexion"],
+            ),
+        ],
     },
 ]
 

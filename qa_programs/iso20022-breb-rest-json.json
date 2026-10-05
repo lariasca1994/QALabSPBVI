@@ -2782,12 +2782,12 @@
     {
       "ref": "HU-018",
       "title": "Validar resiliencia ante fallos de red en la API REST",
-      "description": "Como analista de pruebas, quiero validar el comportamiento ante timeouts y desconexiones. ADAPTACIÓN: el laboratorio no tiene mock server; el ejecutor aplica un timeout de 15 segundos y registra la falla. Pendiente de TASK-004 / TASK-010.",
+      "description": "Como analista de pruebas, quiero validar el comportamiento ante timeouts y desconexiones. El mock server de la API (/mock/*) simula latencia, el timeout de un servicio aguas arriba (504), errores HTTP, cortes de conexión y un servicio inestable que falla N veces. El ejecutor reintenta hasta 3 veces los cortes y los 502/503/504 (salvo que el CP espere ese código) y registra cada intento en la ejecución.",
       "priority": "high",
       "acceptance_criteria": [
         "Simulación de fallos de red con un mock server.",
         "Reintentos automáticos validados.",
-        "Fallos registrados en la auditoría."
+        "Fallos registrados en la auditoría (intentos de cada ejecución)."
       ],
       "labels": [
         "resiliencia",
@@ -2795,9 +2795,213 @@
         "latencia",
         "iso20022",
         "breb",
-        "pendiente-endpoint"
+        "mock-server"
       ],
-      "story_points": 8
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "LAB-TC-043",
+          "title": "Validar una respuesta con latencia alta",
+          "description": "El mock responde después de 1,5 segundos; la ejecución registra la duración.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /mock/latency con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con una duración registrada de al menos 1.500 ms.",
+          "labels": [
+            "resiliencia",
+            "latencia"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/latency",
+          "request_query": {
+            "delay_ms": 1500
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "simulated": true,
+            "scenario": "latency",
+            "delay_ms": 1500
+          }
+        },
+        {
+          "ref": "LAB-TC-044",
+          "title": "Validar el timeout de un servicio aguas arriba",
+          "description": "El servicio tarda 3 s y el gateway corta a 1 s: responde 504 sin esperar todo.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /mock/upstream con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (504).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "504 en cerca de 1 s; el ejecutor no reintenta porque el CP espera 504.",
+          "labels": [
+            "resiliencia",
+            "timeout"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/upstream",
+          "request_query": {
+            "latency_ms": 3000,
+            "timeout_ms": 1000
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            504
+          ],
+          "expected_response": {
+            "scenario": "upstream-timeout"
+          }
+        },
+        {
+          "ref": "LAB-TC-045",
+          "title": "Validar un servicio no disponible",
+          "description": "El mock responde 503 con Retry-After.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /mock/status/503 con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (503).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "503 registrado como respuesta esperada, en un solo intento.",
+          "labels": [
+            "resiliencia",
+            "errores"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/status/503",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            503
+          ],
+          "expected_response": {
+            "simulated": true,
+            "detail": "Servicio no disponible (simulado)."
+          }
+        },
+        {
+          "ref": "LAB-TC-046",
+          "title": "Validar reintentos ante un servicio inestable",
+          "description": "El servicio responde 503 dos veces y a la tercera 200: el ejecutor reintenta solo.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /mock/flaky/{{op:inestable:new}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Aprobado en el tercer intento; la ejecución guarda los tres intentos.",
+          "labels": [
+            "resiliencia",
+            "reintentos"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/flaky/{{op:inestable:new}}",
+          "request_query": {
+            "failures": 2,
+            "mode": "503"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "scenario": "flaky:{{op:inestable}}",
+            "attempts": 3
+          }
+        },
+        {
+          "ref": "LAB-TC-047",
+          "title": "Validar reintentos ante cortes de conexión",
+          "description": "La conexión se corta dos veces a mitad de la respuesta y a la tercera responde.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /mock/flaky/{{op:corte:new}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Aprobado tras dos desconexiones registradas como intentos fallidos.",
+          "labels": [
+            "resiliencia",
+            "reintentos",
+            "desconexion"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/flaky/{{op:corte:new}}",
+          "request_query": {
+            "failures": 2,
+            "mode": "disconnect"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "scenario": "flaky:{{op:corte}}",
+            "attempts": 3
+          }
+        }
+      ]
     }
   ],
   "tasks": [

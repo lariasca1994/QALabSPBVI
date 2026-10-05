@@ -123,6 +123,20 @@ class CancellationRequest(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class MockScenario(Base):
+    """Contador de llamadas de un escenario inestable del mock server (falla N veces y luego responde)."""
+
+    __tablename__ = "mock_scenarios"
+
+    scenario_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    calls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
+
+
 class UserRole(str, Enum):
     ADMIN = "admin"
     ADMINISTRADOR = "administrador"

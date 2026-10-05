@@ -48,6 +48,17 @@ SENSITIVE_FIELD = re.compile(
     r"|mfa|otp|^code$|verification.?code|auth.?code)",
     re.IGNORECASE,
 )
+MAX_EXECUTION_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 0.5
+RETRYABLE_STATUS = {502, 503, 504}
+# Errores de red que justifican reintentar; los timeouts no se reintentan (ya esperaron 15 s).
+RETRYABLE_ERRORS = {
+    "ConnectError",
+    "ReadError",
+    "WriteError",
+    "RemoteProtocolError",
+    "ConnectionAbortedError",
+}
 BUG_TRANSITIONS = {
     "open": {"assigned", "in_fix"},
     "assigned": {"in_fix", "reopened"},
@@ -1139,68 +1150,104 @@ def execute_test_case(
         headers["x-csrf-token"] = csrf_token
     owned_client = client is None
     http_client = client or httpx.Client(timeout=15.0, follow_redirects=False)
-    started = time.perf_counter()
-    response_body_unredacted: Any = None
-    try:
-        with http_client.stream(
-            request_spec["method"],
-            target_url,
-            params=request_spec["query"],
-            json=request_body,
-            headers=headers,
-        ) as response:
-            body_buffer = bytearray()
-            response_too_large = False
-            for chunk in response.iter_bytes():
-                body_buffer.extend(chunk)
-                if len(body_buffer) > MAX_RESPONSE_BYTES:
-                    response_too_large = True
-                    break
+    expected_codes = set(case.get("expected_status_codes", [200]))
+    attempts: list[dict[str, Any]] = []
+    total_started = time.perf_counter()
 
-            if not response_too_large:
-                try:
-                    response_body_unredacted = json.loads(body_buffer)
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    response_body_unredacted = body_buffer.decode(
-                        "utf-8",
-                        errors="replace",
-                    )
+    def send_once() -> tuple[dict[str, Any], dict[str, Any], Any, float | None]:
+        started = time.perf_counter()
+        response_body_unredacted: Any = None
+        retry_after: float | None = None
+        try:
+            with http_client.stream(
+                request_spec["method"],
+                target_url,
+                params=request_spec["query"],
+                json=request_body,
+                headers=headers,
+            ) as response:
+                body_buffer = bytearray()
+                response_too_large = False
+                for chunk in response.iter_bytes():
+                    body_buffer.extend(chunk)
+                    if len(body_buffer) > MAX_RESPONSE_BYTES:
+                        response_too_large = True
+                        break
+
+                if not response_too_large:
+                    try:
+                        response_body_unredacted = json.loads(body_buffer)
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        response_body_unredacted = body_buffer.decode(
+                            "utf-8",
+                            errors="replace",
+                        )
+                request_record = {
+                    "method": request_spec["method"],
+                    "url": urlunsplit(
+                        (*urlsplit(str(response.request.url))[:3], "", "")
+                    ),
+                    "query": _redact(request_spec["query"], secret_values),
+                    "headers": _redact(request_spec["headers"], secret_values),
+                    "body": _redact(request_spec["body"], secret_values),
+                }
+                result_record = {
+                    "status_code": response.status_code,
+                    "body": (
+                        "[RESPUESTA MAYOR A 1 MB OMITIDA]"
+                        if response_too_large
+                        else _redact(response_body_unredacted, secret_values)
+                    ),
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                }
+                header_retry = response.headers.get("retry-after", "")
+                retry_after = float(header_retry) if header_retry.isdigit() else None
+                if response_too_large:
+                    result_record["error"] = "ResponseTooLarge"
+        # ConnectionError: el corte de conexión cuando el transporte es en proceso.
+        except (httpx.RequestError, ConnectionError) as error:
             request_record = {
                 "method": request_spec["method"],
-                "url": urlunsplit(
-                    (*urlsplit(str(response.request.url))[:3], "", "")
-                ),
+                "url": target_url,
                 "query": _redact(request_spec["query"], secret_values),
                 "headers": _redact(request_spec["headers"], secret_values),
                 "body": _redact(request_spec["body"], secret_values),
             }
             result_record = {
-                "status_code": response.status_code,
-                "body": (
-                    "[RESPUESTA MAYOR A 1 MB OMITIDA]"
-                    if response_too_large
-                    else _redact(response_body_unredacted, secret_values)
-                ),
+                "error": type(error).__name__,
+                "status_code": None,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 2),
             }
-            if response_too_large:
-                result_record["error"] = "ResponseTooLarge"
-    except httpx.RequestError as error:
-        request_record = {
-            "method": request_spec["method"],
-            "url": target_url,
-            "query": _redact(request_spec["query"], secret_values),
-            "headers": _redact(request_spec["headers"], secret_values),
-            "body": _redact(request_spec["body"], secret_values),
-        }
-        result_record = {
-            "error": type(error).__name__,
-            "status_code": None,
-            "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-        }
+        return request_record, result_record, response_body_unredacted, retry_after
+
+    try:
+        # Reintentos automáticos (resiliencia): cortes de conexión y 502/503/504, salvo que el
+        # CP espere ese código. Los POST de la API son idempotentes por su identificador.
+        for attempt in range(1, MAX_EXECUTION_ATTEMPTS + 1):
+            request_record, result_record, response_body_unredacted, retry_after = send_once()
+            attempts.append(
+                {
+                    "attempt": attempt,
+                    "status_code": result_record.get("status_code"),
+                    "error": result_record.get("error"),
+                    "duration_ms": result_record["duration_ms"],
+                }
+            )
+            retryable = (
+                result_record.get("error") in RETRYABLE_ERRORS
+                or (
+                    result_record.get("status_code") in RETRYABLE_STATUS
+                    and result_record.get("status_code") not in expected_codes
+                )
+            )
+            if not retryable or attempt == MAX_EXECUTION_ATTEMPTS:
+                break
+            time.sleep(min(retry_after if retry_after is not None else RETRY_BACKOFF_SECONDS * attempt, 2.0))
     finally:
         if owned_client:
             http_client.close()
+    result_record["attempts"] = attempts
+    result_record["total_duration_ms"] = round((time.perf_counter() - total_started) * 1000, 2)
 
     execution_key = _next_key(database, "execution", "RUN")
     contract = (

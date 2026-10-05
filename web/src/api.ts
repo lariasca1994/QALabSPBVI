@@ -168,7 +168,15 @@ export interface Execution {
   created_at_epoch?: number;
   actor?: { email?: string; display_name?: string };
   request?: { method?: string; url?: string; body?: unknown };
-  result?: { status_code?: number; duration_ms?: number; body?: unknown };
+  result?: {
+    status_code?: number;
+    duration_ms?: number;
+    total_duration_ms?: number;
+    body?: unknown;
+    error?: string;
+    // Reintentos automáticos ante cortes o 502/503/504: cada intento queda registrado.
+    attempts?: Array<{ attempt: number; status_code: number | null; error: string | null; duration_ms: number }>;
+  };
   placeholders?: Record<string, string>;
   // Validación JSON Schema de la respuesta contra el contrato OpenAPI del endpoint.
   contract?: { validated: boolean; valid: boolean | null; errors: string[]; schema: string | null };

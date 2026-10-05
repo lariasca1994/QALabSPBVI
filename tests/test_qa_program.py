@@ -6,11 +6,16 @@ mismo runner de la plataforma, dos veces seguidas, para comprobar que es repetib
 
 import json
 import re
+import socket
+import threading
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
+import httpx
 import mongomock
 import pytest
+import uvicorn
 from fastapi import Header
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -47,7 +52,12 @@ def memory_engine():
 @pytest.fixture
 def platform(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, mongomock.database.Database]]:
     monkeypatch.setenv("APP_ENV", "test")
-    monkeypatch.setenv("QA_TARGET_BASE_URL", "http://127.0.0.1:8000")
+    # El runner habla con un uvicorn real por socket: así los cortes de conexión del mock
+    # server son desconexiones de verdad, como en la nube.
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    monkeypatch.setenv("QA_TARGET_BASE_URL", f"http://127.0.0.1:{port}")
     config.get_settings.cache_clear()
     engines = {"sql": memory_engine(), "dife": memory_engine(), "dice": memory_engine()}
     Base.metadata.create_all(engines["sql"])
@@ -74,9 +84,10 @@ def platform(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, mong
     def override_user(x_test_role: str = Header(default="administrador")) -> User:
         return users[x_test_role]
 
+    runner = httpx.Client(timeout=15.0, follow_redirects=False)
+
     def runner_client():
-        with TestClient(app, raise_server_exceptions=False) as client:
-            yield client
+        return runner
 
     app.dependency_overrides[get_db] = session_for("sql")
     app.dependency_overrides[get_dife_db] = session_for("dife")
@@ -85,6 +96,12 @@ def platform(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, mong
     app.dependency_overrides[get_mailer] = SilentMailer
     app.dependency_overrides[get_qa_database] = lambda: database
     app.dependency_overrides[get_qa_http_client] = runner_client
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, lifespan="off", log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 10
+    while not server.started and time.monotonic() < deadline:
+        time.sleep(0.05)
     client = TestClient(app, raise_server_exceptions=False)
     client.cookies.set("qalab_csrf", "test-csrf")
     client.headers["x-csrf-token"] = "test-csrf"
@@ -92,6 +109,9 @@ def platform(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, mong
         yield client, database
     finally:
         client.close()
+        runner.close()
+        server.should_exit = True
+        thread.join(timeout=10)
         app.dependency_overrides.clear()
         mongo.close()
         for engine in engines.values():
@@ -118,7 +138,7 @@ def test_iso20022_breb_program_imports_and_every_case_passes_twice(
 
     imported = client.post(f"/qa/epics/{epic_key}/import", json=program)
     assert imported.status_code == 201, imported.text
-    assert imported.json()["created"] == {"stories": 19, "test_cases": 55, "tasks": 22}
+    assert imported.json()["created"] == {"stories": 19, "test_cases": 60, "tasks": 22}
 
     cases = sorted(
         database.work_items.find({"epic_key": epic_key, "kind": "test_case"}),

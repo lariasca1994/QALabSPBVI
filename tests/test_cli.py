@@ -92,14 +92,14 @@ def test_seed_program_creates_epic_imports_program_and_is_idempotent(tmp_path, m
         epic = database.epics.find_one()
         assert len(epic["members"]) == 3
         assert database.work_items.count_documents({"kind": "story"}) == 19
-        assert database.work_items.count_documents({"kind": "test_case"}) == 55
+        assert database.work_items.count_documents({"kind": "test_case"}) == 60
         assert database.work_items.count_documents({"kind": "task"}) == 22
         # Un aviso de épica y un resumen de importación, a los tres integrantes.
         assert len(sent) == 6
 
         assert seed_program(program, "admin@example.com", "manager@example.com") == 0
         assert database.epics.count_documents({}) == 1
-        assert database.work_items.count_documents({}) == 96
+        assert database.work_items.count_documents({}) == 101
 
         # Con --actualizar, un CP cuyo JSON cambió en el programa pasa a una versión nueva.
         database.work_items.update_one({"external_key": "TC-001"}, {"$set": {"request.path": "/viejo"}})

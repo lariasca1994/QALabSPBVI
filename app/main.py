@@ -11,6 +11,7 @@ from sqlalchemy.exc import DBAPIError
 from app.api.auth_routes import router as auth_router
 from app.api.qa_routes import router as qa_router
 from app.api.lifecycle_routes import router as lifecycle_router
+from app.api.mock_routes import router as mock_router
 from app.api.routes import router
 from app.core.config import get_settings
 from app.db.base import Base
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     application.include_router(router)
     application.include_router(qa_router)
     application.include_router(lifecycle_router)
+    application.include_router(mock_router)
     application.openapi = lambda: _openapi_with_business_errors(application)
     return application
 
