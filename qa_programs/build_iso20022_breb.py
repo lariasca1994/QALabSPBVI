@@ -1121,7 +1121,7 @@ stories = [
 ]
 
 TASKS = [
-    ("TASK-001", "Configurar validador de contratos JSON Schema", "Configurar la validación de payloads contra el contrato de la API Bre-B (JSON Schema). Hoy la API valida con Pydantic y los mensajes XML con XSD propios de laboratorio.", ["configuracion", "json-schema"], 3),
+    ("TASK-001", "Configurar validador de contratos JSON Schema", "Validar los payloads contra el contrato de la API (JSON Schema). Implementado: el ejecutor valida cada respuesta contra el esquema OpenAPI del endpoint y código HTTP, y el CP falla si no lo cumple; los mensajes XML se validan con XSD propios de laboratorio.", ["configuracion", "json-schema"], 3),
     ("TASK-002", "Organizar el repositorio de casos de prueba", "Estructurar HU y CP por tipo de mensaje. En QALabSPBVI cumple este rol la épica importada, con HU, CP enlazados y ejecuciones (sin Jira/Xray).", ["organizacion"], 3),
     ("TASK-003", "Documentar especificaciones técnicas Bre-B para QA", "Recopilar contratos OpenAPI (disponible en /docs de la API), reglas de negocio y códigos de error; enlazar las fuentes oficiales de Banrep.", ["documentacion", "swagger"], 2),
     ("TASK-004", "Configurar simulador API REST (mock server)", "Simular el nodo central con respuestas JSON configurables para éxito, latencia y errores HTTP.", ["simulador", "api"], 5),

@@ -19,6 +19,7 @@ from app.core.config import get_settings
 from app.core.email_templates import EmailMessage
 from app.core.mailer import MailDeliveryError, Mailer, send_message
 from app.db.models import User, UserRole
+from app.domains.qa.contracts import validate_response_contract
 from app.domains.qa.placeholders import (
     PlaceholderError,
     Resolver,
@@ -1202,6 +1203,16 @@ def execute_test_case(
             http_client.close()
 
     execution_key = _next_key(database, "execution", "RUN")
+    contract = (
+        {"validated": False, "valid": None, "errors": [], "schema": None}
+        if "error" in result_record
+        else validate_response_contract(
+            request_spec["method"],
+            request_spec["path"],
+            result_record.get("status_code"),
+            response_body_unredacted,
+        )
+    )
     passed = (
         result_record.get("status_code") in case.get("expected_status_codes", [200])
         and "error" not in result_record
@@ -1210,6 +1221,8 @@ def execute_test_case(
             expected_response is None
             or _json_matches(response_body_unredacted, expected_response)
         )
+        # Contrato OpenAPI / JSON Schema: si el código está documentado, la forma debe cumplirlo.
+        and contract["valid"] is not False
     )
     execution = {
         "key": execution_key,
@@ -1220,6 +1233,7 @@ def execute_test_case(
         "request": request_record,
         "result": result_record,
         "passed": passed,
+        "contract": contract,
         "placeholders": resolver.values,
         "created_at_epoch": int(time.time()),
         "notifications": {},

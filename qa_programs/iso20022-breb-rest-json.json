@@ -2804,7 +2804,7 @@
     {
       "ref": "TASK-001",
       "title": "Configurar validador de contratos JSON Schema",
-      "description": "Configurar la validación de payloads contra el contrato de la API Bre-B (JSON Schema). Hoy la API valida con Pydantic y los mensajes XML con XSD propios de laboratorio.",
+      "description": "Validar los payloads contra el contrato de la API (JSON Schema). Implementado: el ejecutor valida cada respuesta contra el esquema OpenAPI del endpoint y código HTTP, y el CP falla si no lo cumple; los mensajes XML se validan con XSD propios de laboratorio.",
       "labels": [
         "configuracion",
         "json-schema"

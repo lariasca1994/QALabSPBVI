@@ -499,3 +499,10 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 @media (max-width: 720px) {
   .bug-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* Resultado de la validación de contrato */
+.contract-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); font-size: 10px; }
+.contract-line strong { color: var(--green); }
+.contract-line code { overflow-wrap: anywhere; color: var(--muted); }
+.contract-line small { flex-basis: 100%; color: var(--red); overflow-wrap: anywhere; }
+.contract-line--failed strong { color: var(--red); }

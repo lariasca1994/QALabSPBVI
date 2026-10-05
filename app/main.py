@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 import logging
 
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
 from sqlalchemy.exc import DBAPIError
@@ -57,7 +58,37 @@ def create_app() -> FastAPI:
     application.include_router(router)
     application.include_router(qa_router)
     application.include_router(lifecycle_router)
+    application.openapi = lambda: _openapi_with_business_errors(application)
     return application
+
+
+def _openapi_with_business_errors(application: FastAPI) -> dict:
+    """El 422 de la API tiene dos formas: validación de FastAPI (detail es una lista) y
+    rechazo de negocio (detail es un texto, a veces con el mensaje ISO del rechazo). El
+    contrato publicado documenta ambas para que la validación JSON Schema de los CP sea fiel."""
+    if application.openapi_schema:
+        return application.openapi_schema
+    schema = get_openapi(title=application.title, version=application.version, routes=application.routes)
+    schemas = schema.setdefault("components", {}).setdefault("schemas", {})
+    schemas["BusinessError"] = {
+        "title": "BusinessError",
+        "type": "object",
+        "required": ["detail"],
+        "properties": {"detail": {"type": "string"}},
+        "additionalProperties": True,
+    }
+    for operations in schema.get("paths", {}).values():
+        for operation in operations.values():
+            content = operation.get("responses", {}).get("422", {}).get("content", {}).get("application/json")
+            if content and content.get("schema", {}).get("$ref", "").endswith("/HTTPValidationError"):
+                content["schema"] = {
+                    "anyOf": [
+                        {"$ref": "#/components/schemas/HTTPValidationError"},
+                        {"$ref": "#/components/schemas/BusinessError"},
+                    ]
+                }
+    application.openapi_schema = schema
+    return schema
 
 
 app = create_app()

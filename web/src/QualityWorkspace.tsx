@@ -207,6 +207,14 @@ export function ExecutionResult({ execution, onReportBug }: { execution: Executi
           {Object.entries(execution.placeholders).map(([token, value]) => <div key={token}><code>{token}</code><strong>{value}</strong></div>)}
         </div>
       )}
+      {execution.contract && (
+        <div className={`contract-line ${execution.contract.valid === false ? "contract-line--failed" : ""}`}>
+          <span className="eyebrow eyebrow--muted">CONTRATO JSON SCHEMA</span>
+          <strong>{execution.contract.validated ? (execution.contract.valid ? "Cumple el contrato" : "No cumple el contrato") : "Sin esquema documentado para este código"}</strong>
+          {execution.contract.schema && <code>{execution.contract.schema}</code>}
+          {execution.contract.errors.map((item) => <small key={item}>{item}</small>)}
+        </div>
+      )}
       <details className="response-details"><summary>Ver solicitud enviada</summary><pre>{JSON.stringify(execution.request?.body ?? null, null, 2)}</pre></details>
       <details className="response-details"><summary>Ver respuesta registrada</summary><pre>{JSON.stringify(execution.result?.body ?? execution.result ?? {}, null, 2)}</pre></details>
       {!execution.passed && onReportBug && <div className="execution-actions"><button className="button button--small button--danger" onClick={onReportBug} type="button"><BugIcon size={14} /> Reportar bug</button></div>}

@@ -30,6 +30,7 @@ test("rechaza una clave inválida, autentica con MFA y ejecuta un caso QA en mó
   await expect(page.locator(".execution-card")).toContainText("APROBADO");
   await expect(page.locator(".execution-card .method-pill")).toHaveText("GET");
   await expect(page.locator(".execution-card .request-summary")).toContainText("200");
+  await expect(page.locator(".contract-line")).toContainText("Cumple el contrato");
   await expectNoHorizontalOverflow(page);
 
   // El JSON del CP se edita desde la plataforma y queda versionado.

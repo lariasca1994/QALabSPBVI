@@ -170,6 +170,8 @@ export interface Execution {
   request?: { method?: string; url?: string; body?: unknown };
   result?: { status_code?: number; duration_ms?: number; body?: unknown };
   placeholders?: Record<string, string>;
+  // Validación JSON Schema de la respuesta contra el contrato OpenAPI del endpoint.
+  contract?: { validated: boolean; valid: boolean | null; errors: string[]; schema: string | null };
 }
 
 export interface BugFix {
