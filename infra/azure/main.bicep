@@ -61,8 +61,9 @@ var keyVaultName = toLower('azkv${resourceToken}')
 var managedEnvironmentName = 'azcae${resourceToken}'
 var containerAppName = 'azca${resourceToken}'
 // Servidor dedicado a DIFE en la región donde se pudo crear la oferta gratuita.
-var sqlServerName = toLower('azsqlqalab${take(sqlLocation, 6)}1')
-var sqlDatabaseName = 'qalabdife'
+// El lab conserva su nombre original; otros entornos llevan el suyo (los nombres SQL son globales).
+var sqlServerName = environmentName == 'lab' ? toLower('azsqlqalab${take(sqlLocation, 6)}1') : toLower('azsqlqalab${environmentName}${take(sqlLocation, 6)}1')
+var sqlDatabaseName = environmentName == 'lab' ? 'qalabdife' : 'qalabdife${environmentName}'
 var keyVaultSecretsOfficerRoleDefinitionId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
   'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
@@ -133,6 +134,10 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
       name: 'PerGB2018'
     }
     retentionInDays: 30
+    // Tope diario de ingesta para no salir de la capa gratuita.
+    workspaceCapping: {
+      dailyQuotaGb: json('0.15')
+    }
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
   }

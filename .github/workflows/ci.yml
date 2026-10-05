@@ -191,3 +191,83 @@ jobs:
           done
           echo "El frontend publicado no es la compilación de web/dist." >&2
           exit 1
+
+  deploy-production:
+    name: Desplegar producción
+    # Misma imagen que ya pasó por el laboratorio; el environment "production" exige aprobación.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PROD_DEPLOY_ENABLED == 'true'
+    needs:
+      - deploy-lab
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Fijar la imagen ya publicada por el laboratorio
+        shell: bash
+        run: |
+          owner="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE=ghcr.io/$owner/qalabspbvi-api:$GITHUB_SHA" >> "$GITHUB_ENV"
+
+      - name: Iniciar sesion en Azure con OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Actualizar la Container App de producción
+        shell: bash
+        env:
+          RESOURCE_GROUP: ${{ vars.PROD_RESOURCE_GROUP }}
+          CONTAINER_APP_NAME: ${{ vars.PROD_CONTAINER_APP_NAME }}
+        run: |
+          set -euo pipefail
+          az containerapp update --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_APP_NAME" --image "$IMAGE"
+
+      - name: Iniciar sesion en AWS con OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Publicar la Lambda de avisos de producción
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd services/notifier
+          zip -q ../../notifier.zip handler.py
+          cd ../..
+          aws lambda update-function-code --function-name qalabspbvi-prod-notifier \
+            --zip-file fileb://notifier.zip --query LastUpdateStatus --output text
+          aws lambda wait function-updated --function-name qalabspbvi-prod-notifier
+
+      - name: Publicar la interfaz de producción en Vercel
+        shell: bash
+        working-directory: web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.PROD_VERCEL_PROJECT_ID }}
+          PROD_API_ORIGIN: ${{ vars.PROD_API_ORIGIN }}
+        run: |
+          set -euo pipefail
+          # El proyecto de producción no está enlazado a Git: solo este job lo publica,
+          # con el proxy /api apuntando a la API de producción.
+          jq --arg api "$PROD_API_ORIGIN/:path*" '.rewrites[0].destination = $api' vercel.json > vercel.prod.json
+          mv vercel.prod.json vercel.json
+          npx --yes vercel@latest pull --yes --environment=production --token "$VERCEL_TOKEN"
+          npx --yes vercel@latest build --prod --token "$VERCEL_TOKEN"
+          npx --yes vercel@latest deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+
+      - name: Comprobar la ruta publica de producción
+        shell: bash
+        env:
+          PUBLIC_APP_URL: ${{ vars.PROD_PUBLIC_APP_URL }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 12 --retry-delay 10 --retry-all-errors "$PUBLIC_APP_URL/api/health"

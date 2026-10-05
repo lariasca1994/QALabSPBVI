@@ -1,10 +1,15 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  QALabSPBVI (lab) - Avisos QA por AWS: cola SQS con DLQ y Lambda que entrega los correos
+  QALabSPBVI (lab y prod) - Avisos QA por AWS: cola SQS con DLQ y Lambda que entrega los correos
   por Brevo. La API (Azure) solo puede enviar a la cola; GitHub Actions solo puede
   actualizar el código de la Lambda. Todos los recursos son nuevos y dedicados.
 
 Parameters:
+  EnvironmentName:
+    Type: String
+    Default: lab
+    AllowedValues: [lab, prod]
+    Description: Entorno; cada uno tiene su cola, DLQ, Lambda, usuario IAM y rol de despliegue.
   BrevoSenderEmail:
     Type: String
     Description: Remitente verificado en Brevo.
@@ -20,18 +25,22 @@ Parameters:
     # El repo usa el formato inmutable del sub de OIDC (dueño@id/repo@id).
     Default: repo:lariasca1994@49419170/QALabSPBVI@1403869375:environment:lab
 
+Conditions:
+  # El laboratorio conserva los nombres originales de su Lambda.
+  IsLab: !Equals [!Ref EnvironmentName, lab]
+
 Resources:
   DeadLetterQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: qalabspbvi-lab-notifications-dlq
+      QueueName: !Sub qalabspbvi-${EnvironmentName}-notifications-dlq
       MessageRetentionPeriod: 1209600
       SqsManagedSseEnabled: true
 
   NotificationsQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: qalabspbvi-lab-notifications
+      QueueName: !Sub qalabspbvi-${EnvironmentName}-notifications
       VisibilityTimeout: 60
       MessageRetentionPeriod: 345600
       SqsManagedSseEnabled: true
@@ -42,7 +51,7 @@ Resources:
   NotifierRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: qalabspbvi-lab-notifier
+      RoleName: !Sub qalabspbvi-${EnvironmentName}-notifier
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -66,7 +75,7 @@ Resources:
   NotifierFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: qalabspbvi-notifier
+      FunctionName: !If [IsLab, qalabspbvi-notifier, !Sub 'qalabspbvi-${EnvironmentName}-notifier']
       Description: Entrega por Brevo los avisos QA encolados por la API de QALabSPBVI.
       Runtime: python3.13
       Handler: handler.handler
@@ -87,7 +96,7 @@ Resources:
   NotifierLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/lambda/qalabspbvi-notifier
+      LogGroupName: !If [IsLab, /aws/lambda/qalabspbvi-notifier, !Sub '/aws/lambda/qalabspbvi-${EnvironmentName}-notifier']
       RetentionInDays: 14
 
   QueueToNotifier:
@@ -102,7 +111,7 @@ Resources:
   ApiSenderUser:
     Type: AWS::IAM::User
     Properties:
-      UserName: qalabspbvi-lab-api-sqs
+      UserName: !Sub qalabspbvi-${EnvironmentName}-api-sqs
       Policies:
         - PolicyName: send-to-notifications-queue
           PolicyDocument:
@@ -115,7 +124,7 @@ Resources:
   GitHubDeployRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: qalabspbvi-lab-github-deploy
+      RoleName: !Sub qalabspbvi-${EnvironmentName}-github-deploy
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
