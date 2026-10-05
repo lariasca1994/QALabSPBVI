@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -30,6 +31,7 @@ from app.api.schemas import (
 from app.core.security import require_roles
 from app.db.models import Account, KeyStatus, LedgerEntry, Payment, User, UserRole
 from app.db.session import get_db
+from app.db.wake import check_databases
 from app.domains.keys.dife import resolve_key
 from app.domains.keys.key_types import (
     InvalidKeyError,
@@ -93,6 +95,34 @@ def _key_response(key: DifeKey) -> PaymentKeyResponse:
 @router.get("/health", tags=["salud"])
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+class DatabasesReadyResponse(BaseModel):
+    ready: bool
+    databases: dict[str, str]
+
+
+@router.get(
+    "/health/databases",
+    response_model=DatabasesReadyResponse,
+    responses={503: {"model": DatabasesReadyResponse}},
+    tags=["salud"],
+)
+def databases_ready(
+    _: Annotated[
+        User,
+        Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR, UserRole.USUARIO)),
+    ],
+) -> DatabasesReadyResponse | JSONResponse:
+    """Despierta y comprueba las bases. 503 con Retry-After mientras alguna se reanuda.
+
+    Requiere sesión: así los monitores (que usan /health) nunca despiertan las bases.
+    """
+    databases = check_databases()
+    body = DatabasesReadyResponse(ready=all(value == "lista" for value in databases.values()), databases=databases)
+    if body.ready:
+        return body
+    return JSONResponse(status_code=503, content=body.model_dump(), headers={"Retry-After": "10"})
 
 
 @router.post(

@@ -318,6 +318,16 @@ export const api = {
       headers: { "X-CSRF-Token": token },
     });
   },
+  /** 200 cuando pagos, DIFE y DICE responden; 503 mientras alguna se reanuda. */
+  async databasesReady(): Promise<boolean> {
+    try {
+      await request("/health/databases");
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 503) return false;
+      throw error;
+    }
+  },
   health(): Promise<{ status: string }> {
     return request("/health");
   },

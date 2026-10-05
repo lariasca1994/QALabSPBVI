@@ -355,6 +355,8 @@ function App() {
   const [epics, setEpics] = useState<Epic[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
+  // null: sin consultar; false: alguna base se está reanudando (DIFE en Australia tarda ~1 min).
+  const [databasesReady, setDatabasesReady] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedEpic, setSelectedEpic] = useState("");
@@ -407,6 +409,30 @@ function App() {
 
   useEffect(() => {
     if (auth === "app") void loadDashboard();
+  }, [auth]);
+
+  // Al entrar, activa las bases y consulta cada 5 s hasta que estén listas (máximo 3 min).
+  useEffect(() => {
+    if (auth !== "app") return;
+    let cancelled = false;
+    const deadline = Date.now() + 180_000;
+    async function poll() {
+      while (!cancelled && Date.now() < deadline) {
+        try {
+          const ready = await api.databasesReady();
+          if (cancelled) return;
+          setDatabasesReady(ready);
+          if (ready) return;
+        } catch {
+          if (!cancelled) setDatabasesReady(null);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+      }
+      if (!cancelled) setDatabasesReady(null);
+    }
+    void poll();
+    return () => { cancelled = true; };
   }, [auth]);
 
   useEffect(() => {
@@ -582,6 +608,7 @@ function App() {
         </header>
 
         <main className="content">
+          {databasesReady === false && <div className="alert alert--info page-alert" role="status"><LoaderCircle className="spin" size={16} /><span>Activando las bases de datos. La de llaves está en otra región y tarda cerca de un minuto en reanudarse; las ejecuciones se habilitan cuando esté lista.</span></div>}
           {loadError && <div className="alert alert--error page-alert" role="alert"><span>{loadError}</span><button className="icon-button" onClick={() => setLoadError("")} aria-label="Cerrar aviso"><X size={16} /></button></div>}
           {view === "overview" && (
             <Overview
@@ -597,6 +624,7 @@ function App() {
             <QualityWorkspace
               epics={epics}
               onEpicsChanged={loadDashboard}
+              databasesReady={databasesReady !== false}
               onReportBug={user.role === "usuario" ? (draft) => { setBugDraft(draft); setView("bugs"); } : undefined}
               onSelectEpic={setSelectedEpic}
               selectedEpic={selectedEpic}

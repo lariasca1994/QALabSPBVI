@@ -60,6 +60,12 @@ RETRYABLE_ERRORS = {
     "RemoteProtocolError",
     "ConnectionAbortedError",
 }
+# Antes de ejecutar, el ejecutor espera a que las bases del destino estén listas (DIFE en
+# Azure SQL australiaeast tarda cerca de un minuto en reanudarse). Tope de 20 s por ejecución
+# para no exceder el proxy de la interfaz; la interfaz ya las activa al iniciar sesión.
+READY_WAIT_SECONDS = 20.0
+READY_CACHE_SECONDS = 300.0
+_target_ready_until = 0.0
 BUG_TRANSITIONS = {
     "open": {"assigned", "in_fix"},
     "assigned": {"in_fix", "reopened"},
@@ -1221,6 +1227,7 @@ def execute_test_case(
             }
         return request_record, result_record, response_body_unredacted, retry_after
 
+    _await_target_ready(http_client, headers.get("cookie"))
     try:
         # Reintentos automáticos (resiliencia): cortes de conexión y 502/503/504, salvo que el
         # CP espere ese código. Los POST de la API son idempotentes por su identificador.
@@ -1243,7 +1250,7 @@ def execute_test_case(
             )
             if not retryable or attempt == MAX_EXECUTION_ATTEMPTS:
                 break
-            time.sleep(min(retry_after if retry_after is not None else RETRY_BACKOFF_SECONDS * attempt, 2.0))
+            time.sleep(min(retry_after if retry_after is not None else RETRY_BACKOFF_SECONDS * attempt, 15.0))
     finally:
         if owned_client:
             http_client.close()
@@ -1311,6 +1318,27 @@ def execute_test_case(
         database, "executions", execution, notification, mailer
     )
     return _response_document(execution)
+
+
+def _await_target_ready(http_client: httpx.Client, cookie: str | None) -> None:
+    """Consulta /health/databases hasta que responda 200 (o venza el tope); nunca falla el CP."""
+    global _target_ready_until
+    if time.monotonic() < _target_ready_until:
+        return
+    deadline = time.monotonic() + READY_WAIT_SECONDS
+    url = _target_url("/health/databases")
+    request_headers = {"accept": "application/json", **({"cookie": cookie} if cookie else {})}
+    while True:
+        try:
+            response = http_client.get(url, headers=request_headers, timeout=12.0)
+        except httpx.HTTPError:
+            return
+        if response.status_code == 200:
+            _target_ready_until = time.monotonic() + READY_CACHE_SECONDS
+            return
+        if response.status_code != 503 or time.monotonic() >= deadline:
+            return
+        time.sleep(3.0)
 
 
 def list_epic_key_pool(

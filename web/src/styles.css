@@ -514,3 +514,4 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 .audit-filters .select-wrap { flex: 1 1 180px; }
 .audit-table code { overflow-wrap: anywhere; }
 .link-button { padding: 0; border: 0; color: var(--blue); background: none; font: inherit; text-align: left; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; }
+.alert--info { display: flex; align-items: center; gap: 8px; color: var(--blue); background: var(--blue-soft); border-color: var(--line); }

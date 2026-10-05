@@ -235,6 +235,7 @@ export function QualityWorkspace({
   onSelectEpic,
   onEpicsChanged,
   onReportBug,
+  databasesReady = true,
 }: {
   user: User;
   epics: Epic[];
@@ -242,6 +243,7 @@ export function QualityWorkspace({
   onSelectEpic: (key: string) => void;
   onEpicsChanged: () => Promise<void>;
   onReportBug?: (draft: BugDraft) => void;
+  databasesReady?: boolean;
 }) {
   const role: Role = user.role;
   const isAdmin = role === "admin";
@@ -462,7 +464,7 @@ export function QualityWorkspace({
                           <div className="case-actions">
                             <button className="button button--small button--quiet" onClick={() => open({ type: "definition", testCase })} type="button" title="Editar el JSON del CP"><Braces size={14} /> JSON</button>
                             {(testCase.versions?.length ?? 0) > 0 && <button className="icon-button" onClick={() => open({ type: "history", testCase })} aria-label={`Historial de ${testCase.key}`} title="Historial de versiones" type="button"><History size={15} /></button>}
-                            <button className="button button--small button--primary" disabled={executingKey === testCase.key} onClick={() => startRun(testCase)} type="button">
+                            <button className="button button--small button--primary" disabled={executingKey === testCase.key || !databasesReady} onClick={() => startRun(testCase)} title={databasesReady ? undefined : "Las bases de datos se están activando"} type="button">
                               {executingKey === testCase.key ? <LoaderCircle className="spin" size={14} /> : <Activity size={14} />}
                               {executingKey === testCase.key ? "Ejecutando" : "Ejecutar"}
                             </button>

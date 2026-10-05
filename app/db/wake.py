@@ -71,3 +71,46 @@ def wake_key_stores() -> None:
                 connection.execute(text("SELECT 1" if name == "DIFE" else "SELECT 1 FROM DUAL"))
         except Exception as error:  # la activación es de mejor esfuerzo
             logger.info("No se pudo activar %s todavía (%s).", name, type(error).__name__)
+
+
+READY_PROBE_SECONDS = 8.0
+
+
+def check_databases(timeout: float = READY_PROBE_SECONDS) -> dict[str, str]:
+    """Estado de pagos, DIFE y DICE: "lista" o "activando".
+
+    Cada prueba corre en su propio hilo; si no termina a tiempo (Azure SQL en australiaeast
+    puede tardar cerca de un minuto en reanudarse), la base se informa "activando" y la
+    prueba sigue en segundo plano, así la próxima consulta la encuentra despierta.
+    """
+    from concurrent.futures import ThreadPoolExecutor, wait
+
+    from app.db.session import engine as payments_engine
+    from app.domains.keys.persistence import get_dice_engine, get_dife_engine
+
+    probes = {
+        "pagos": (lambda: payments_engine, "SELECT 1"),
+        "dife": (get_dife_engine, "SELECT 1"),
+        "dice": (get_dice_engine, "SELECT 1 FROM DUAL"),
+    }
+
+    def probe(factory, statement: str) -> None:
+        engine = factory()
+        sql = "SELECT 1" if engine.dialect.name != "oracle" else statement
+        with engine.connect() as connection:
+            connection.execute(text(sql))
+
+    pool = ThreadPoolExecutor(max_workers=len(probes), thread_name_prefix="db-ready")
+    futures = {name: pool.submit(probe, *spec) for name, spec in probes.items()}
+    wait(futures.values(), timeout=timeout)
+    pool.shutdown(wait=False)
+    status = {}
+    for name, future in futures.items():
+        if not future.done():
+            status[name] = "activando"
+        elif future.exception() is not None:
+            logger.info("%s todavía no responde (%s).", name, type(future.exception()).__name__)
+            status[name] = "activando"
+        else:
+            status[name] = "lista"
+    return status

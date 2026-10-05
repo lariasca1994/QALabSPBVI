@@ -115,3 +115,27 @@ def test_unavailable_database_returns_a_readable_503() -> None:
     assert response.status_code == 503
     assert "se está activando" in response.json()["detail"]
     assert response.headers["retry-after"] == "15"
+
+
+def test_databases_endpoint_reports_waking_databases(monkeypatch) -> None:
+    from fastapi.testclient import TestClient
+
+    from app.core.security import current_user
+    from app.db.models import User, UserRole
+    from app.main import app
+
+    app.dependency_overrides[current_user] = lambda: User(
+        id=1, email="qa@example.test", display_name="QA", password_hash="x", role=UserRole.USUARIO, is_active=True
+    )
+    try:
+        client = TestClient(app)
+        monkeypatch.setattr("app.api.routes.check_databases", lambda: {"pagos": "lista", "dife": "activando", "dice": "lista"})
+        waking = client.get("/health/databases")
+        assert waking.status_code == 503 and waking.headers["retry-after"] == "10"
+        assert waking.json() == {"ready": False, "databases": {"pagos": "lista", "dife": "activando", "dice": "lista"}}
+        monkeypatch.setattr("app.api.routes.check_databases", lambda: {"pagos": "lista", "dife": "lista", "dice": "lista"})
+        assert client.get("/health/databases").json()["ready"] is True
+    finally:
+        app.dependency_overrides.clear()
+    # Sin sesión no responde: los monitores no pueden despertar las bases.
+    assert TestClient(app).get("/health/databases").status_code == 401
