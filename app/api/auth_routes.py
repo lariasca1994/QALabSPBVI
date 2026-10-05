@@ -14,6 +14,7 @@ from app.api.schemas import (
     PasswordChangeRequest,
     PasswordResetConfirmRequest,
     PasswordResetRequest,
+    SignupRequest,
     UserCreateRequest,
     UserResponse,
     VerifyEmailCodeRequest,
@@ -40,8 +41,10 @@ from app.domains.auth.passwords import (
     InvalidResetCodeError,
     ResetRateLimitError,
     SamePasswordError,
+    SignupRateLimitError,
     change_password,
     confirm_password_reset,
+    register_user,
     request_password_reset,
     set_account_active,
 )
@@ -454,3 +457,36 @@ def patch_account_status(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No se encontró la cuenta.") from error
     except AccountChangeForbiddenError as error:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def post_register(
+    request: Request,
+    payload: SignupRequest,
+    db: DbSession,
+) -> dict[str, str]:
+    """Registro público de la demo: cuenta usuario, pendiente de asignación a una épica."""
+    verify_csrf(request)
+    try:
+        register_user(
+            db,
+            email=str(payload.email),
+            display_name=payload.display_name,
+            password=payload.password,
+            client_ip=request.client.host if request.client else "unknown",
+        )
+    except SignupRateLimitError as error:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Se crearon demasiadas cuentas desde esta conexión. Intenta más tarde.",
+            headers={"Retry-After": "3600"},
+        ) from error
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ya existe una cuenta con ese correo.") from error
+    return {
+        "message": (
+            "Cuenta creada. Ya puedes iniciar sesión; un administrador debe asignarte a una "
+            "épica para que empieces a trabajar."
+        )
+    }

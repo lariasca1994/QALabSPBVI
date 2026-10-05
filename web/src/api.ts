@@ -328,6 +328,12 @@ export const api = {
       throw error;
     }
   },
+  async register(email: string, displayName: string, password: string): Promise<{ message: string }> {
+    return mutate("/auth/register", "POST", { email, display_name: displayName, password });
+  },
+  memberEpicCounts(): Promise<Record<string, number>> {
+    return request("/qa/members/epic-counts");
+  },
   async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string; closed_sessions: number }> {
     return mutate("/auth/password", "POST", { current_password: currentPassword, new_password: newPassword });
   },

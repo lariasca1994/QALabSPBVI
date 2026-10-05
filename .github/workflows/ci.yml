@@ -197,7 +197,7 @@ jobs:
 
   deploy-production:
     name: Desplegar producción
-    # Misma imagen que ya pasó por el laboratorio; el environment "production" exige aprobación.
+    # Misma imagen que ya pasó por el laboratorio; el environment "production" solo admite main.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PROD_DEPLOY_ENABLED == 'true'
     needs:
       - deploy-lab

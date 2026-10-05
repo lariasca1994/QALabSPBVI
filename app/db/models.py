@@ -255,6 +255,16 @@ class AuthSession(Base):
     revoked_at_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class SignupAttempt(Base):
+    """Registro público (demo): limita cuántas cuentas se crean por IP en una ventana."""
+
+    __tablename__ = "signup_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ip_digest: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    occurred_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+
+
 class LoginAttempt(Base):
     __tablename__ = "login_attempts"
 

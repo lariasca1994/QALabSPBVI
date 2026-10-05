@@ -136,3 +136,62 @@ def test_account_activation_rules(auth_environment) -> None:
     sign_in(tester_client, mailer, email="tester@example.com", password="tester password 2026")
     tester_client.close()
     manager_client.close()
+
+
+def test_public_signup_creates_usuario_without_epic_and_without_email(auth_environment) -> None:
+    client, mailer, _ = auth_environment
+    prepare_csrf(client)
+    created = client.post(
+        "/auth/register",
+        json={"email": "Nueva@Example.com", "display_name": "  Persona Demo ", "password": "clave de la demo 2026"},
+    )
+    assert created.status_code == 201
+    assert "asignarte a una épica" in created.json()["message"]
+    assert mailer.messages == []
+    duplicate = client.post(
+        "/auth/register", json={"email": "nueva@example.com", "display_name": "Otra", "password": "clave de la demo 2026"}
+    )
+    assert duplicate.status_code == 409 and duplicate.json()["detail"] == "Ya existe una cuenta con ese correo."
+    assert client.post("/auth/register", json={"email": "x@example.com", "display_name": "X", "password": "corta"}).status_code == 422
+
+    # Nunca crea admins ni administradores, aunque se pida.
+    forged = client.post(
+        "/auth/register",
+        json={"email": "rol@example.com", "display_name": "Rol", "password": "clave de la demo 2026", "role": "admin"},
+    )
+    assert forged.status_code == 201
+    sign_in(client, mailer)
+    roles = {user["email"]: user["role"] for user in client.get("/auth/users").json()}
+    assert roles["nueva@example.com"] == "usuario" and roles["rol@example.com"] == "usuario"
+
+    # La cuenta nueva inicia sesión con MFA.
+    other = TestClient(app, raise_server_exceptions=False)
+    sign_in(other, mailer, email="nueva@example.com", password="clave de la demo 2026")
+    assert other.get("/auth/me").json()["role"] == "usuario"
+    other.close()
+
+
+def test_public_signup_is_rate_limited_per_connection(auth_environment) -> None:
+    client, _, _ = auth_environment
+    prepare_csrf(client)
+    codes = [
+        client.post("/auth/register", json={"email": f"demo{n}@example.com", "display_name": "Demo", "password": "clave de la demo 2026"}).status_code
+        for n in range(6)
+    ]
+    assert codes == [201] * 5 + [429]
+
+
+def test_epic_counts_show_who_is_pending_assignment(auth_environment) -> None:
+    import mongomock
+
+    from app.domains.qa.mongo import get_qa_database
+
+    client, mailer, _ = auth_environment
+    database = mongomock.MongoClient()["epic_counts"]
+    database.epics.insert_many([
+        {"key": "EP-1", "members": [{"user_id": 1}, {"user_id": 2}]},
+        {"key": "EP-2", "members": [{"user_id": 1}]},
+    ])
+    app.dependency_overrides[get_qa_database] = lambda: database
+    sign_in(client, mailer)
+    assert client.get("/qa/members/epic-counts").json() == {"1": 2, "2": 1}

@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   Sun,
   Trash2,
+  UserPlus,
   Users,
   WalletCards,
   X,
@@ -36,7 +37,7 @@ import { QualityWorkspace } from "./QualityWorkspace";
 import { BugsWorkspace, type BugDraft } from "./BugsWorkspace";
 import { PaymentOperations } from "./PaymentOperations";
 import { AuditPage } from "./AuditPage";
-import { ChangePasswordModal, PasswordReset } from "./PasswordForms";
+import { ChangePasswordModal, PasswordReset, SignupForm } from "./PasswordForms";
 import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
@@ -117,6 +118,7 @@ function AuthScreen({
   const [resendWait, setResendWait] = useState(0);
   const [resending, setResending] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [signingUp, setSigningUp] = useState(false);
 
   useEffect(() => {
     if (mode === "mfa") {
@@ -199,16 +201,20 @@ function AuthScreen({
         </div>
         <div className="auth-form-wrap">
           <div className="auth-icon"><ShieldCheck size={23} /></div>
-          <span className="eyebrow eyebrow--muted">{resetting ? "RECUPERAR ACCESO" : mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
-          <h2>{resetting ? "Restablece tu contraseña." : mode === "login" ? "Qué bueno verte." : "Revisa tu correo."}</h2>
+          <span className="eyebrow eyebrow--muted">{signingUp ? "NUEVA CUENTA" : resetting ? "RECUPERAR ACCESO" : mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
+          <h2>{signingUp ? "Crea tu cuenta." : resetting ? "Restablece tu contraseña." : mode === "login" ? "Qué bueno verte." : "Revisa tu correo."}</h2>
           <p className="auth-description">
-            {resetting
+            {signingUp
+              ? "Es una demo: tu cuenta se crea con rol usuario y queda pendiente de asignación a una épica."
+              : resetting
               ? "Te enviamos un código al correo de tu cuenta para definir una contraseña nueva."
               : mode === "login"
               ? "Ingresa a tu espacio de pruebas y operaciones."
               : "Te enviamos un código de un solo uso para confirmar tu identidad."}
           </p>
-          {resetting ? (
+          {signingUp ? (
+            <SignupForm onCancel={() => setSigningUp(false)} onDone={(message) => { setSigningUp(false); setNotice(message); }} />
+          ) : resetting ? (
             <PasswordReset onCancel={() => setResetting(false)} onDone={(message) => { setResetting(false); setNotice(message); }} />
           ) : (
           <>
@@ -286,6 +292,12 @@ function AuthScreen({
             <button className="text-button back-button" onClick={() => { setNotice(""); setResetting(true); }} type="button">
               <KeyRound size={15} /> ¿Olvidaste tu contraseña?
             </button>
+          )}
+          {mode === "login" && (
+            <div className="resend-row">
+              <span>¿No tienes cuenta?</span>
+              <button className="text-button" onClick={() => { setNotice(""); setSigningUp(true); }} type="button"><UserPlus size={15} /> Crear cuenta</button>
+            </div>
           )}
           </>
           )}
@@ -370,6 +382,8 @@ function App() {
   const [view, setView] = useState<View>("overview");
   const [epics, setEpics] = useState<Epic[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  // Épicas por cuenta (null si no se pudo consultar): las cuentas sin épica quedan pendientes.
+  const [epicCounts, setEpicCounts] = useState<Record<string, number> | null>(null);
   const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
   // null: sin consultar; false: alguna base se está reanudando (DIFE en Australia tarda ~1 min).
   const [databasesReady, setDatabasesReady] = useState<boolean | null>(null);
@@ -458,6 +472,7 @@ function App() {
     api.users()
       .then(setUsers)
       .catch((error: unknown) => setUserError(friendlyError(error)));
+    api.memberEpicCounts().then(setEpicCounts).catch(() => setEpicCounts(null));
   }, [auth, view, user]);
 
   async function toggleUserActive(member: User) {
@@ -684,6 +699,7 @@ function App() {
             <UsersPage
               currentRole={user.role}
               currentUserId={user.id}
+              epicCounts={epicCounts}
               error={userError}
               notice={userNotice}
               onCreate={() => setUserModalOpen(true)}
@@ -776,6 +792,9 @@ function Overview({
         description="Tu trabajo de calidad primero: épicas, historias, tareas y casos de prueba."
         actions={<button className="button button--quiet" onClick={onRefresh} type="button"><RefreshCw className={loading ? "spin" : ""} size={16} /> Actualizar</button>}
       />
+      {!loading && user?.role === "usuario" && epics.length === 0 && (
+        <div className="alert alert--info page-alert" role="note"><Users size={16} /><span><strong>Tu cuenta está pendiente de asignación.</strong> Todavía no perteneces a ninguna épica: un administrador debe asociarte a una para que veas sus HU y CP y empieces a trabajar.</span></div>
+      )}
 
       <section className="lower-grid">
         <div className="surface-card epic-card">
@@ -1220,6 +1239,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
 function UsersPage({
   currentRole,
   currentUserId,
+  epicCounts,
   error,
   notice,
   onCreate,
@@ -1228,6 +1248,7 @@ function UsersPage({
 }: {
   currentRole: User["role"];
   currentUserId: number;
+  epicCounts: Record<string, number> | null;
   error: string;
   notice: string;
   onCreate: () => void;
@@ -1235,6 +1256,7 @@ function UsersPage({
   users: User[];
 }) {
   const active = users.filter((member) => member.is_active).length;
+  const pending = epicCounts ? users.filter((member) => member.is_active && member.role === "usuario" && !epicCounts[String(member.id)]).length : 0;
   // Mismas reglas que el backend: nadie se gestiona a sí mismo, el admin no se desactiva y el
   // administrador solo gestiona usuarios.
   const canManage = (member: User) =>
@@ -1251,10 +1273,10 @@ function UsersPage({
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
       {error && <div className="alert alert--error" role="alert">{error}</div>}
       <section className="surface-card users-card">
-        <div className="card-heading"><div><h2>Equipo</h2><p>{users.length} cuentas registradas, {active} activas. Al desactivar una cuenta se cierran sus sesiones y ya no puede ingresar.</p></div><Users size={18} className="muted-icon" /></div>
+        <div className="card-heading"><div><h2>Equipo</h2><p>{users.length} cuentas registradas, {active} activas{pending ? `, ${pending} sin épica asignada` : ""}. Al desactivar una cuenta se cierran sus sesiones y ya no puede ingresar.</p></div><Users size={18} className="muted-icon" /></div>
         {users.length === 0 ? <div className="empty-state"><LoaderCircle className="spin" size={20} /><strong>Cargando cuentas…</strong></div> : (
           <div className="users-table-wrap">
-            <table className="users-table"><thead><tr><th>PERSONA</th><th>CORREO</th><th>ROL</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead><tbody>{users.map((member) => <tr key={member.id}><td><div className="table-person"><div className="user-avatar">{member.display_name.slice(0, 1).toUpperCase()}</div><strong>{member.display_name}</strong></div></td><td>{member.email}</td><td><span className={`role-tag role-tag--${member.role}`}>{member.role}</span></td><td>{member.is_active ? <span className="active-status"><span />Activo</span> : <span className="active-status active-status--off"><span />Inactivo</span>}</td><td>{canManage(member) ? <button className={`button button--small ${member.is_active ? "button--quiet" : "button--primary"}`} onClick={() => onToggleActive(member)} type="button">{member.is_active ? "Desactivar" : "Activar"}</button> : <span className="muted-text">—</span>}</td></tr>)}</tbody></table>
+            <table className="users-table"><thead><tr><th>PERSONA</th><th>CORREO</th><th>ROL</th><th>ÉPICAS</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead><tbody>{users.map((member) => <tr key={member.id}><td><div className="table-person"><div className="user-avatar">{member.display_name.slice(0, 1).toUpperCase()}</div><strong>{member.display_name}</strong></div></td><td>{member.email}</td><td><span className={`role-tag role-tag--${member.role}`}>{member.role}</span></td><td>{epicCounts === null ? "—" : epicCounts[String(member.id)] ? epicCounts[String(member.id)] : <span className="pending-tag">Sin épica · pendiente</span>}</td><td>{member.is_active ? <span className="active-status"><span />Activo</span> : <span className="active-status active-status--off"><span />Inactivo</span>}</td><td>{canManage(member) ? <button className={`button button--small ${member.is_active ? "button--quiet" : "button--primary"}`} onClick={() => onToggleActive(member)} type="button">{member.is_active ? "Desactivar" : "Activar"}</button> : <span className="muted-text">—</span>}</td></tr>)}</tbody></table>
           </div>
         )}
       </section>

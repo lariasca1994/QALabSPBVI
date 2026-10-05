@@ -89,6 +89,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 - Credenciales inválidas informadas con un único mensaje, exista o no la cuenta.
 - Cambio de la propia contraseña (cierra las demás sesiones) y recuperación con un código de un solo uso por correo.
 - Activación y desactivación de cuentas desde Usuarios y roles; desactivar cierra las sesiones de la cuenta.
+- Registro público de demostración: crea siempre una cuenta `usuario`, sin épica, que queda pendiente hasta que un administrador la asocie a una. Tiene límite de registros por conexión y no envía correos.
 - Roles `admin`, `administrador` y `usuario`; sesiones con vencimiento por inactividad y absoluto, y protección CSRF.
 
 ## Stack
@@ -456,7 +457,7 @@ El despliegue es continuo:
 3. Se crea una revisión nueva de la Container App, se publica el código de la Lambda y se despliega el gateway en Render.
 4. Vercel publica la interfaz por su integración con el repositorio.
 5. Al final se comprueba que la API responde por la URL pública y que el sitio publicado es la compilación.
-6. Con el laboratorio desplegado, la misma imagen pasa a **producción**, un entorno separado con sus propias bases, cola de avisos y registro de solicitudes. Ese paso exige aprobación manual en GitHub; la interfaz de producción se publica desde una rama propia que solo escribe ese paso.
+6. Con el laboratorio desplegado, la misma imagen pasa a **producción**, un entorno separado con sus propias bases, cola de avisos y registro de solicitudes. Se publica automáticamente solo desde `main` y solo si el laboratorio se desplegó bien; la interfaz de producción se publica desde una rama propia que solo escribe ese paso.
 
 GitHub entra a Azure y AWS por OIDC con permisos mínimos, sin contraseñas guardadas en el repositorio. En AWS, el rol de GitHub solo puede actualizar el código de la Lambda.
 

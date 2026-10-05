@@ -501,3 +501,19 @@ class PasswordResetConfirmRequest(BaseModel):
 
 class AccountStatusRequest(BaseModel):
     is_active: bool
+
+
+class SignupRequest(BaseModel):
+    """Registro público de la demo: siempre crea una cuenta con rol usuario."""
+
+    email: EmailStr
+    display_name: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=12, max_length=128)
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_display_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("El nombre no puede quedar vacio.")
+        return value

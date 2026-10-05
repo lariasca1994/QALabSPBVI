@@ -102,6 +102,20 @@ def get_epics(database: QaDatabase, actor: AuthenticatedUser) -> list[dict]:
     ]
 
 
+@router.get("/members/epic-counts")
+def get_member_epic_counts(
+    database: QaDatabase,
+    _: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR))],
+) -> dict[str, int]:
+    """Cuántas épicas tiene cada cuenta; las que no aparecen están sin épica."""
+    counts: dict[str, int] = {}
+    for epic in database.epics.find({}, {"members.user_id": 1}):
+        for member in epic.get("members", []):
+            key = str(member["user_id"])
+            counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
 @router.put("/epics/{epic_key}/members")
 def put_epic_members(
     epic_key: str,

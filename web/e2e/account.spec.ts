@@ -81,3 +81,36 @@ test("cambiar contraseña y cerrar sesión están a mano en tablet vertical y en
     await expectNoHorizontalOverflow(page);
   }
 });
+
+test("una persona se registra como usuario y queda pendiente de épica", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const email = `demo-${Date.now()}@example.com`;
+  const password = "clave de la demo e2e 2026";
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Crear cuenta" }).click();
+  await page.getByLabel("Nombre").fill("Persona Demo");
+  await page.getByLabel("Correo electrónico").fill(email);
+  await page.getByLabel("Contraseña", { exact: true }).fill(password);
+  await page.getByLabel("Repite la contraseña").fill(password);
+  await page.getByRole("button", { name: "Crear cuenta" }).click();
+  await expect(page.getByText(/Cuenta creada/)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.getByLabel("Correo electrónico").fill(email);
+  await page.getByLabel("Contraseña").fill(password);
+  rmSync(codeFile(), { force: true });
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await page.getByLabel("Código de acceso").fill(await freshCode());
+  await page.getByRole("button", { name: "Verificar e ingresar" }).click();
+  await expect(page.getByText("Tu cuenta está pendiente de asignación.")).toBeVisible();
+  await expect(page.locator(".sidebar-user")).toContainText("usuario");
+  rmSync(codeFile(), { force: true });
+
+  // El admin la ve en Usuarios y roles como pendiente de épica.
+  await page.context().clearCookies();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signInAsAdmin(page, "auth");
+  await page.getByRole("button", { name: "Usuarios y roles" }).click();
+  await expect(page.locator(".users-table tbody tr", { hasText: email })).toContainText("Sin épica · pendiente");
+});

@@ -187,3 +187,35 @@ def set_account_active(db: Session, *, actor: User, user_id: int, active: bool) 
     db.commit()
     db.refresh(target)
     return target
+
+
+SIGNUP_WINDOW_SECONDS = 60 * 60
+SIGNUP_MAX_PER_IP = 5
+
+
+class SignupRateLimitError(Exception):
+    pass
+
+
+def register_user(db: Session, *, email: str, display_name: str, password: str, client_ip: str) -> User:
+    """Registro público de la demo: crea una cuenta usuario, sin épica y sin enviar correos.
+
+    El correo queda verificado en el primer inicio de sesión (código MFA). Un admin o
+    administrador la asocia a una épica para que empiece a trabajar.
+    """
+    from app.core.security import keyed_digest
+    from app.db.models import SignupAttempt
+    from app.domains.auth.service import create_user
+
+    now = int(time.time())
+    ip_digest = keyed_digest(client_ip)
+    recent = db.scalar(
+        select(func.count())
+        .select_from(SignupAttempt)
+        .where(SignupAttempt.ip_digest == ip_digest, SignupAttempt.occurred_at_epoch > now - SIGNUP_WINDOW_SECONDS)
+    )
+    if recent >= SIGNUP_MAX_PER_IP:
+        raise SignupRateLimitError
+    db.add(SignupAttempt(ip_digest=ip_digest, occurred_at_epoch=now))
+    db.commit()
+    return create_user(db, email=email, display_name=display_name, password=password, role=UserRole.USUARIO)

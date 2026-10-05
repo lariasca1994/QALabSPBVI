@@ -522,3 +522,4 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 .active-status--off span { background: var(--muted-2); box-shadow: none; }
 .muted-text { color: var(--muted); }
 .topbar-account { display: none; }
+.pending-tag { padding: 3px 7px; border-radius: 4px; color: var(--gold); background: var(--surface-2); border: 1px solid var(--line); font-size: 9px; font-weight: 600; white-space: nowrap; }
