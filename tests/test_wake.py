@@ -139,3 +139,23 @@ def test_databases_endpoint_reports_waking_databases(monkeypatch) -> None:
         app.dependency_overrides.clear()
     # Sin sesión no responde: los monitores no pueden despertar las bases.
     assert TestClient(app).get("/health/databases").status_code == 401
+
+
+def test_executor_waits_once_for_waking_databases(monkeypatch) -> None:
+    import httpx
+
+    from app.domains.qa import service
+
+    calls = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(503, json={"ready": False, "databases": {"dife": "activando"}})
+
+    monkeypatch.setattr(service, "READY_WAIT_SECONDS", 0.0)
+    monkeypatch.setattr(service, "_target_ready_until", 0.0)
+    client = httpx.Client(transport=httpx.MockTransport(respond), base_url="http://127.0.0.1:8000")
+    service._await_target_ready(client, None)
+    service._await_target_ready(client, None)
+    # La segunda llamada no vuelve a esperar: el tope ya se consumió.
+    assert calls == ["/health/databases"]

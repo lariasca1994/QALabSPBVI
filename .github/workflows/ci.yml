@@ -2,6 +2,9 @@ name: CI
 
 on:
   push:
+    # La rama production la escribe el job de producción; no vuelve a probarse.
+    branches-ignore:
+      - production
   pull_request:
   workflow_dispatch:
 
@@ -201,7 +204,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment: production
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - name: Descargar el codigo
@@ -246,23 +249,28 @@ jobs:
             --zip-file fileb://notifier.zip --query LastUpdateStatus --output text
           aws lambda wait function-updated --function-name qalabspbvi-prod-notifier
 
-      - name: Publicar la interfaz de producción en Vercel
+      - name: Publicar la interfaz de producción (rama production)
         shell: bash
-        working-directory: web
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.PROD_VERCEL_PROJECT_ID }}
           PROD_API_ORIGIN: ${{ vars.PROD_API_ORIGIN }}
         run: |
           set -euo pipefail
-          # El proyecto de producción no está enlazado a Git: solo este job lo publica,
-          # con el proxy /api apuntando a la API de producción.
-          jq --arg api "$PROD_API_ORIGIN/:path*" '.rewrites[0].destination = $api' vercel.json > vercel.prod.json
-          mv vercel.prod.json vercel.json
-          npx --yes vercel@latest pull --yes --environment=production --token "$VERCEL_TOKEN"
-          npx --yes vercel@latest build --prod --token "$VERCEL_TOKEN"
-          npx --yes vercel@latest deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+          # El proyecto de Vercel de producción solo construye la rama "production". Este job
+          # (ya aprobado) la reescribe con este commit y el proxy /api hacia la API de producción.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B production
+          jq --arg api "$PROD_API_ORIGIN/:path*" '.rewrites[0].destination = $api' web/vercel.json > /tmp/vercel.json
+          mv /tmp/vercel.json web/vercel.json
+          git add web/vercel.json
+          git commit -m "Producción: $GITHUB_SHA con proxy /api hacia la API de producción"
+          git push --force origin production
+
+      - name: Esperar la publicación de Vercel
+        shell: bash
+        env:
+          PUBLIC_APP_URL: ${{ vars.PROD_PUBLIC_APP_URL }}
+        run: sleep 60
 
       - name: Comprobar la ruta publica de producción
         shell: bash

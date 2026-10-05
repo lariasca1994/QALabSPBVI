@@ -52,6 +52,8 @@ def memory_engine():
 @pytest.fixture
 def platform(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, mongomock.database.Database]]:
     monkeypatch.setenv("APP_ENV", "test")
+    # Bases listas, como en la nube cuando ya despertaron (en CI no hay DIFE/DICE reales).
+    monkeypatch.setattr("app.api.routes.check_databases", lambda: {"pagos": "lista", "dife": "lista", "dice": "lista"})
     # El runner habla con un uvicorn real por socket: así los cortes de conexión del mock
     # server son desconexiones de verdad, como en la nube.
     with socket.socket() as probe:

@@ -65,6 +65,8 @@ RETRYABLE_ERRORS = {
 # para no exceder el proxy de la interfaz; la interfaz ya las activa al iniciar sesión.
 READY_WAIT_SECONDS = 20.0
 READY_CACHE_SECONDS = 300.0
+# Si no quedaron listas dentro del tope, no se vuelve a esperar enseguida: el CP decide.
+NOT_READY_BACKOFF_SECONDS = 60.0
 _target_ready_until = 0.0
 BUG_TRANSITIONS = {
     "open": {"assigned", "in_fix"},
@@ -1332,11 +1334,13 @@ def _await_target_ready(http_client: httpx.Client, cookie: str | None) -> None:
         try:
             response = http_client.get(url, headers=request_headers, timeout=12.0)
         except httpx.HTTPError:
+            _target_ready_until = time.monotonic() + NOT_READY_BACKOFF_SECONDS
             return
         if response.status_code == 200:
             _target_ready_until = time.monotonic() + READY_CACHE_SECONDS
             return
         if response.status_code != 503 or time.monotonic() >= deadline:
+            _target_ready_until = time.monotonic() + NOT_READY_BACKOFF_SECONDS
             return
         time.sleep(3.0)
 
