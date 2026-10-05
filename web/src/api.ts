@@ -328,6 +328,23 @@ export const api = {
       throw error;
     }
   },
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string; closed_sessions: number }> {
+    return mutate("/auth/password", "POST", { current_password: currentPassword, new_password: newPassword });
+  },
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    return mutate("/auth/password-reset/request", "POST", { email });
+  },
+  async confirmPasswordReset(email: string, code: string, newPassword: string): Promise<{ message: string }> {
+    return mutate("/auth/password-reset/confirm", "POST", { email, code, new_password: newPassword });
+  },
+  async setUserActive(userId: number, isActive: boolean): Promise<User> {
+    const token = await csrfToken();
+    return request(`/auth/users/${userId}`, {
+      method: "PATCH",
+      headers: { "X-CSRF-Token": token },
+      body: JSON.stringify({ is_active: isActive }),
+    });
+  },
   health(): Promise<{ status: string }> {
     return request("/health");
   },

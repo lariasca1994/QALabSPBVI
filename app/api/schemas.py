@@ -482,3 +482,22 @@ class PaymentStatusReportResponse(BaseModel):
     transaction_status: str
     amount_cents: int
     pain002_xml: str
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=r"^[0-9]{6}$")
+    new_password: str = Field(min_length=12, max_length=128)
+
+
+class AccountStatusRequest(BaseModel):
+    is_active: bool

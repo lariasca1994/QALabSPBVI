@@ -36,6 +36,7 @@ import { QualityWorkspace } from "./QualityWorkspace";
 import { BugsWorkspace, type BugDraft } from "./BugsWorkspace";
 import { PaymentOperations } from "./PaymentOperations";
 import { AuditPage } from "./AuditPage";
+import { ChangePasswordModal, PasswordReset } from "./PasswordForms";
 import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
@@ -115,6 +116,7 @@ function AuthScreen({
   // Espera entre reenvíos: coincide con RESEND_COOLDOWN_SECONDS del backend.
   const [resendWait, setResendWait] = useState(0);
   const [resending, setResending] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (mode === "mfa") {
@@ -197,13 +199,19 @@ function AuthScreen({
         </div>
         <div className="auth-form-wrap">
           <div className="auth-icon"><ShieldCheck size={23} /></div>
-          <span className="eyebrow eyebrow--muted">{mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
-          <h2>{mode === "login" ? "Qué bueno verte." : "Revisa tu correo."}</h2>
+          <span className="eyebrow eyebrow--muted">{resetting ? "RECUPERAR ACCESO" : mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
+          <h2>{resetting ? "Restablece tu contraseña." : mode === "login" ? "Qué bueno verte." : "Revisa tu correo."}</h2>
           <p className="auth-description">
-            {mode === "login"
+            {resetting
+              ? "Te enviamos un código al correo de tu cuenta para definir una contraseña nueva."
+              : mode === "login"
               ? "Ingresa a tu espacio de pruebas y operaciones."
               : "Te enviamos un código de un solo uso para confirmar tu identidad."}
           </p>
+          {resetting ? (
+            <PasswordReset onCancel={() => setResetting(false)} onDone={(message) => { setResetting(false); setNotice(message); }} />
+          ) : (
+          <>
           <form className="form-stack" onSubmit={submit}>
             {mode === "login" ? (
               <>
@@ -274,6 +282,13 @@ function AuthScreen({
               <ArrowLeftRight size={15} /> Volver al inicio de sesión
             </button>
           )}
+          {mode === "login" && (
+            <button className="text-button back-button" onClick={() => { setNotice(""); setResetting(true); }} type="button">
+              <KeyRound size={15} /> ¿Olvidaste tu contraseña?
+            </button>
+          )}
+          </>
+          )}
           <div className="auth-security-note">
             <ShieldCheck size={16} />
             <span>Conexión de laboratorio · Tus credenciales no se guardan en el navegador.</span>
@@ -295,7 +310,8 @@ function formatWait(seconds: number): string {
 
 function environmentLabel(): string {
   const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1" ? "ENTORNO LOCAL" : "ENTORNO DE LABORATORIO";
+  if (host === "localhost" || host === "127.0.0.1") return "ENTORNO LOCAL";
+  return host.includes("-prod") ? "PRODUCCIÓN" : "ENTORNO DE LABORATORIO";
 }
 
 // Respaldo si /keys/types no responde; la fuente de verdad es app/domains/keys/key_types.py.
@@ -361,6 +377,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [selectedEpic, setSelectedEpic] = useState("");
   const [bugDraft, setBugDraft] = useState<BugDraft | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [accountNotice, setAccountNotice] = useState("");
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userNotice, setUserNotice] = useState("");
   const [userError, setUserError] = useState("");
@@ -441,6 +459,18 @@ function App() {
       .then(setUsers)
       .catch((error: unknown) => setUserError(friendlyError(error)));
   }, [auth, view, user]);
+
+  async function toggleUserActive(member: User) {
+    setUserError("");
+    setUserNotice("");
+    try {
+      const updated = await api.setUserActive(member.id, !member.is_active);
+      setUsers((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setUserNotice(updated.is_active ? `${updated.email} quedó activa.` : `${updated.email} quedó inactiva y sus sesiones se cerraron.`);
+    } catch (toggleError) {
+      setUserError(friendlyError(toggleError));
+    }
+  }
 
   async function handleLogin(loginEmail: string, password: string) {
     setBusy(true);
@@ -589,6 +619,7 @@ function App() {
           <div className="sidebar-user">
             <div className="user-avatar">{user?.display_name.slice(0, 1).toUpperCase()}</div>
             <div className="sidebar-user-copy"><strong>{user?.display_name}</strong><small>{user?.role}</small></div>
+            <button className="icon-button icon-button--subtle" onClick={() => setChangingPassword(true)} title="Cambiar contraseña" aria-label="Cambiar contraseña" type="button"><KeyRound size={17} /></button>
             <button className="icon-button icon-button--subtle" onClick={() => void handleLogout()} title="Cerrar sesión" aria-label="Cerrar sesión" type="button"><LogOut size={17} /></button>
           </div>
         </div>
@@ -602,12 +633,17 @@ function App() {
             <button className="icon-button" type="button" aria-label="Buscar" title="Buscar" onClick={() => setView("quality")}><Search size={18} /></button>
             <button className="icon-button" type="button" aria-label="Notificaciones" title="Notificaciones"><Bell size={18} /></button>
             <ThemeButton theme={theme} onToggle={() => setTheme((current) => current === "dark" ? "light" : "dark")} />
+            {/* En móvil la barra lateral oculta su pie: la cuenta se gestiona desde aquí. */}
+            <button className="icon-button topbar-account" onClick={() => setChangingPassword(true)} title="Cambiar contraseña" aria-label="Cambiar contraseña" type="button"><KeyRound size={18} /></button>
+            <button className="icon-button topbar-account" onClick={() => void handleLogout()} title="Cerrar sesión" aria-label="Cerrar sesión" type="button"><LogOut size={18} /></button>
             <div className="topbar-divider" />
             <button className="help-button" type="button" title="Ayuda"><CircleHelp size={17} /> Ayuda</button>
           </div>
         </header>
 
         <main className="content">
+          {accountNotice && <div className="alert alert--success page-alert" role="status"><Check size={16} /><span>{accountNotice}</span><button className="icon-button" onClick={() => setAccountNotice("")} aria-label="Cerrar aviso" type="button"><X size={16} /></button></div>}
+          {changingPassword && <ChangePasswordModal onClose={(message) => { setChangingPassword(false); if (message) setAccountNotice(message); }} />}
           {databasesReady === false && <div className="alert alert--info page-alert" role="status"><LoaderCircle className="spin" size={16} /><span>Activando las bases de datos. La de llaves está en otra región y tarda cerca de un minuto en reanudarse; las ejecuciones se habilitan cuando esté lista.</span></div>}
           {loadError && <div className="alert alert--error page-alert" role="alert"><span>{loadError}</span><button className="icon-button" onClick={() => setLoadError("")} aria-label="Cerrar aviso"><X size={16} /></button></div>}
           {view === "overview" && (
@@ -647,9 +683,11 @@ function App() {
           {view === "users" && user && user.role !== "usuario" && (
             <UsersPage
               currentRole={user.role}
+              currentUserId={user.id}
               error={userError}
               notice={userNotice}
               onCreate={() => setUserModalOpen(true)}
+              onToggleActive={(member) => void toggleUserActive(member)}
               users={users}
             />
           )}
@@ -1181,17 +1219,26 @@ function PaymentsPage({ role }: { role: User["role"] }) {
 
 function UsersPage({
   currentRole,
+  currentUserId,
   error,
   notice,
   onCreate,
+  onToggleActive,
   users,
 }: {
   currentRole: User["role"];
+  currentUserId: number;
   error: string;
   notice: string;
   onCreate: () => void;
+  onToggleActive: (member: User) => void;
   users: User[];
 }) {
+  const active = users.filter((member) => member.is_active).length;
+  // Mismas reglas que el backend: nadie se gestiona a sí mismo, el admin no se desactiva y el
+  // administrador solo gestiona usuarios.
+  const canManage = (member: User) =>
+    member.id !== currentUserId && member.role !== "admin" && (currentRole === "admin" || member.role === "usuario");
   return (
     <>
       <PageHeading
@@ -1204,10 +1251,10 @@ function UsersPage({
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
       {error && <div className="alert alert--error" role="alert">{error}</div>}
       <section className="surface-card users-card">
-        <div className="card-heading"><div><h2>Equipo activo</h2><p>{users.length} cuentas registradas y activas.</p></div><Users size={18} className="muted-icon" /></div>
+        <div className="card-heading"><div><h2>Equipo</h2><p>{users.length} cuentas registradas, {active} activas. Al desactivar una cuenta se cierran sus sesiones y ya no puede ingresar.</p></div><Users size={18} className="muted-icon" /></div>
         {users.length === 0 ? <div className="empty-state"><LoaderCircle className="spin" size={20} /><strong>Cargando cuentas…</strong></div> : (
           <div className="users-table-wrap">
-            <table className="users-table"><thead><tr><th>PERSONA</th><th>CORREO</th><th>ROL</th><th>ESTADO</th></tr></thead><tbody>{users.map((member) => <tr key={member.id}><td><div className="table-person"><div className="user-avatar">{member.display_name.slice(0, 1).toUpperCase()}</div><strong>{member.display_name}</strong></div></td><td>{member.email}</td><td><span className={`role-tag role-tag--${member.role}`}>{member.role}</span></td><td><span className="active-status"><span />Activo</span></td></tr>)}</tbody></table>
+            <table className="users-table"><thead><tr><th>PERSONA</th><th>CORREO</th><th>ROL</th><th>ESTADO</th><th>ACCIÓN</th></tr></thead><tbody>{users.map((member) => <tr key={member.id}><td><div className="table-person"><div className="user-avatar">{member.display_name.slice(0, 1).toUpperCase()}</div><strong>{member.display_name}</strong></div></td><td>{member.email}</td><td><span className={`role-tag role-tag--${member.role}`}>{member.role}</span></td><td>{member.is_active ? <span className="active-status"><span />Activo</span> : <span className="active-status active-status--off"><span />Inactivo</span>}</td><td>{canManage(member) ? <button className={`button button--small ${member.is_active ? "button--quiet" : "button--primary"}`} onClick={() => onToggleActive(member)} type="button">{member.is_active ? "Desactivar" : "Activar"}</button> : <span className="muted-text">—</span>}</td></tr>)}</tbody></table>
           </div>
         )}
       </section>

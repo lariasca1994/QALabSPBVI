@@ -86,6 +86,9 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 
 **Acceso**
 - Contraseña (Argon2id) y código MFA por correo, con reenvío sin volver a pedir la contraseña.
+- Credenciales inválidas informadas con un único mensaje, exista o no la cuenta.
+- Cambio de la propia contraseña (cierra las demás sesiones) y recuperación con un código de un solo uso por correo.
+- Activación y desactivación de cuentas desde Usuarios y roles; desactivar cierra las sesiones de la cuenta.
 - Roles `admin`, `administrador` y `usuario`; sesiones con vencimiento por inactividad y absoluto, y protección CSRF.
 
 ## Stack
@@ -253,6 +256,8 @@ Los permisos se validan en el servidor; la interfaz solo oculta lo que el backen
 |---|---|---|---|
 | Crear administradores | Sí | No | No |
 | Crear usuarios | Sí | Sí | No |
+| Desactivar o reactivar cuentas | Administradores y usuarios | Solo usuarios | No |
+| Cambiar o recuperar la propia contraseña | Sí | Sí | Sí |
 | Crear épicas | Sí (único) | No | No |
 | Asociar integrantes a épicas | Sí | Sí | No |
 | Crear HU, CP e importar programas | No | Sí | No |

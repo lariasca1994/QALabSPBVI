@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { e2eAdminEmail, expectNoHorizontalOverflow, readMfaCode, signInAsAdmin } from "./support";
+import { clearMfaCode, e2eAdminEmail, expectNoHorizontalOverflow, readMfaCode, signInAsAdmin } from "./support";
 
 test("rechaza una clave inválida, autentica con MFA y ejecuta un caso QA en móvil", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
@@ -11,6 +11,7 @@ test("rechaza una clave inválida, autentica con MFA y ejecuta un caso QA en mó
   const accountEmail = e2eAdminEmail("auth");
   await page.getByLabel("Correo electrónico").fill(accountEmail);
   await page.getByLabel("Contraseña").fill("clave incorrecta para la prueba");
+  clearMfaCode();
   await page.getByRole("button", { name: "Continuar" }).click();
   // Credenciales inválidas: se informa el error y no se pasa a la pantalla del código.
   await expect(page.getByRole("alert")).toContainText("Correo o contraseña incorrectos.");
@@ -46,7 +47,7 @@ test("rechaza una clave inválida, autentica con MFA y ejecuta un caso QA en mó
   await expect(page.locator(".case-row")).toContainText("v2");
   await page.getByRole("button", { name: "Historial de E2E-CP-001" }).click();
   await expect(page.locator(".version-row")).toHaveCount(2);
-  await page.getByRole("button", { name: "Cerrar" }).click();
+  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
   await page.getByRole("button", { name: "Ejecutar", exact: true }).click();
   await expect(page.locator(".execution-card")).toContainText("APROBADO");
   await expectNoHorizontalOverflow(page);

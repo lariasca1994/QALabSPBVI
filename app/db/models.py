@@ -183,6 +183,24 @@ class EmailLoginChallenge(Base):
     used_at_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class PasswordResetChallenge(Base):
+    """Código de un solo uso para definir una contraseña nueva ("olvidé mi contraseña")."""
+
+    __tablename__ = "password_reset_challenges"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    code_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+    expires_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    used_at_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
 class QaAutomationCode(Base):
     """Código MFA vigente de una cuenta de automatización QA (lista cerrada en la config).
 

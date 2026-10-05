@@ -8,8 +8,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
+    AccountStatusRequest,
     CsrfResponse,
     LoginRequest,
+    PasswordChangeRequest,
+    PasswordResetConfirmRequest,
+    PasswordResetRequest,
     UserCreateRequest,
     UserResponse,
     VerifyEmailCodeRequest,
@@ -29,6 +33,18 @@ from app.db.models import User, UserRole
 from app.db.session import get_db
 from app.db.wake import wake_key_stores
 from app.domains.auth.automation import code_for_pending_login
+from app.domains.auth.passwords import (
+    AccountChangeForbiddenError,
+    AccountNotFoundError,
+    InvalidCurrentPasswordError,
+    InvalidResetCodeError,
+    ResetRateLimitError,
+    SamePasswordError,
+    change_password,
+    confirm_password_reset,
+    request_password_reset,
+    set_account_active,
+)
 from app.domains.auth.service import (
     InvalidChallengeError,
     InvalidCredentialsError,
@@ -335,7 +351,8 @@ def list_users(
         Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR)),
     ],
 ) -> list[UserResponse]:
-    users = db.scalars(select(User).where(User.is_active.is_(True)).order_by(User.email)).all()
+    # Incluye las cuentas inactivas para poder reactivarlas; la interfaz QA filtra las activas.
+    users = db.scalars(select(User).order_by(User.email)).all()
     return [
         UserResponse(
             id=user.id,
@@ -346,3 +363,94 @@ def list_users(
         )
         for user in users
     ]
+
+
+def _user_response(user: User) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        role=user.role,
+        is_active=user.is_active,
+    )
+
+
+@router.post("/password")
+def post_change_password(
+    request: Request,
+    payload: PasswordChangeRequest,
+    db: DbSession,
+    actor: AuthenticatedUser,
+) -> dict[str, str | int]:
+    """Cambia la contraseña de quien tiene la sesión; las demás sesiones se cierran."""
+    try:
+        closed = change_password(
+            db,
+            user=actor,
+            current_password=payload.current_password,
+            new_password=payload.new_password,
+            current_session_token=request.cookies.get(SESSION_COOKIE),
+        )
+    except InvalidCurrentPasswordError as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "La contraseña actual no es correcta.") from error
+    except SamePasswordError as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "La contraseña nueva debe ser distinta de la actual.") from error
+    return {"message": "Contraseña actualizada.", "closed_sessions": closed}
+
+
+@router.post("/password-reset/request", status_code=status.HTTP_202_ACCEPTED)
+def post_password_reset_request(
+    request: Request,
+    payload: PasswordResetRequest,
+    db: DbSession,
+    mailer: MailerDependency,
+) -> dict[str, str]:
+    """Envía un código de recuperación. Responde igual exista o no la cuenta."""
+    verify_csrf(request)
+    try:
+        request_password_reset(db, email=str(payload.email), mailer=mailer)
+    except ResetRateLimitError as error:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Ya pediste varios códigos. Espera unos minutos antes de volver a probar.",
+            headers={"Retry-After": "900"},
+        ) from error
+    except MailDeliveryError as error:
+        logger.exception("No se pudo entregar el codigo de recuperacion.")
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "No se pudo enviar el codigo. Intenta nuevamente mas tarde.",
+        ) from error
+    return {"message": "Si el correo pertenece a una cuenta activa, te enviamos un código para restablecer la contraseña."}
+
+
+@router.post("/password-reset/confirm")
+def post_password_reset_confirm(
+    request: Request,
+    payload: PasswordResetConfirmRequest,
+    db: DbSession,
+) -> dict[str, str]:
+    verify_csrf(request)
+    try:
+        confirm_password_reset(
+            db, email=str(payload.email), code=payload.code, new_password=payload.new_password
+        )
+    except InvalidResetCodeError as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El código no es válido o ya venció.") from error
+    return {"message": "Contraseña restablecida. Ya puedes iniciar sesión con la nueva."}
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+def patch_account_status(
+    user_id: int,
+    payload: AccountStatusRequest,
+    db: DbSession,
+    actor: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ADMINISTRADOR))],
+) -> UserResponse:
+    """Activa o desactiva una cuenta; al desactivarla se cierran sus sesiones."""
+    try:
+        return _user_response(set_account_active(db, actor=actor, user_id=user_id, active=payload.is_active))
+    except AccountNotFoundError as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No se encontró la cuenta.") from error
+    except AccountChangeForbiddenError as error:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error

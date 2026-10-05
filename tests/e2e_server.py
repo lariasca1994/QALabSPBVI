@@ -74,10 +74,11 @@ async def e2e_lifespan(application: FastAPI):
         DiceBase.metadata.create_all(bind=get_dice_engine())
         with SessionLocal() as db:
             # "bugs" es un integrante con rol usuario: reporta bugs, registra fixes y hace retest.
-            for account_name in ("auth", "keys", "intra", "inter", "bugs"):
+            # "reset" y "temporal" son usuarios para los recorridos de contraseña y activación.
+            for account_name in ("auth", "keys", "intra", "inter", "bugs", "reset", "temporal"):
                 email = f"qa-e2e-{account_name}@example.com"
                 password = secrets.token_urlsafe(24)
-                role = UserRole.USUARIO if account_name == "bugs" else UserRole.ADMIN
+                role = UserRole.USUARIO if account_name in {"bugs", "reset", "temporal"} else UserRole.ADMIN
                 user = create_user(
                     db,
                     email=email,
