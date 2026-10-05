@@ -112,6 +112,6 @@ Entorno de producción: rg-qalabspbvi-prod (Container App y Key Vault en eastus2
 
 Latencia de Australia: /health/databases (con sesión) despierta y comprueba las bases; la interfaz lo consulta al entrar y deshabilita Ejecutar mientras tanto, el ejecutor espera hasta 20 s antes de cada CP y qa-evidencia espera ese 200 antes del pago.
 
-Avisos por correo pausados (2026-10-05): el mapeo SQS → Lambda de qalabspbvi-notifier y qalabspbvi-prod-notifier está desactivado hasta terminar producción; antes de reactivarlo, decidir si se envía o se purga lo acumulado en la cola. El MFA sigue saliendo directo por Brevo.
+Avisos por correo: activos en lab y producción (mapeos SQS → Lambda habilitados). Si hace falta pausarlos, se desactiva el mapeo; los mensajes esperan en la cola hasta 4 días. El MFA sale directo por Brevo.
 
 Diagrama de referencia de los flujos intra e inter: https://claude.ai/artifact/VzbGmnH3VLvvogB9hwDjJW (privado; si no abre, no es crítico).
