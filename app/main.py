@@ -1,11 +1,8 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
-import json
 import logging
-import time
-from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
@@ -17,6 +14,7 @@ from app.api.lifecycle_routes import router as lifecycle_router
 from app.api.mock_routes import router as mock_router
 from app.api.audit_routes import router as audit_router
 from app.domains.audit import logs as audit_logs
+from app.domains.audit.middleware import AuditMiddleware
 from app.api.routes import router
 from app.core.config import get_settings
 from app.db.base import Base
@@ -68,35 +66,7 @@ def create_app() -> FastAPI:
     application.include_router(mock_router)
     application.include_router(audit_router)
 
-    @application.middleware("http")
-    async def audit_requests(request: Request, call_next):
-        """Correlación (X-Request-ID) y registro asíncrono de cada solicitud en la base de logs."""
-        request_id = (request.headers.get("x-request-id") or uuid4().hex)[:64]
-        started = time.perf_counter()
-        operation_id = None
-        # La orden de pago trae el operation_id en el cuerpo; el resto, en la ruta o la consulta.
-        if request.method == "POST" and request.url.path in {"/payments", "/payments/inter-spbvi"}:
-            try:
-                operation_id = str(json.loads(await request.body()).get("operation_id") or "") or None
-            except (ValueError, AttributeError):
-                operation_id = None
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        route = request.scope.get("route")
-        audit_logs.record(
-            request_id=request_id,
-            method=request.method,
-            path=request.url.path,
-            route=getattr(route, "path", None),
-            status_code=response.status_code,
-            duration_ms=audit_logs.elapsed_ms(started),
-            user_id=getattr(request.state, "user_id", None),
-            operation_id=operation_id
-            or request.scope.get("path_params", {}).get("operation_id")
-            # Las consultas de auditoría también se registran, pero no se asocian a la operación.
-            or (None if request.url.path.startswith("/audit") else request.query_params.get("operation_id")),
-        )
-        return response
+    application.add_middleware(AuditMiddleware)
     application.openapi = lambda: _openapi_with_business_errors(application)
     return application
 

@@ -24,6 +24,8 @@ from app.core.security import require_roles
 from app.db.models import MockScenario, User, UserRole
 from app.db.session import get_db
 
+# 422 como número: Starlette renombró la constante (UNPROCESSABLE_ENTITY → UNPROCESSABLE_CONTENT).
+HTTP_422 = 422
 router = APIRouter(prefix="/mock", tags=["mock server de resiliencia"])
 AnyRole = Annotated[
     User,
@@ -106,7 +108,7 @@ def mock_status(code: int, _: AnyRole) -> JSONResponse:
     """Responde el código de error pedido (4xx/5xx de la lista), con Retry-After en 429 y 503."""
     if code not in SIMULATED_STATUS:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422,
             f"Código no simulado. Usa uno de: {', '.join(map(str, SIMULATED_STATUS))}.",
         )
     return _error(code, "status")

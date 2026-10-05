@@ -96,7 +96,7 @@ def platform(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, mong
     app.dependency_overrides[get_mailer] = SilentMailer
     app.dependency_overrides[get_qa_database] = lambda: database
     app.dependency_overrides[get_qa_http_client] = runner_client
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, lifespan="off", log_level="warning"))
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, lifespan="off", ws="none", log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     deadline = time.monotonic() + 10

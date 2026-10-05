@@ -69,6 +69,8 @@ from app.domains.iso20022.messages import (
     pacs002_group_status_for_payment,
 )
 
+# 422 como número: Starlette renombró la constante (UNPROCESSABLE_ENTITY → UNPROCESSABLE_CONTENT).
+HTTP_422 = 422
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
 
@@ -502,7 +504,7 @@ def resolve_local_key(
         key_value = normalize_key_value(key_type, key_value)
     except InvalidKeyError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+            status_code=HTTP_422, detail=str(error)
         ) from error
     key = resolve_key(
         dife_db,
@@ -685,7 +687,7 @@ def create_inter_spbvi_payment_route(
         ) from error
     except SameSpbviPaymentError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422,
             detail="La llave pertenece al mismo SPBVI; usa el endpoint intra-SPBVI.",
         ) from error
     except InsufficientFundsError as error:

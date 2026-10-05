@@ -18,3 +18,8 @@ web/playwright-report/
 *.egg-info/
 .idea/
 .vscode/
+
+# Configuración local del asistente (skills y MCP de Neon); no forma parte del proyecto.
+.claude/
+.mcp.json
+skills-lock.json

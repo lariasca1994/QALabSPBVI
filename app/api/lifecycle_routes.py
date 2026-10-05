@@ -51,6 +51,8 @@ from app.domains.payments.lifecycle import (
     returned_cents,
 )
 
+# 422 como número: Starlette renombró la constante (UNPROCESSABLE_ENTITY → UNPROCESSABLE_CONTENT).
+HTTP_422 = 422
 router = APIRouter(tags=["ciclo de vida del pago"])
 DbSession = Annotated[Session, Depends(get_db)]
 AnyRole = Annotated[
@@ -80,7 +82,7 @@ def _raise(error: Exception) -> None:
     if isinstance(error, InvestigationNotFoundError):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No se encontro la investigacion.") from error
     if isinstance(error, LifecycleValidationError):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
+        raise HTTPException(HTTP_422, str(error)) from error
     if isinstance(error, ReturnInsufficientFundsError):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
