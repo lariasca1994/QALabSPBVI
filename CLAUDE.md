@@ -110,6 +110,8 @@ Implementado además: pacs.004 (devoluciones), camt.056/camt.029 (cancelación e
 
 Entorno de producción: rg-qalabspbvi-prod (Container App y Key Vault en eastus2; DIFE en servidor Azure SQL propio en australiaeast con oferta gratuita), Neon QALabSPBVI-prod, base qalab_logs_prod, Atlas qalabspbvi_qa_prod (usuario propio), usuario Oracle QALABDICEPROD, stack AWS qalabspbvi-prod-notifications y Vercel qalabspbvi-prod (solo construye la rama production). El job deploy-production del CI corre automáticamente tras el lab (environment production limitado a main, sin aprobación manual) y reescribe la rama production. Credenciales solo en .env.prod (ignorado). Las bases del lab y de producción se verificaron aisladas entre sí.
 
+Red de las bases: sin restricción de IP, porque las IPs de salida de las plataformas son dinámicas (Atlas con 0.0.0.0/0, ADB de DICE con ACL 0.0.0.0/0 y TLS, Azure SQL lab y prod con la regla acceso-abierto, Neon sin lista). La protección es por credenciales propias de cada componente, TLS obligatorio y secretos solo en gestores. Quitar la ACL de la ADB del todo exige mTLS (wallet); por eso se usa 0.0.0.0/0.
+
 Latencia de Australia: /health/databases (con sesión) despierta y comprueba las bases; la interfaz lo consulta al entrar y deshabilita Ejecutar mientras tanto, el ejecutor espera hasta 20 s antes de cada CP y qa-evidencia espera ese 200 antes del pago.
 
 Avisos por correo: activos en lab y producción (mapeos SQS → Lambda habilitados). Si hace falta pausarlos, se desactiva el mapeo; los mensajes esperan en la cola hasta 4 días. El MFA sale directo por Brevo.
