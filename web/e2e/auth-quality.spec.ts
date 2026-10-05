@@ -12,11 +12,10 @@ test("rechaza una clave inválida, autentica con MFA y ejecuta un caso QA en mó
   await page.getByLabel("Correo electrónico").fill(accountEmail);
   await page.getByLabel("Contraseña").fill("clave incorrecta para la prueba");
   await page.getByRole("button", { name: "Continuar" }).click();
-  await expect(page.getByText("Si los datos son válidos, te enviamos un código de acceso al correo.")).toBeVisible();
+  // Credenciales inválidas: se informa el error y no se pasa a la pantalla del código.
+  await expect(page.getByRole("alert")).toContainText("Correo o contraseña incorrectos.");
+  await expect(page.getByLabel("Código de acceso")).toHaveCount(0);
   await expect.poll(readMfaCode).toBe("");
-  const resend = page.getByRole("button", { name: /Reenviar en \d:\d{2}/ });
-  await expect(resend).toBeVisible();
-  await expect(resend).toBeDisabled();
   await expectNoHorizontalOverflow(page);
 
   await signInAsAdmin(page, "auth");

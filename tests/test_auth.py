@@ -166,9 +166,16 @@ def test_login_rejects_wrong_password_without_sending_a_code(
         "/auth/login",
         json={"email": "admin@example.com", "password": "wrong password"},
     )
+    unknown = client.post(
+        "/auth/login",
+        json={"email": "nadie@example.com", "password": "wrong password"},
+    )
 
-    assert response.status_code == 202
-    assert "Si los datos son validos" in response.json()["message"]
+    # Se informa el error, con el mismo mensaje exista o no la cuenta.
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Correo o contraseña incorrectos."}
+    assert unknown.status_code == 401 and unknown.json() == response.json()
+    assert "qalab_pending_login" not in client.cookies
     assert mailer.messages == []
 
 
@@ -243,7 +250,7 @@ def test_password_failures_are_rate_limited(
             "/auth/login",
             json={"email": "admin@example.com", "password": "incorrect password"},
         )
-        assert response.status_code == 202
+        assert response.status_code == 401
 
     blocked = client.post(
         "/auth/login",
@@ -501,8 +508,8 @@ def test_resend_after_wrong_password_reveals_nothing_and_sends_nothing(
     monkeypatch.setattr(service.time, "time", clock)
     client, mailer, _ = auth_environment
     failed = start_pending_login(client, password="wrong password value")
-    assert failed.status_code == 202
-    assert "qalab_pending_login" in client.cookies
+    assert failed.status_code == 401
+    assert "qalab_pending_login" not in client.cookies
 
     clock.now += 61
     resent = client.post("/auth/resend-code")
@@ -562,7 +569,13 @@ def test_other_accounts_keep_mfa_by_email_and_the_log_reveals_nothing(automation
 
 def test_wrong_password_on_automation_account_yields_no_code(automation_environment) -> None:
     client, _ = automation_environment
-    start_pending_login_as(client, "qa+e2e@example.com", "contrasena-incorrecta")
+    token = prepare_csrf(client)
+    failed = client.post(
+        "/auth/login",
+        json={"email": "qa+e2e@example.com", "password": "contrasena-incorrecta"},
+        headers={"x-csrf-token": token},
+    )
+    assert failed.status_code == 401
     assert client.post("/auth/qa-automation/code", headers={"x-qa-automation-token": AUTOMATION_TOKEN}).status_code == 404
 
 

@@ -31,6 +31,7 @@ from app.db.wake import wake_key_stores
 from app.domains.auth.automation import code_for_pending_login
 from app.domains.auth.service import (
     InvalidChallengeError,
+    InvalidCredentialsError,
     LoginRateLimitError,
     PENDING_LOGIN_SECONDS,
     ResendCooldownError,
@@ -90,9 +91,7 @@ def login(
     mailer: MailerDependency,
 ) -> dict[str, str]:
     verify_csrf(request)
-    # Siempre se emite: su presencia no indica si la contraseña era válida.
     pending_token = secrets.token_urlsafe(32)
-    _set_pending_login_cookie(response, pending_token)
     try:
         start_login(
             db,
@@ -108,6 +107,12 @@ def login(
             detail="Demasiados intentos. Espera antes de volver a probar.",
             headers={"Retry-After": "900"},
         ) from error
+    except InvalidCredentialsError as error:
+        # Mismo mensaje si el correo no existe o si la contraseña está mal.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o contraseña incorrectos.",
+        ) from error
     except MailDeliveryError as error:
         logger.exception("No se pudo entregar el codigo MFA por correo.")
         raise HTTPException(
@@ -115,12 +120,8 @@ def login(
             detail="No se pudo enviar el codigo. Intenta nuevamente mas tarde.",
         ) from error
 
-    return {
-        "message": (
-            "Si los datos son validos, enviaremos un codigo de acceso al correo "
-            "asociado a la cuenta."
-        )
-    }
+    _set_pending_login_cookie(response, pending_token)
+    return {"message": "Enviamos un codigo de acceso al correo de la cuenta."}
 
 
 @router.post("/resend-code", status_code=status.HTTP_202_ACCEPTED)

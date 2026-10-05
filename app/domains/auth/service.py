@@ -40,6 +40,10 @@ class LoginRateLimitError(Exception):
     pass
 
 
+class InvalidCredentialsError(Exception):
+    """Correo o contraseña incorrectos (mismo error en ambos casos)."""
+
+
 class InvalidChallengeError(Exception):
     pass
 
@@ -178,9 +182,9 @@ def start_login(
 ) -> None:
     """Valida la contraseña y envía el código MFA.
 
-    `pending_token` es el valor de la cookie de inicio pendiente: la ruta la emite
-    siempre (también con contraseña incorrecta) para no revelar si la cuenta existe;
-    solo queda registrada aquí cuando la contraseña es válida.
+    Con credenciales inválidas lanza InvalidCredentialsError, igual si el correo no
+    existe o si la contraseña está mal: el mensaje y el tiempo de respuesta (se verifica
+    contra un hash de relleno) no revelan qué cuentas existen.
     """
     normalized_email = normalize_email(email)
     email_hash = _email_hash(normalized_email)
@@ -208,7 +212,7 @@ def start_login(
     db.commit()
 
     if not succeeded or user is None:
-        return
+        raise InvalidCredentialsError
 
     db.add(
         PendingLogin(

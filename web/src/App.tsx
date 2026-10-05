@@ -150,7 +150,7 @@ function AuthScreen({
     try {
       if (mode === "login") {
         await onLogin(email, password);
-        setNotice("Si los datos son válidos, te enviamos un código de acceso al correo.");
+        setNotice("Te enviamos un código de acceso al correo.");
       } else {
         await onVerify(code);
       }
