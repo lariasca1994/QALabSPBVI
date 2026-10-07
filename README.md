@@ -14,6 +14,7 @@
 ![Azure SQL](https://img.shields.io/badge/Azure_SQL-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
 ![Oracle](https://img.shields.io/badge/Oracle_ADB-F80000?style=for-the-badge&logo=oracle&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![TiDB](https://img.shields.io/badge/TiDB_Cloud_(MySQL)-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
 ![AWS Lambda](https://img.shields.io/badge/AWS_SQS_+_Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
@@ -43,13 +44,13 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 
 | Área | Qué demuestra aquí |
 |---|---|
-| **Dominio de pagos** | Modelado de un ecosistema de pagos inmediatos con llaves: directorio federado de llaves por entidad (DIFE) y central (DICE) con unicidad global; pagos intra-SPBVI (llave en DIFE) e inter-SPBVI (llave en DICE, liquidación en un MOL simulado); idempotencia, límite de 1.000 UVB y ledger que siempre suma cero. |
+| **Dominio de pagos** | Modelado de un ecosistema de pagos inmediatos con llaves: directorio federado de llaves por entidad (DIFE) y central (DICE) con unicidad global; pagos intra-SPBVI (llave en DIFE) e inter-SPBVI (llave en DICE, liquidación en un MOL simulado); idempotencia, límite de 1.000 UVB y ledger que siempre suma cero. Pagos con código QR (formato EMVCo) estáticos y dinámicos de un solo uso. |
 | **Mensajería ISO 20022** | pacs.008 y pacs.002 (generados por un gateway aparte con respaldo local), pacs.004 (devoluciones), camt.056 y camt.029 (cancelación e investigación), camt.054 (notificaciones) y pain.002 (estado para el cliente), todos validados contra XSD propios de laboratorio. |
 | **Aseguramiento de calidad** | Plataforma tipo Jira con épicas, HU, CP, tareas, bugs y fixes. Cada CP es una solicitud REST/JSON que se ejecuta con un clic y muestra método, URL, solicitud y respuesta. Cada respuesta se valida además contra el contrato OpenAPI (JSON Schema) y el ejecutor reintenta los fallos de red. Incluye un programa ISO 20022 de 60 CP que pasa completo en la nube, con llaves generadas según su tipo, y un mock server de fallos de red para las pruebas de resiliencia. |
-| **Backend y datos** | Monolito modular en FastAPI con cuatro motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle y MongoDB. Ninguno se comparte, y la coordinación entre DIFE y DICE es recuperable, sin transacciones distribuidas. |
+| **Backend y datos** | Monolito modular en FastAPI con cinco motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle, MongoDB y MySQL (TiDB). Ninguno se comparte, y la coordinación entre DIFE y DICE, y entre cobros QR y pagos, es recuperable, sin transacciones distribuidas. |
 | **Seguridad** | Contraseñas Argon2id, MFA por correo con reenvío, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
-| **Cloud y DevOps** | Siete plataformas cloud con una función cada una (ver [Plataformas](#plataformas)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
-| **Pruebas** | 155 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles. |
+| **Cloud y DevOps** | Ocho plataformas cloud con una función cada una (ver [Plataformas](#plataformas)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
+| **Pruebas** | 190 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles, incluida la lectura de QR con cámara simulada y la app instalable. |
 | **Trazabilidad** | Registro de cada solicitud en una base propia, con identificador de correlación y `operation_id` para seguir todos los mensajes de un pago, pantalla de auditoría y exportación CSV. |
 
 ## Funcionalidades
@@ -68,6 +69,18 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 - Devoluciones totales o parciales (pacs.004) que nunca superan el monto pagado.
 - Solicitud de cancelación (camt.056) que abre una investigación; el SPBVI receptor la acepta, y entonces devuelve el pago con motivo FOCR, o la rechaza con motivo (camt.029).
 - Notificaciones de crédito y débito por cuenta (camt.054) y reporte de estado para el cliente (pain.002), también en las respuestas del pago intra.
+
+**Pagos con QR**
+- QR en formato EMVCo, como el estándar de las entidades administradoras de pagos colombianas: llave Bre-B (campo 26), monto (54), identificador de la transacción (90), hash de seguridad (91) y CRC (63).
+- QR estático (quien paga elige el monto), estático con monto fijo y cobro dinámico de un solo uso con vencimiento y anulación.
+- El pago es intra-SPBVI si la llave está en el DIFE de la cuenta origen (sin consultar el DICE) o inter-SPBVI por DICE y MOL, con la misma idempotencia, límite de UVB y mensajes ISO 20022 de los demás pagos.
+- Un QR alterado se rechaza por CRC o por firma, sin mover dinero.
+- Pantalla "Código QR" que genera el QR y lo lee con la cámara, desde una imagen o pegando su contenido.
+
+**App instalable (PWA)**
+- Se instala desde el navegador en Android, iOS, Windows, macOS y Linux, con ícono propio y acceso directo a los pagos con QR.
+- Abre sin conexión con una página propia; nunca guarda respuestas de la API.
+- No trabaja en segundo plano: sin sincronización, notificaciones push ni consultas periódicas con la app oculta.
 
 **Plataforma QA**
 - Épicas, HU, CP, tareas, bugs y fixes con permisos por rol validados en el servidor.
@@ -97,12 +110,13 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | Capa | Tecnología |
 |---|---|
 | Backend | Python 3.13, FastAPI, SQLAlchemy 2 (monolito modular por dominios) |
-| Frontend | React, TypeScript, Vite; tema claro y oscuro |
+| Frontend | React, TypeScript, Vite; tema claro y oscuro; instalable como PWA (manifiesto y service worker) |
 | Pagos y autenticación | PostgreSQL (Neon) |
 | DIFE | SQL Server (Azure SQL Database) con pyodbc y ODBC Driver 18 |
 | DICE | Oracle Autonomous Database (OCI) con python-oracledb |
 | QA | MongoDB (Atlas) con pymongo |
 | Logs | PostgreSQL (Neon), base propia |
+| Cobros QR | MySQL (TiDB Cloud) con PyMySQL y TLS; QR con `qrcode` y lectura con `jsQR` |
 | Contratos | jsonschema sobre el OpenAPI de la API |
 | ISO 20022 | lxml con XSD propios de laboratorio; gateway propio en Render |
 | Avisos | AWS SQS (con DLQ) y AWS Lambda que entrega por Brevo |
@@ -122,6 +136,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | AWS SQS + Lambda | Cola y entrega de los avisos QA | No: sin `NOTIFICATIONS_QUEUE_URL` los avisos salen directo por Brevo |
 | Gateway ISO 20022 (Render) | Genera los pacs.008 / pacs.002 | No: sin `ISO_GATEWAY_URL` o si no responde, se generan en proceso |
 | PostgreSQL de logs | Registro de solicitudes y auditoría | No: sin `LOGS_DATABASE_URL` no se registra nada |
+| MySQL (TiDB Cloud) | Cobros con QR dinámicos | Sí en la nube; en local, sin `QR_DATABASE_URL`, se usa SQLite temporal |
 
 Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte ni reutiliza datos de otros proyectos.
 
@@ -133,12 +148,12 @@ Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte n
 
 - **Vercel** publica el frontend React y reenvía `/api/*` a la API en **Azure Container Apps** (sin el prefijo). Para el navegador todo es el mismo dominio, así que las cookies siguen siendo `SameSite=Strict`.
 - La **API FastAPI** está organizada por dominios: autenticación, llaves (DIFE/DICE), pagos con MOL simulado, adaptador ISO 20022 y gestión QA con su ejecutor de CP.
-- Cada dominio persiste en su propia nube: pagos y autenticación en **Neon**, DIFE en **Azure SQL**, DICE en **Oracle ADB (OCI)** y QA en **MongoDB Atlas**.
+- Cada dominio persiste en su propia nube: pagos y autenticación en **Neon**, DIFE en **Azure SQL**, DICE en **Oracle ADB (OCI)**, QA en **MongoDB Atlas** y cobros QR en **TiDB Cloud** (MySQL).
 - Los avisos QA van a una cola **AWS SQS** y una **Lambda** los entrega por Brevo. Los mensajes que fallan cinco veces pasan a una cola de fallidos (DLQ). La API solo puede enviar a la cola.
 - El código MFA no usa la cola: sale directo por Brevo, para no sumarle demora al inicio de sesión.
 - Los mensajes pacs.008 / pacs.002 los genera un **gateway ISO 20022 en Render**, un servicio sin estado. La API vuelve a validar el XML que recibe. Si el gateway no responde, lo genera en proceso, así un pago ya liquidado siempre tiene su mensaje. La respuesta indica quién lo generó en `iso_gateway`.
 - El núcleo del dominio no depende del formato de mensaje: el adaptador ISO 20022 recibe datos neutrales del pago. Todos los montos son enteros en centavos.
-- Los secretos viven en **Key Vault** y la API los lee con identidad administrada. Las bases solo aceptan la IP de salida de la Container App y la de administración.
+- Los secretos viven en **Key Vault** y la API los lee con identidad administrada. Las bases exigen TLS y credenciales propias de cada componente.
 
 ## Plataformas
 
@@ -153,6 +168,7 @@ Cada plataforma cumple una función distinta; ninguna concentra todo el sistema.
 | **Oracle Cloud (OCI)** | DICE en Autonomous Database: índice central de llaves con unicidad global. Resuelve las llaves de los pagos **inter-SPBVI**. |
 | **Neon** | PostgreSQL de cuentas, ledger, pagos, usuarios y sesiones; ahí liquidan los pagos intra e inter. En una base aparte guarda el registro de solicitudes que alimenta la auditoría. |
 | **MongoDB Atlas** | Artefactos QA: épicas, HU, CP con su JSON versionado, ejecuciones, bugs, fixes y la lista de llaves de cada épica. |
+| **TiDB Cloud** | MySQL de los cobros con QR: cada cobro dinámico con su monto, vencimiento y estado. Escala a cero sin uso. |
 | **AWS** | Cola SQS con DLQ y Lambda que entrega por Brevo los avisos QA. La API solo puede enviar a la cola; la API key de Brevo vive en SSM Parameter Store. |
 | **Render** | Gateway ISO 20022: servicio aparte que genera los pacs.008 / pacs.002 de laboratorio. Se suspende sin uso; mientras despierta, la API los genera en proceso. |
 | **Brevo** | Envía el código MFA, la bienvenida y los avisos QA. |
@@ -328,6 +344,27 @@ Reglas de los pagos:
 
 Los motivos de devolución, cancelación y rechazo usan los códigos externos públicos de ISO 20022 (por ejemplo `MD06`, `DUPL`, `NOAS`, `AM04`). Los perfiles `pacs.008.001.08`, `pacs.002.001.10`, `pacs.004.001.09`, `camt.056.001.08`, `camt.029.001.09`, `camt.054.001.08` y `pain.002.001.10` usan XSD propios limitados a los campos implementados. **No son los XSD oficiales ni prueban conformidad con ISO 20022 ni con ningún esquema real.**
 
+### Pagos con QR
+
+| Método y ruta | Descripción |
+|---|---|
+| `POST /qr/static` | QR estático de una llave confirmada; con `amount_cents` es estático con monto fijo |
+| `POST /qr/charges` | Cobro dinámico de un solo uso, con referencia y vencimiento (60 a 3.600 segundos) |
+| `GET /qr/charges/{charge_id}` | Estado del cobro: `pending`, `reserved`, `paid`, `expired` o `cancelled` |
+| `DELETE /qr/charges/{charge_id}` | Anula un cobro pendiente |
+| `POST /qr/decode` | Valida el QR y muestra qué se va a pagar, sin mover dinero |
+| `POST /qr/pay` | Paga el QR desde una cuenta; elige solo el flujo intra o inter |
+
+Reglas de los pagos con QR:
+
+- **Monto:** en el QR estático lo define quien paga; en el estático con monto fijo y en el dinámico no se puede cambiar (`422`).
+- **Un solo uso:** el cobro dinámico se reserva, se paga con `operation_id` `qr-{charge_id}` y queda pagado. Un segundo pago responde `409`; uno vencido o anulado, `410`.
+- **Consistencia entre bases:** el cobro (MySQL) y el pago (PostgreSQL) no comparten transacción. Si el pago se rechaza, el cobro vuelve a quedar pendiente; si algo se cae a mitad de camino, la siguiente consulta del cobro lo concilia con la base de pagos.
+- **Titular:** un `usuario` solo cobra con llaves de las que es titular; `admin` y `administrador`, con cualquiera.
+- **Marcadores de CP:** `{{qr:static}}`, `{{qr:charge}}` y `{{qr:charge-id}}` reutilizan el último QR generado por un CP de la épica.
+
+El formato toma los campos del estándar EMVCo de las entidades administradoras de pagos colombianas. **Supuesto del laboratorio:** usa identificadores propios (`CO.COM.LAB.*`) en lugar de los de las redes reales, el hash de seguridad es un HMAC-SHA256 y el vencimiento vive en la base de cobros. No prueba conformidad con ningún esquema real.
+
 ### Casos de prueba
 
 Todo CP ejecutable es una solicitud REST con JSON:
@@ -421,7 +458,8 @@ cd web; npm run build; npm run test:e2e   # compilación y E2E con Playwright
   - Devoluciones, cancelaciones, investigaciones, notificaciones y pain.002, con sus XML validados.
   - Validación de contrato, mock server y registro de auditoría.
   - Programa ISO 20022 completo: 60 CP en dos rondas contra un servidor real, con llaves nuevas en cada una.
-- **E2E:** levantan una API aislada (puerto 8010) y Vite (5174). Recorren MFA, ejecución y edición de un CP, ciclo de llaves, pagos intra e inter con devolución, cancelación y notificaciones, auditoría y el ciclo completo de un bug, en anchos de 320 a 1280 px.
+  - Pagos con QR: formato EMVCo y CRC, QR alterados, cobro de un solo uso, reserva, rechazo que libera el cobro, vencimiento, anulación y conciliación entre bases.
+- **E2E:** levantan una API aislada (puerto 8010) y Vite (5174). Recorren MFA, ejecución y edición de un CP, ciclo de llaves, pagos intra e inter con devolución, cancelación y notificaciones, auditoría, el ciclo completo de un bug y los pagos con QR (lectura por texto, imagen y cámara simulada), en anchos de 320 a 1280 px. También comprueban que la app es instalable (manifiesto, íconos y service worker), que abre sin conexión, que no guarda respuestas de la API y que no hace consultas con la app oculta.
 
 ## Correos
 
@@ -450,6 +488,7 @@ El laboratorio reparte sus componentes entre varias nubes, cada uno con su base 
 
 - La API escala a cero y no usa pool de conexiones en la nube (`DATABASE_POOL=null`): no quedan sesiones abiertas que mantengan despiertas a Azure SQL (pausa a los 60 minutos) o a Neon (suspensión a los 5 minutos).
 - `/health` no toca ninguna base, así que los monitores no las despiertan.
+- La interfaz y la app instalada no trabajan en segundo plano: el estado de un cobro QR solo se consulta con la pantalla visible y hasta su vencimiento.
 - `/health/databases` (requiere sesión) despierta y comprueba las bases: responde `503` mientras alguna se reanuda y `200` cuando todas están listas. La interfaz lo consulta al entrar y habilita la ejecución de CP cuando están listas, y el ejecutor lo usa antes de cada ejecución.
 - Al abrir la aplicación con sesión válida, `/auth/me` despierta DIFE y DICE en segundo plano. Mientras Azure SQL se reanuda (cerca de un minuto), la conexión se reintenta, y si aún no está lista la API responde `503` con "La base de datos se está activando".
 
@@ -476,6 +515,7 @@ Supuestos del laboratorio, que se ajustan si cambian las reglas:
 - Formatos de llave.
 - Valor de la UVB.
 - Mapeo de pain.001, pacs.028 y camt.052/053 a los endpoints.
+- Perfil del QR: identificadores propios, hash HMAC-SHA256 y vencimiento fuera del QR.
 
 ## Autor
 
