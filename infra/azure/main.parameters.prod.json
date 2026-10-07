@@ -28,6 +28,9 @@
     },
     "mongoDatabaseName": {
       "value": "qalabspbvi_qa_prod"
+    },
+    "enableQrDatabase": {
+      "value": true
     }
   }
 }

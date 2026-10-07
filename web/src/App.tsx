@@ -14,6 +14,7 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   Command,
+  Download,
   CreditCard,
   KeyRound,
   LayoutDashboard,
@@ -21,6 +22,7 @@ import {
   LogOut,
   Moon,
   Plus,
+  QrCode,
   RefreshCw,
   ScrollText,
   Search,
@@ -38,11 +40,13 @@ import { BugsWorkspace, type BugDraft } from "./BugsWorkspace";
 import { PaymentOperations } from "./PaymentOperations";
 import { AuditPage } from "./AuditPage";
 import { PaymentParties, SpbviField, useAccounts, useSpbvis } from "./LabDirectory";
+import { QrCollect, QrPay, type QrResult } from "./QrPayments";
+import { useInstallPrompt } from "./pwa";
 import { ChangePasswordModal, PasswordReset, SignupForm } from "./PasswordForms";
 import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
-type View = "overview" | "keys" | "payments" | "quality" | "bugs" | "audit" | "users";
+type View = "overview" | "keys" | "payments" | "qr" | "quality" | "bugs" | "audit" | "users";
 type AuthState = "checking" | "login" | "mfa" | "app";
 
 interface ActionResult {
@@ -380,7 +384,10 @@ function App() {
   const [email, setEmail] = useState("");
   const [authError, setAuthError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [view, setView] = useState<View>("overview");
+  // Accesos directos de la app instalada (manifest): /?vista=qr abre Pagos con QR.
+  const [view, setView] = useState<View>(() => new URLSearchParams(window.location.search).get("vista") === "qr" ? "qr" : "overview");
+  const installPrompt = useInstallPrompt();
+  const [installHint, setInstallHint] = useState(false);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   // Épicas por cuenta (null si no se pudo consultar): las cuentas sin épica quedan pendientes.
@@ -572,6 +579,7 @@ function App() {
     { id: "overview" as const, label: "Resumen", mobileLabel: "Inicio", icon: LayoutDashboard },
     { id: "keys" as const, label: "Llaves", mobileLabel: "Llaves", icon: KeyRound },
     { id: "payments" as const, label: "Pagos", mobileLabel: "Pagos", icon: CreditCard },
+    { id: "qr" as const, label: "Código QR", mobileLabel: "QR", icon: QrCode },
     { id: "quality" as const, label: "Calidad y pruebas", mobileLabel: "QA", icon: ClipboardCheck },
     { id: "bugs" as const, label: "Bugs y fixes", mobileLabel: "Bugs", icon: Bug },
     ...(user && user.role !== "usuario"
@@ -652,6 +660,15 @@ function App() {
             {/* En móvil la barra lateral oculta su pie: la cuenta se gestiona desde aquí. */}
             <button className="icon-button topbar-account" onClick={() => setChangingPassword(true)} title="Cambiar contraseña" aria-label="Cambiar contraseña" type="button"><KeyRound size={18} /></button>
             <button className="icon-button topbar-account" onClick={() => void handleLogout()} title="Cerrar sesión" aria-label="Cerrar sesión" type="button"><LogOut size={18} /></button>
+            {installPrompt.mode && (
+              <button
+                className="icon-button"
+                onClick={() => (installPrompt.mode === "native" ? void installPrompt.install() : setInstallHint(true))}
+                title="Instalar app"
+                aria-label="Instalar app"
+                type="button"
+              ><Download size={18} /></button>
+            )}
             <div className="topbar-divider" />
             <button className="help-button" type="button" title="Ayuda"><CircleHelp size={17} /> Ayuda</button>
           </div>
@@ -659,6 +676,7 @@ function App() {
 
         <main className="content">
           {accountNotice && <div className="alert alert--success page-alert" role="status"><Check size={16} /><span>{accountNotice}</span><button className="icon-button" onClick={() => setAccountNotice("")} aria-label="Cerrar aviso" type="button"><X size={16} /></button></div>}
+          {installHint && <div className="alert alert--info page-alert" role="status"><Download size={16} /><span>Para instalar en iPhone o iPad: toca Compartir y luego "Agregar a inicio".</span><button className="icon-button" onClick={() => setInstallHint(false)} aria-label="Cerrar aviso" type="button"><X size={16} /></button></div>}
           {changingPassword && <ChangePasswordModal onClose={(message) => { setChangingPassword(false); if (message) setAccountNotice(message); }} />}
           {databasesReady === false && <div className="alert alert--info page-alert" role="status"><LoaderCircle className="spin" size={16} /><span>Activando las bases de datos. La de llaves está en otra región y tarda cerca de un minuto en reanudarse; las ejecuciones se habilitan cuando esté lista.</span></div>}
           {loadError && <div className="alert alert--error page-alert" role="alert"><span>{loadError}</span><button className="icon-button" onClick={() => setLoadError("")} aria-label="Cerrar aviso"><X size={16} /></button></div>}
@@ -696,6 +714,7 @@ function App() {
           {view === "audit" && user && user.role !== "usuario" && <AuditPage />}
           {view === "keys" && user && <KeysPage role={user.role} />}
           {view === "payments" && user && <PaymentsPage role={user.role} />}
+          {view === "qr" && user && <QrPage />}
           {view === "users" && user && user.role !== "usuario" && (
             <UsersPage
               currentRole={user.role}
@@ -1234,6 +1253,27 @@ function PaymentsPage({ role }: { role: User["role"] }) {
           </form>
         </section>
         <PaymentOperations onError={setError} onNotice={setNotice} onResult={setResult} />
+      </div>
+      {result && <ActionResultCard result={result} />}
+    </>
+  );
+}
+
+function QrPage() {
+  const keyTypes = useKeyTypes();
+  const { items: spbvis } = useSpbvis();
+  const [result, setResult] = useState<QrResult | null>(null);
+  return (
+    <>
+      <PageHeading
+        eyebrow="EMVCO · BRE-B"
+        title="Pagos con QR"
+        description="Cobra con un QR estático o dinámico y paga escaneándolo; el pago es intra o inter-SPBVI según la llave."
+      />
+      <div className="role-policy"><ShieldCheck size={17} /><span><strong>Formato EMVCo de laboratorio.</strong> El QR lleva la llave Bre-B, el monto y un hash de seguridad; el cobro dinámico se paga una sola vez.</span></div>
+      <div className="operation-grid">
+        <QrCollect keyTypes={keyTypes} onResult={setResult} spbvis={spbvis} />
+        <QrPay onResult={setResult} />
       </div>
       {result && <ActionResultCard result={result} />}
     </>

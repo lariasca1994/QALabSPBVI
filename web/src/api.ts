@@ -246,6 +246,66 @@ export interface Account {
   balance_cents: number;
 }
 
+export type QrType = "static" | "static_hybrid" | "dynamic";
+
+export interface QrCode {
+  payload: string;
+  qr_type: QrType;
+  key_type: string;
+  key_value: string;
+  amount_cents: number | null;
+  merchant_name: string;
+  merchant_city: string;
+}
+
+export interface QrCharge {
+  charge_id: string;
+  payload: string;
+  status: "pending" | "reserved" | "paid" | "expired" | "cancelled";
+  spbvi_id: string;
+  key_type: string;
+  key_value: string;
+  amount_cents: number;
+  reference: string | null;
+  merchant_name: string;
+  merchant_city: string;
+  created_at: string;
+  expires_at: string;
+  seconds_left: number;
+  operation_id: string | null;
+  payer_account_id: string | null;
+}
+
+export interface QrPreview {
+  qr_type: QrType;
+  key_type: string;
+  key_value: string;
+  merchant_name: string;
+  merchant_city: string;
+  amount_cents: number | null;
+  amount_editable: boolean;
+  reference: string | null;
+  charge_id: string | null;
+  charge_status: string | null;
+  expires_at: string | null;
+}
+
+export interface QrPayment {
+  flow: "intra" | "inter";
+  qr_type: QrType;
+  charge_id: string | null;
+  charge_status: string | null;
+  payment: Payment & Record<string, unknown>;
+}
+
+export interface QrReceiver {
+  spbvi_id: string;
+  key_type: string;
+  key_value: string;
+  merchant_name: string;
+  merchant_city: string;
+}
+
 export interface SpbviSummary {
   spbvi_id: string;
   accounts: number;
@@ -451,6 +511,29 @@ export const api = {
       headers: { "X-CSRF-Token": token },
       body: JSON.stringify(payload),
     });
+  },
+  async qrStatic(payload: QrReceiver & { amount_cents?: number }): Promise<ApiResponse<QrCode>> {
+    const token = await csrfToken();
+    return requestWithMetadata("/qr/static", { method: "POST", headers: { "X-CSRF-Token": token }, body: JSON.stringify(payload) });
+  },
+  async qrCreateCharge(payload: QrReceiver & { amount_cents: number; reference?: string; expires_in_seconds: number }): Promise<ApiResponse<QrCharge>> {
+    const token = await csrfToken();
+    return requestWithMetadata("/qr/charges", { method: "POST", headers: { "X-CSRF-Token": token }, body: JSON.stringify(payload) });
+  },
+  qrCharge(chargeId: string): Promise<QrCharge> {
+    return request<QrCharge>(`/qr/charges/${encodeURIComponent(chargeId)}`);
+  },
+  async qrCancelCharge(chargeId: string): Promise<ApiResponse<QrCharge>> {
+    const token = await csrfToken();
+    return requestWithMetadata(`/qr/charges/${encodeURIComponent(chargeId)}`, { method: "DELETE", headers: { "X-CSRF-Token": token } });
+  },
+  async qrDecode(payload: string): Promise<ApiResponse<QrPreview>> {
+    const token = await csrfToken();
+    return requestWithMetadata("/qr/decode", { method: "POST", headers: { "X-CSRF-Token": token }, body: JSON.stringify({ payload }) });
+  },
+  async qrPay(body: { payload: string; source_account_id: string; amount_cents?: number; operation_id?: string }): Promise<ApiResponse<QrPayment>> {
+    const token = await csrfToken();
+    return requestWithMetadata("/qr/pay", { method: "POST", headers: { "X-CSRF-Token": token }, body: JSON.stringify(body) });
   },
   spbvis(): Promise<SpbviSummary[]> {
     return request<SpbviSummary[]>("/spbvis");

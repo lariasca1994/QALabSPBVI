@@ -77,7 +77,7 @@ READY_PROBE_SECONDS = 8.0
 
 
 def check_databases(timeout: float = READY_PROBE_SECONDS) -> dict[str, str]:
-    """Estado de pagos, DIFE y DICE: "lista" o "activando".
+    """Estado de pagos, DIFE, DICE y cobros QR: "lista" o "activando".
 
     Cada prueba corre en su propio hilo; si no termina a tiempo (Azure SQL en australiaeast
     puede tardar cerca de un minuto en reanudarse), la base se informa "activando" y la
@@ -87,11 +87,13 @@ def check_databases(timeout: float = READY_PROBE_SECONDS) -> dict[str, str]:
 
     from app.db.session import engine as payments_engine
     from app.domains.keys.persistence import get_dice_engine, get_dife_engine
+    from app.domains.qr.persistence import get_qr_engine
 
     probes = {
         "pagos": (lambda: payments_engine, "SELECT 1"),
         "dife": (get_dife_engine, "SELECT 1"),
         "dice": (get_dice_engine, "SELECT 1 FROM DUAL"),
+        "qr": (get_qr_engine, "SELECT 1"),
     }
 
     def probe(factory, statement: str) -> None:

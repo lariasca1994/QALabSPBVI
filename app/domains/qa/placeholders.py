@@ -11,6 +11,8 @@ Se resuelven al ejecutar un CP, antes de enviar la solicitud:
 - ``{{op:NOMBRE:new}}``: genera un identificador de operación nuevo y lo guarda en la épica.
 - ``{{op:NOMBRE}}``: reutiliza el último identificador generado con ese nombre (reenvíos
   idempotentes y consultas de estado).
+- ``{{qr:static}}``, ``{{qr:charge}}`` y ``{{qr:charge-id}}``: contenido del último QR
+  estático o dinámico generado por un CP de la épica, y el identificador de ese cobro.
 
 Dentro de una misma ejecución, el mismo marcador siempre resuelve al mismo valor, así que
 puede aparecer en el cuerpo, la ruta y la respuesta esperada.
@@ -29,6 +31,8 @@ from app.domains.keys.key_types import KEY_TYPE_CODES, normalize_key_value
 
 KEY_PLACEHOLDER = re.compile(r"\{\{key:(?:(new):)?([a-z_]+)(?::([a-z0-9-]+))?\}\}")
 OP_PLACEHOLDER = re.compile(r"\{\{op:([a-z0-9-]{1,40})(:new)?\}\}")
+QR_PLACEHOLDER = re.compile(r"\{\{qr:(static|charge|charge-id)\}\}")
+QR_PATHS = {"/qr/static": "static", "/qr/charges": "charge"}
 KEYS_PATH = re.compile(r"^/difes/([a-z0-9-]+)/keys(?:/(suspend|reactivate|owner))?$")
 USABLE_KEY_STATUSES = ("confirmed", "active")
 
@@ -80,9 +84,13 @@ def validate_placeholders(*values: Any) -> None:
                 raise PlaceholderError(
                     f"{match.group(0)}: una llave nueva no lleva SPBVI; va en la ruta del registro."
                 )
-        if "{{key:" in KEY_PLACEHOLDER.sub("", text) or "{{op:" in OP_PLACEHOLDER.sub("", text):
+        if (
+            "{{key:" in KEY_PLACEHOLDER.sub("", text)
+            or "{{op:" in OP_PLACEHOLDER.sub("", text)
+            or "{{qr:" in QR_PLACEHOLDER.sub("", text)
+        ):
             raise PlaceholderError(
-                "Hay un marcador {{key:…}} u {{op:…}} mal formado en el CP."
+                "Hay un marcador {{key:…}}, {{op:…}} o {{qr:…}} mal formado en el CP."
             )
 
 
@@ -175,6 +183,19 @@ class Resolver:
             )
         return document["value"]
 
+    def _qr(self, match: re.Match[str]) -> str:
+        name = match.group(1)
+        kind = "static" if name == "static" else "charge"
+        document = self.database.qa_context.find_one(
+            {"epic_key": self.epic_key, "kind": "qr", "name": kind}
+        )
+        if document is None:
+            raise PlaceholderError(
+                f"No hay un QR {'estático' if kind == 'static' else 'dinámico'} generado todavía. "
+                "Ejecuta primero el CP que lo crea."
+            )
+        return document["charge_id"] if name == "charge-id" else document["payload"]
+
     def _replace(self, pattern: re.Pattern[str], handler, text: str) -> str:
         def substitute(match: re.Match[str]) -> str:
             token = match.group(0)
@@ -191,6 +212,7 @@ class Resolver:
             return [self.resolve(child) for child in value]
         if isinstance(value, str):
             text = self._replace(OP_PLACEHOLDER, self._operation, value)
+            text = self._replace(QR_PLACEHOLDER, self._qr, text)
             return self._replace(KEY_PLACEHOLDER, self._key, text)
         return value
 
@@ -261,3 +283,36 @@ def record_key_result(
             identity,
             {"$set": {"status": response_body["status"], "updated_at_epoch": now}},
         )
+
+
+def record_qr_result(
+    database: Database,
+    *,
+    epic_key: str,
+    method: str,
+    path: str,
+    status_code: int | None,
+    response_body: Any,
+) -> None:
+    """Guarda el último QR generado por un CP para que otro CP lo pague ({{qr:…}})."""
+    kind = QR_PATHS.get(path)
+    if (
+        method != "POST"
+        or kind is None
+        or status_code is None
+        or not 200 <= status_code < 300
+        or not isinstance(response_body, dict)
+        or not isinstance(response_body.get("payload"), str)
+    ):
+        return
+    database.qa_context.update_one(
+        {"epic_key": epic_key, "kind": "qr", "name": kind},
+        {
+            "$set": {
+                "payload": response_body["payload"],
+                "charge_id": response_body.get("charge_id"),
+                "updated_at_epoch": int(time.time()),
+            }
+        },
+        upsert=True,
+    )

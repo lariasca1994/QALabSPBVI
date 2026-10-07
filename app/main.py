@@ -13,6 +13,7 @@ from app.api.qa_routes import router as qa_router
 from app.api.lifecycle_routes import router as lifecycle_router
 from app.api.mock_routes import router as mock_router
 from app.api.audit_routes import router as audit_router
+from app.api.qr_routes import router as qr_router
 from app.domains.audit import logs as audit_logs
 from app.domains.audit.middleware import AuditMiddleware
 from app.api.routes import router
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
     application.include_router(lifecycle_router)
     application.include_router(mock_router)
     application.include_router(audit_router)
+    application.include_router(qr_router)
 
     application.add_middleware(AuditMiddleware)
     application.openapi = lambda: _openapi_with_business_errors(application)

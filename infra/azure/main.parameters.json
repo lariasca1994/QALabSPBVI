@@ -25,6 +25,9 @@
     },
     "enableRequestLogs": {
       "value": true
+    },
+    "enableQrDatabase": {
+      "value": true
     }
   }
 }

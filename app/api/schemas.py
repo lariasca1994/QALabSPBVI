@@ -525,3 +525,85 @@ class SignupRequest(BaseModel):
         if not value:
             raise ValueError("El nombre no puede quedar vacio.")
         return value
+
+
+class QrReceiverFields(BaseModel):
+    spbvi_id: str = Field(min_length=1, max_length=100)
+    key_type: str = Field(min_length=1, max_length=32)
+    key_value: str = Field(min_length=1, max_length=255)
+    merchant_name: str = Field(min_length=1, max_length=60)
+    merchant_city: str = Field(default="Bogota", min_length=1, max_length=40)
+
+
+class QrStaticRequest(QrReceiverFields):
+    # Con monto es un QR estático híbrido: quien paga no puede cambiarlo.
+    amount_cents: StrictInt | None = Field(default=None, gt=0)
+
+
+class QrChargeRequest(QrReceiverFields):
+    amount_cents: StrictInt = Field(gt=0)
+    reference: str | None = Field(default=None, max_length=25)
+    expires_in_seconds: StrictInt = Field(default=600, ge=60, le=3600)
+
+
+class QrCodeResponse(BaseModel):
+    payload: str
+    qr_type: Literal["static", "static_hybrid"]
+    key_type: str
+    key_value: str
+    amount_cents: int | None
+    merchant_name: str
+    merchant_city: str
+
+
+class QrChargeResponse(BaseModel):
+    charge_id: str
+    payload: str
+    status: Literal["pending", "reserved", "paid", "expired", "cancelled"]
+    spbvi_id: str
+    key_type: str
+    key_value: str
+    amount_cents: int
+    reference: str | None
+    merchant_name: str
+    merchant_city: str
+    created_at: str
+    expires_at: str
+    seconds_left: int
+    operation_id: str | None
+    payer_account_id: str | None
+
+
+class QrDecodeRequest(BaseModel):
+    payload: str = Field(min_length=12, max_length=512)
+
+
+class QrDecodeResponse(BaseModel):
+    qr_type: Literal["static", "static_hybrid", "dynamic"]
+    key_type: str
+    key_value: str
+    merchant_name: str
+    merchant_city: str
+    amount_cents: int | None
+    amount_editable: bool
+    reference: str | None
+    charge_id: str | None
+    charge_status: str | None
+    expires_at: str | None
+
+
+class QrPayRequest(BaseModel):
+    payload: str = Field(min_length=12, max_length=512)
+    source_account_id: str = Field(min_length=1, max_length=100)
+    # Obligatorio en el QR estático sin monto; si se envía en los demás, debe coincidir.
+    amount_cents: StrictInt | None = Field(default=None, gt=0)
+    # Obligatorio en el QR estático (idempotencia); el dinámico usa "qr-{charge_id}".
+    operation_id: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class QrPaymentResponse(BaseModel):
+    flow: Literal["intra", "inter"]
+    qr_type: Literal["static", "static_hybrid", "dynamic"]
+    charge_id: str | None
+    charge_status: str | None
+    payment: dict[str, Any]

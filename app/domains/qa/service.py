@@ -26,6 +26,7 @@ from app.domains.qa.placeholders import (
     Resolver,
     list_epic_keys,
     record_key_result,
+    record_qr_result,
     validate_placeholders,
 )
 
@@ -1305,6 +1306,14 @@ def execute_test_case(
         response_body=response_body_unredacted,
         case_key=case_key,
         execution_key=execution_key,
+    )
+    record_qr_result(
+        database,
+        epic_key=epic["key"],
+        method=request_spec["method"],
+        path=request_spec["path"],
+        status_code=result_record.get("status_code"),
+        response_body=response_body_unredacted,
     )
     notification = _new_notification(
         event_type="test_case_executed",

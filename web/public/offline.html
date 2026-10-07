@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#102b3f" />
+    <title>Sin conexión · QALabSPBVI</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+      body { display: grid; min-height: 100vh; margin: 0; padding: 24px; box-sizing: border-box; place-items: center; background: #102b3f; color: #f0f5f7; text-align: center; }
+      main { max-width: 360px; }
+      img { width: 72px; height: 72px; }
+      h1 { margin: 16px 0 8px; font-size: 20px; }
+      p { margin: 0 0 20px; color: #9aadb8; line-height: 1.5; }
+      button { padding: 10px 18px; border: 0; border-radius: 8px; background: #d6b36e; color: #102b3f; font: inherit; font-weight: 700; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192.png" alt="" />
+      <h1>Sin conexión</h1>
+      <p>QALabSPBVI necesita internet para consultar saldos, llaves y pagos. Revisa tu conexión e inténtalo de nuevo.</p>
+      <button onclick="location.reload()" type="button">Reintentar</button>
+    </main>
+  </body>
+</html>

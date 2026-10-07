@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     # Registro de solicitudes (auditoría) en una base PostgreSQL propia, en Neon en la nube.
     # Vacío: no se registra nada y GET /audit/logs responde 503.
     logs_database_url: str = ""
+    # Cobros QR en una base MySQL propia (TiDB Cloud en la nube). Local: SQLite temporal.
+    qr_database_url: str = "sqlite:///./qalab_qr.db"
 
     model_config = SettingsConfigDict(
         env_file=".env",

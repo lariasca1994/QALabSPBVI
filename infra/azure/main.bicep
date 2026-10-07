@@ -54,6 +54,9 @@ param isoGatewayUrl string = ''
 @description('Registro de solicitudes en una base PostgreSQL propia (Neon); requiere el secreto logs-database-url.')
 param enableRequestLogs bool = false
 
+@description('Cobros con QR en una base MySQL propia (TiDB Cloud); requiere el secreto qr-database-url.')
+param enableQrDatabase bool = false
+
 var resourceToken = '${uniqueString(subscription().id, resourceGroup().id, location, environmentName)}1'
 var logAnalyticsName = 'azla${resourceToken}'
 var identityName = 'azid${resourceToken}'
@@ -94,6 +97,9 @@ var appSecretMap = concat(
   ] : [],
   enableRequestLogs ? [
     { name: 'logs-database-url', env: 'LOGS_DATABASE_URL' }
+  ] : [],
+  enableQrDatabase ? [
+    { name: 'qr-database-url', env: 'QR_DATABASE_URL' }
   ] : []
 )
 var appSecrets = [

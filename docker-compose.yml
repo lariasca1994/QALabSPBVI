@@ -6,8 +6,11 @@ services:
     environment:
       APP_ENV: local
       DATABASE_URL: postgresql+psycopg://qalab:qalab_local_only@db:5432/qalab
+      QR_DATABASE_URL: mysql+pymysql://qalab_qr:qalab_local_only@mysql:3306/qalab_qr
     depends_on:
       db:
+        condition: service_healthy
+      mysql:
         condition: service_healthy
 
   db:
@@ -26,5 +29,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # Cobros QR: MySQL 8 local (en la nube, TiDB Cloud).
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: qalab_qr
+      MYSQL_USER: qalab_qr
+      MYSQL_PASSWORD: qalab_local_only
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uqalab_qr -pqalab_local_only"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres_data:
+  mysql_data:

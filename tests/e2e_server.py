@@ -18,6 +18,7 @@ os.environ.update(
         "DIFE_DATABASE_URL": f"sqlite:///{(data_dir / 'dife.sqlite').as_posix()}",
         "DICE_DATABASE_URL": f"sqlite:///{(data_dir / 'dice.sqlite').as_posix()}",
         "LOGS_DATABASE_URL": f"sqlite:///{(data_dir / 'logs.sqlite').as_posix()}",
+        "QR_DATABASE_URL": f"sqlite:///{(data_dir / 'qr.sqlite').as_posix()}",
         "MONGODB_URL": "mongodb://127.0.0.1:1",
         "MONGODB_DATABASE": "qalabspbvi_e2e_isolated",
         "QA_TARGET_BASE_URL": "http://127.0.0.1:8010",
@@ -75,7 +76,7 @@ async def e2e_lifespan(application: FastAPI):
         with SessionLocal() as db:
             # "bugs" es un integrante con rol usuario: reporta bugs, registra fixes y hace retest.
             # "reset" y "temporal" son usuarios para los recorridos de contraseña y activación.
-            for account_name in ("auth", "keys", "intra", "inter", "bugs", "reset", "temporal"):
+            for account_name in ("auth", "keys", "intra", "inter", "qr", "pwa", "bugs", "reset", "temporal"):
                 email = f"qa-e2e-{account_name}@example.com"
                 password = secrets.token_urlsafe(24)
                 role = UserRole.USUARIO if account_name in {"bugs", "reset", "temporal"} else UserRole.ADMIN
