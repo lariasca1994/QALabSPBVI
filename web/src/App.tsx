@@ -37,6 +37,7 @@ import { QualityWorkspace } from "./QualityWorkspace";
 import { BugsWorkspace, type BugDraft } from "./BugsWorkspace";
 import { PaymentOperations } from "./PaymentOperations";
 import { AuditPage } from "./AuditPage";
+import { PaymentParties, SpbviField, useAccounts, useSpbvis } from "./LabDirectory";
 import { ChangePasswordModal, PasswordReset, SignupForm } from "./PasswordForms";
 import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
 
@@ -928,6 +929,7 @@ function KeysPage({ role }: { role: User["role"] }) {
   const [notice, setNotice] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
   const canAdminister = role === "admin" || role === "administrador";
+  const { items: spbvis, reload: reloadSpbvis } = useSpbvis();
 
   async function registerKey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -955,6 +957,7 @@ function KeysPage({ role }: { role: User["role"] }) {
       });
       setNotice("La llave quedó registrada y confirmada por el flujo DIFE/DICE.");
       formElement.reset();
+      reloadSpbvis();
     } catch (requestError) {
       setError(friendlyError(requestError));
     } finally {
@@ -1047,7 +1050,7 @@ function KeysPage({ role }: { role: User["role"] }) {
       />
       <div className="role-policy">
         <KeyRound size={17} />
-        <span><strong>La autorización la valida FastAPI.</strong> Las acciones personales requieren que el correo de la sesión sea el titular. No hay todavía un endpoint para listar llaves: para consultar, ingresa el SPBVI y la llave; la consulta resuelve solo llaves activas.</span>
+        <span><strong>La autorización la valida FastAPI.</strong> Las acciones personales requieren que el correo de la sesión sea el titular. Elige el SPBVI de la lista o crea uno nuevo al registrar una llave; la consulta resuelve solo llaves activas.</span>
       </div>
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
       {error && <div className="alert alert--error" role="alert">{error}</div>}
@@ -1056,8 +1059,7 @@ function KeysPage({ role }: { role: User["role"] }) {
           <div className="card-heading"><div><h2>Registrar llave</h2><p>Alta coordinada DIFE → DICE.</p></div><Plus size={19} className="muted-icon" /></div>
           {canAdminister ? (
             <form className="form-stack operation-form" onSubmit={(event) => void registerKey(event)}>
-              <label className="field-label" htmlFor="register-spbvi">SPBVI de origen</label>
-              <input className="text-input" id="register-spbvi" name="spbvi_id" placeholder="spbvi-a" required maxLength={100} />
+              <SpbviField idPrefix="register" label="SPBVI de origen" spbvis={spbvis} allowNew />
               <KeyTypeFields idPrefix="register" typeName="key_type" valueName="key_value" typeLabel="Tipo de llave" valueLabel="Valor de la llave" />
               <label className="field-label" htmlFor="register-product">Producto de depósito</label>
               <input className="text-input" id="register-product" name="deposit_product_id" placeholder="cuenta-123" required maxLength={100} />
@@ -1083,8 +1085,7 @@ function KeysPage({ role }: { role: User["role"] }) {
               {canAdminister && <option value="owner">Asignar o cambiar titular</option>}
               {canAdminister && <option value="delete">Eliminar llave</option>}
             </select>
-            <label className="field-label" htmlFor="manage-spbvi">SPBVI</label>
-            <input className="text-input" id="manage-spbvi" name="spbvi_id" placeholder="spbvi-a" required maxLength={100} />
+            <SpbviField idPrefix="manage" label="SPBVI" spbvis={spbvis} allowNew={false} />
             <KeyTypeFields idPrefix="manage" typeName="key_type" valueName="key_value" typeLabel="Tipo de llave" valueLabel="Valor de la llave" />
             {action !== "lookup" && <>
               <label className="field-label" htmlFor="manage-reason">Motivo</label>
@@ -1114,6 +1115,9 @@ function PaymentsPage({ role }: { role: User["role"] }) {
   const [notice, setNotice] = useState("");
   const [result, setResult] = useState<ActionResult | null>(null);
   const canCreateAccount = role === "admin" || role === "administrador";
+  const keyTypes = useKeyTypes();
+  const { items: spbvis, reload: reloadSpbvis } = useSpbvis();
+  const { items: accounts, reload: reloadAccounts } = useAccounts();
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1138,6 +1142,8 @@ function PaymentsPage({ role }: { role: User["role"] }) {
       setResult({ method: "POST", path: "/accounts", status: response.status, data: response.data });
       setNotice("La cuenta de laboratorio quedó creada.");
       formElement.reset();
+      reloadSpbvis();
+      reloadAccounts();
     } catch (requestError) {
       setError(friendlyError(requestError));
     } finally {
@@ -1175,6 +1181,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
       setNotice(payment.replayed
         ? "Orden idempotente reconocida: se devolvió el pago existente, sin duplicar el abono."
         : "El pago se procesó correctamente.");
+      reloadAccounts();
     } catch (requestError) {
       setError(friendlyError(requestError));
     } finally {
@@ -1199,8 +1206,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
             <form className="form-stack operation-form" onSubmit={(event) => void createAccount(event)}>
               <label className="field-label" htmlFor="account-id">Identificador de cuenta</label>
               <input className="text-input" id="account-id" name="account_id" required maxLength={100} />
-              <label className="field-label" htmlFor="account-spbvi">SPBVI</label>
-              <input className="text-input" id="account-spbvi" name="spbvi_id" placeholder="spbvi-a" required maxLength={100} />
+              <SpbviField idPrefix="account" label="SPBVI" spbvis={spbvis} allowNew />
               <label className="field-label" htmlFor="account-balance">Saldo inicial (centavos)</label>
               <input className="text-input" id="account-balance" name="balance_cents" type="number" min="0" step="1" inputMode="numeric" defaultValue="0" required />
               <p className="field-hint">Ingresa un entero. Ejemplo: 125000 equivale a COP 1.250,00.</p>
@@ -1221,9 +1227,7 @@ function PaymentsPage({ role }: { role: User["role"] }) {
               <input className="text-input" id="payment-operation-id" name="operation_id" value={operationId} onChange={(event) => setOperationId(event.target.value)} required maxLength={100} />
               <button className="icon-button" type="button" aria-label="Generar otro identificador" title="Generar otro identificador" onClick={() => setOperationId(crypto.randomUUID())}><RefreshCw size={16} /></button>
             </div>
-            <label className="field-label" htmlFor="payment-source">Cuenta de origen</label>
-            <input className="text-input" id="payment-source" name="source_account_id" required maxLength={100} />
-            <KeyTypeFields idPrefix="payment" typeName="destination_key_type" valueName="destination_key_value" typeLabel="Tipo de llave destino" valueLabel="Llave destino" />
+            <PaymentParties paymentType={paymentType} accounts={accounts} spbvis={spbvis} keyTypes={keyTypes} />
             <label className="field-label" htmlFor="payment-amount">Monto en centavos</label>
             <input className="text-input" id="payment-amount" name="amount_cents" type="number" min="1" step="1" inputMode="numeric" required />
             <button className="button button--primary" disabled={busy} type="submit"><ArrowUpRight size={15} />{busy ? "Procesando…" : "Ejecutar pago"}</button>

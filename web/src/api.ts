@@ -246,6 +246,12 @@ export interface Account {
   balance_cents: number;
 }
 
+export interface SpbviSummary {
+  spbvi_id: string;
+  accounts: number;
+  confirmed_keys: number;
+}
+
 export interface Payment {
   id: number;
   operation_id: string;
@@ -445,6 +451,16 @@ export const api = {
       headers: { "X-CSRF-Token": token },
       body: JSON.stringify(payload),
     });
+  },
+  spbvis(): Promise<SpbviSummary[]> {
+    return request<SpbviSummary[]>("/spbvis");
+  },
+  accounts(): Promise<Account[]> {
+    return request<Account[]>("/accounts");
+  },
+  confirmedKeys(spbviId: string, keyType: string): Promise<PaymentKey[]> {
+    const query = new URLSearchParams({ key_type: keyType });
+    return request<PaymentKey[]>(`/difes/${encodeURIComponent(spbviId)}/keys?${query.toString()}`);
   },
   async createAccount(payload: {
     account_id: string;

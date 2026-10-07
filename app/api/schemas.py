@@ -216,6 +216,14 @@ class AccountResponse(BaseModel):
     balance_cents: int
 
 
+class SpbviSummary(BaseModel):
+    """SPBVI conocido: aparece al crear una cuenta o registrar una llave con su código."""
+
+    spbvi_id: str
+    accounts: int
+    confirmed_keys: int
+
+
 class PaymentCreateRequest(BaseModel):
     operation_id: str = Field(min_length=1, max_length=100)
     source_account_id: str = Field(min_length=1, max_length=100)

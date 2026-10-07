@@ -293,6 +293,7 @@ Los tipos y formatos son **supuestos** del laboratorio:
 | Acción | Método y ruta |
 |---|---|
 | Crear | `POST /difes/{spbvi_id}/keys` |
+| Listar confirmadas | `GET /difes/{spbvi_id}/keys?key_type=…` (sin datos del titular) |
 | Resolver | `GET /difes/{spbvi_id}/keys/resolve?key_type=…&key_value=…` |
 | Asignar titular | `PATCH /difes/{spbvi_id}/keys/owner` |
 | Suspender / reactivar | `POST /difes/{spbvi_id}/keys/suspend` · `POST /difes/{spbvi_id}/keys/reactivate` |
@@ -300,8 +301,12 @@ Los tipos y formatos son **supuestos** del laboratorio:
 
 ### Cuentas y pagos
 
+Un SPBVI existe desde que una cuenta o una llave usa su código. En la interfaz, la cuenta origen, el SPBVI destino y la llave destino se eligen de listas: en intra el destino es el mismo SPBVI de la cuenta origen y en inter se elige entre los demás. La llave también se puede escribir a mano para probar rechazos. Al crear una cuenta o registrar una llave se elige un SPBVI existente o se crea uno con "Nuevo SPBVI…".
+
 | Método y ruta | Descripción |
 |---|---|
+| `GET /spbvis` | SPBVI existentes con su número de cuentas y llaves confirmadas |
+| `GET /accounts` | Cuentas con su SPBVI y saldo (filtro opcional `spbvi_id`) |
 | `POST /accounts` | Crea una cuenta simulada con saldo inicial |
 | `POST /payments` | Pago intra-SPBVI |
 | `POST /payments/inter-spbvi` | Pago inter-SPBVI con pacs.008 / pacs.002 de laboratorio |

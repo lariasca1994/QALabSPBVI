@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-import { e2eAdminEmail, expectNoHorizontalOverflow, signInAsAdmin } from "./support";
+import { chooseSpbvi, e2eAdminEmail, expectNoHorizontalOverflow, signInAsAdmin } from "./support";
 
 test("administra el ciclo de vida de una llave sin desbordamiento en móvil", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
@@ -12,7 +12,7 @@ test("administra el ciclo de vida de una llave sin desbordamiento en móvil", as
   const spbviId = `e2e-spbvi-${suffix}`;
   const ownerEmail = e2eAdminEmail("keys");
 
-  await page.getByLabel("SPBVI de origen").fill(spbviId);
+  await chooseSpbvi(page, "register", spbviId);
   await expect(page.locator("#register-key-type option")).toHaveText([
     "Documento de identidad", "Celular", "Correo electrónico", "Llave alfanumérica", "Código de comercio",
   ]);
@@ -26,7 +26,7 @@ test("administra el ciclo de vida de una llave sin desbordamiento en móvil", as
   await expectNoHorizontalOverflow(page);
 
   await page.getByLabel("Operación").selectOption("lookup");
-  await page.getByLabel("SPBVI", { exact: true }).fill(spbviId);
+  await chooseSpbvi(page, "manage", spbviId);
   await page.getByLabel("Valor de la llave").last().fill(keyValue);
   await page.getByRole("button", { name: "Consultar llave" }).click();
   await expect(page.locator(".execution-card")).toContainText("200");

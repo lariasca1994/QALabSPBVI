@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-import { e2eAdminEmail, expectNoHorizontalOverflow, signInAsAdmin } from "./support";
+import { chooseSpbvi, e2eAdminEmail, expectNoHorizontalOverflow, signInAsAdmin } from "./support";
 
 async function createAccount(
   page: Page,
@@ -9,7 +9,7 @@ async function createAccount(
   balanceCents: number,
 ): Promise<void> {
   await page.getByLabel("Identificador de cuenta").fill(accountId);
-  await page.getByLabel("SPBVI", { exact: true }).fill(spbviId);
+  await chooseSpbvi(page, "account", spbviId);
   await page.getByLabel("Saldo inicial (centavos)").fill(String(balanceCents));
   await page.getByRole("button", { name: "Crear cuenta" }).click();
   await expect(page.getByRole("status")).toContainText("cuenta de laboratorio quedó creada");
@@ -23,7 +23,7 @@ async function registerKey(
   ownerAccount: string,
 ): Promise<void> {
   await page.getByRole("button", { name: "Llaves" }).click();
-  await page.getByLabel("SPBVI de origen").fill(spbviId);
+  await chooseSpbvi(page, "register", spbviId);
   await page.locator("#register-key-type").selectOption("email");
   await page.getByLabel("Valor de la llave").first().fill(keyValue);
   await page.getByLabel("Producto de depósito").fill(destinationAccount);
@@ -59,9 +59,12 @@ test("crea un pago intra-SPBVI idempotente y verifica su respuesta en móvil", a
   const operationId = `e2e-operation-${suffix}`;
   await page.getByLabel("Tipo de flujo").selectOption("intra");
   await page.getByLabel("Identificador idempotente").fill(operationId);
-  await page.getByLabel("Cuenta de origen").fill(sourceAccount);
+  await page.getByLabel("Cuenta de origen").selectOption(sourceAccount);
+  // Intra: el SPBVI destino queda fijo en el de la cuenta origen.
+  await expect(page.locator("#payment-destination-spbvi")).toBeDisabled();
+  await expect(page.locator("#payment-destination-spbvi")).toHaveValue(spbviId);
   await page.getByLabel("Tipo de llave destino").selectOption("email");
-  await page.locator("#payment-key-value").fill(keyValue);
+  await page.locator("#payment-key-value").selectOption(keyValue);
   await page.getByLabel("Monto en centavos").fill("1250");
   await page.getByRole("button", { name: "Ejecutar pago" }).click();
   await expect(page.getByRole("status")).toContainText("procesó correctamente");
@@ -82,6 +85,13 @@ test("crea un pago intra-SPBVI idempotente y verifica su respuesta en móvil", a
     replayed: true,
   });
   await expectNoHorizontalOverflow(page);
+
+  // Llave escrita a mano (prueba negativa): una llave inexistente se rechaza.
+  await page.getByLabel("Identificador idempotente").fill(`${operationId}-manual`);
+  await page.locator("#payment-key-value").selectOption("__manual__");
+  await page.getByLabel("Llave destino escrita").fill(`no-existe-${suffix}@example.test`);
+  await page.getByRole("button", { name: "Ejecutar pago" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
 
   // Operaciones posteriores: pain.002, devolución parcial, cancelación aceptada y camt.054.
   const operation = page.locator("#operation-action");
@@ -156,9 +166,13 @@ test("liquida un pago inter-SPBVI con MOL local y presenta los mensajes ISO", as
   const operationId = `e2e-inter-operation-${suffix}`;
   await page.getByLabel("Tipo de flujo").selectOption("inter");
   await page.getByLabel("Identificador idempotente").fill(operationId);
-  await page.getByLabel("Cuenta de origen").fill(sourceAccount);
+  await page.getByLabel("Cuenta de origen").selectOption(sourceAccount);
+  // Inter: el SPBVI de la cuenta origen no aparece como destino.
+  const destination = page.locator("#payment-destination-spbvi");
+  await expect(destination.locator(`option[value="${sourceSpbvi}"]`)).toHaveCount(0);
+  await destination.selectOption(destinationSpbvi);
   await page.getByLabel("Tipo de llave destino").selectOption("email");
-  await page.locator("#payment-key-value").fill(keyValue);
+  await page.locator("#payment-key-value").selectOption(keyValue);
   await page.getByLabel("Monto en centavos").fill("875");
   await page.getByRole("button", { name: "Ejecutar pago" }).click();
 

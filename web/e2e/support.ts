@@ -55,3 +55,15 @@ export function e2eAdminEmail(accountName: string): string {
 export function clearMfaCode(): void {
   rmSync(e2eFile("mfa-code.txt"), { force: true });
 }
+
+/** Elige un SPBVI de la lista del formulario o, si no existe, lo crea con "Nuevo SPBVI…". */
+export async function chooseSpbvi(page: Page, idPrefix: string, spbviId: string): Promise<void> {
+  const field = page.locator(`select#${idPrefix}-spbvi`);
+  await expect(field).toBeVisible();
+  if (await field.locator("option").filter({ hasText: new RegExp(`^${spbviId} · `) }).count()) {
+    await field.selectOption(spbviId);
+    return;
+  }
+  await field.selectOption("__nuevo__");
+  await page.locator(`#${idPrefix}-spbvi-new`).fill(spbviId);
+}

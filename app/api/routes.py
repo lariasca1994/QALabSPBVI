@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,7 @@ from app.api.schemas import (
     PaymentRejectionResponse,
     PaymentResponse,
     PaymentStatusResponse,
+    SpbviSummary,
     StatementEntry,
 )
 from app.core.security import require_roles
@@ -166,6 +167,44 @@ def create_account(
         raise
     db.refresh(account)
     return account
+
+
+ANY_ROLE = (UserRole.ADMIN, UserRole.ADMINISTRADOR, UserRole.USUARIO)
+LIST_LIMIT = 500
+
+
+@router.get("/spbvis", response_model=list[SpbviSummary], tags=["cuentas"])
+def list_spbvis(
+    db: DbSession,
+    dife_db: DifeSession,
+    _: Annotated[User, Depends(require_roles(*ANY_ROLE))],
+) -> list[SpbviSummary]:
+    """SPBVI con cuentas o llaves confirmadas, para elegirlos en los formularios."""
+    accounts = dict(db.execute(select(Account.spbvi_id, func.count()).group_by(Account.spbvi_id)).all())
+    keys = dict(
+        dife_db.execute(
+            select(DifeKey.spbvi_id, func.count())
+            .where(DifeKey.status == KeyStatus.ACTIVE)
+            .group_by(DifeKey.spbvi_id)
+        ).all()
+    )
+    return [
+        SpbviSummary(spbvi_id=spbvi_id, accounts=accounts.get(spbvi_id, 0), confirmed_keys=keys.get(spbvi_id, 0))
+        for spbvi_id in sorted(set(accounts) | set(keys))
+    ]
+
+
+@router.get("/accounts", response_model=list[AccountResponse], tags=["cuentas"])
+def list_accounts(
+    db: DbSession,
+    _: Annotated[User, Depends(require_roles(*ANY_ROLE))],
+    spbvi_id: str | None = None,
+) -> list[Account]:
+    """Cuentas de laboratorio con su SPBVI y saldo, opcionalmente de un solo SPBVI."""
+    statement = select(Account).order_by(Account.spbvi_id, Account.id).limit(LIST_LIMIT)
+    if spbvi_id:
+        statement = statement.where(Account.spbvi_id == spbvi_id)
+    return list(db.scalars(statement))
 
 
 @router.get(
@@ -512,6 +551,28 @@ def delete_registered_key(
 def list_key_types() -> list[dict[str, str]]:
     """Catálogo de tipos de llave Bre-B con ejemplo y formato esperado."""
     return key_type_catalog()
+
+
+@router.get("/difes/{spbvi_id}/keys", response_model=list[PaymentKeyResponse], tags=["llaves"])
+def list_confirmed_keys(
+    spbvi_id: str,
+    dife_db: DifeSession,
+    _: Annotated[User, Depends(require_roles(*ANY_ROLE))],
+    key_type: str | None = None,
+) -> list[PaymentKeyResponse]:
+    """Llaves confirmadas de un SPBVI (las que pueden recibir pagos), sin datos del titular."""
+    statement = (
+        select(DifeKey)
+        .where(DifeKey.spbvi_id == spbvi_id, DifeKey.status == KeyStatus.ACTIVE)
+        .order_by(DifeKey.key_type, DifeKey.key_value)
+        .limit(LIST_LIMIT)
+    )
+    if key_type:
+        try:
+            statement = statement.where(DifeKey.key_type == normalize_key_type(key_type))
+        except InvalidKeyError as error:
+            raise HTTPException(status_code=HTTP_422, detail=str(error)) from error
+    return [_key_response(key) for key in dife_db.scalars(statement)]
 
 
 @router.get(

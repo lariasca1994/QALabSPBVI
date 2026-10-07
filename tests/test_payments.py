@@ -747,3 +747,40 @@ def test_account_statement_reconciles_opening_movements_and_closing_balance(
     assert body["closing_balance_cents"] == 3500
     assert body["reconciled"] is True
     assert missing.status_code == 404
+
+
+def test_lists_spbvis_accounts_and_confirmed_keys_for_the_forms(
+    payment_client: tuple[TestClient, Session, object],
+) -> None:
+    client, _, _ = payment_client
+    seed_payment_scenario(client)
+    assert client.post("/accounts", json={"account_id": "b-1", "spbvi_id": "spbvi-b", "balance_cents": 0}).status_code == 201
+    other = client.post(
+        "/difes/spbvi-a/keys", json={"key_type": "phone", "key_value": "3001234567", "deposit_product_id": "source"}
+    )
+    suspended = client.post(
+        "/difes/spbvi-a/keys", json={"key_type": "alias", "key_value": "@pausada", "deposit_product_id": "source"}
+    )
+    assert other.status_code == suspended.status_code == 201
+    assert client.post(
+        "/difes/spbvi-a/keys/suspend",
+        json={"key_type": "alias", "key_value": "@pausada", "reason": "prueba", "suspension_type": "administrative"},
+    ).status_code == 200
+
+    assert client.get("/spbvis").json() == [
+        {"spbvi_id": "spbvi-a", "accounts": 2, "confirmed_keys": 2},
+        {"spbvi_id": "spbvi-b", "accounts": 1, "confirmed_keys": 0},
+    ]
+    accounts = client.get("/accounts").json()
+    assert [(a["id"], a["spbvi_id"], a["balance_cents"]) for a in accounts] == [
+        ("@recipient", "spbvi-a", 250), ("source", "spbvi-a", 5000), ("b-1", "spbvi-b", 0),
+    ]
+    assert [a["id"] for a in client.get("/accounts", params={"spbvi_id": "spbvi-b"}).json()] == ["b-1"]
+
+    keys = client.get("/difes/spbvi-a/keys").json()
+    assert [(k["key_type"], k["key_value"]) for k in keys] == [("alias", "@recipient"), ("phone", "3001234567")]
+    assert all("owner_email" not in k and k["status"] == "confirmed" for k in keys)
+    only_alias = client.get("/difes/spbvi-a/keys", params={"key_type": "alias"}).json()
+    assert [k["key_value"] for k in only_alias] == ["@recipient"]
+    assert client.get("/difes/spbvi-b/keys").json() == []
+    assert client.get("/difes/spbvi-a/keys", params={"key_type": "fax"}).status_code == 422
