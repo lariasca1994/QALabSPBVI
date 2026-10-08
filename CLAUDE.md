@@ -84,7 +84,7 @@ El pago inter-SPBVI genera y valida `pacs.008.001.08` y `pacs.002.001.10` de lab
 - Logs: proyecto Neon QALabSPBVI-logs (base qalab_logs para lab, qalab_logs_prod para prod). Middleware ASGI puro (app/domains/audit), escritura asíncrona por lotes, X-Request-ID, GET /audit/logs y CSV. /health no se registra.
 - Cola de avisos QA: SQS + DLQ y Lambda `qalabspbvi-notifier` en AWS us-east-1 (infra/aws/notifications.yaml, implementado). La API solo envía a la cola con un usuario IAM limitado; el MFA sigue directo por Brevo.
 - Gateway ISO 20022 (services/iso20022_gateway) en Render (plan gratuito, sin tarjeta): Cloud Run quedó descartado porque exige facturación activa. La API cae al adaptador en proceso si el gateway no responde o está suspendido.
-- Frontend: React + TypeScript + Vite en `web/`, publicado en Vercel (qalabspbvi.vercel.app) con proxy /api a la Container App.
+- Frontend: React + TypeScript + Vite en `web/`, publicado en Vercel con proxy /api a la Container App: producción en qalabspbvi-prod.vercel.app (la URL pública de la demo) y laboratorio en qalabspbvi.vercel.app.
 - Proyectos propios para reutilizar ideas: gestor-casos-qa, qa-evidencia (CodeBuild + Playwright + correo), verificador-api.
 
 ## Fase 1 (empezar aquí): intra-SPBVI de punta a punta, sin nubes
