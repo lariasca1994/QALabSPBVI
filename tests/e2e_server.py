@@ -100,7 +100,7 @@ async def e2e_lifespan(application: FastAPI):
             {
                 "key": "E2E-EPIC",
                 "kind": "epic",
-                "title": "Validacion de interfaz local",
+                "title": "Implementar y validar programa de pruebas ISO 20022 para integracion con Bre-B (validacion de interfaz local)",
                 "description": "Epic temporal para Playwright.",
                 "members": [
                     {

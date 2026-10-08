@@ -61,7 +61,8 @@
 }
 
 * { box-sizing: border-box; }
-body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--page); color: var(--text); }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { min-width: 280px; min-height: 100vh; margin: 0; background: var(--page); color: var(--text); }
 button, input, select { font: inherit; }
 button { color: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid rgba(43, 132, 173, .42); outline-offset: 2px; }
@@ -315,7 +316,7 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
   .visual-art { margin-top: 24px; }
 }
 @media (max-width: 760px) {
-  .auth-layout { grid-template-columns: 1fr; }
+  .auth-layout { grid-template-columns: minmax(0, 1fr); }
   .auth-visual { display: none; }
   .auth-panel { min-height: 100vh; padding: 20px 24px; }
   .auth-panel-label { font-size: 8px; }
@@ -341,14 +342,14 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
   .banner-ring--outer { width: 166px; height: 166px; }.banner-ring--middle { width: 122px; height: 122px; }.banner-ring--inner { width: 74px; height: 74px; }
   .banner-index { right: 14px; bottom: 12px; }
   .metric-grid { gap: 9px; }.metric-card { min-height: 132px; padding: 12px; }.metric-card > strong { font-size: 14px; }
-  .lower-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+  .lower-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 10px; }
   .section-heading { margin-top: 25px; }.updated-label { font-size: 7px; }
   .epic-date { display: none; }.workflow-strip { align-items: flex-start; flex-wrap: wrap; }.workflow-strip .button { margin-left: 45px; }
   .app-footer { gap: 8px; flex-direction: column; padding: 8px 16px 12px; }
   .quality-toolbar { align-items: stretch; flex-direction: column; gap: 10px; }.epic-context { padding-bottom: 0; }
   .case-row { flex-wrap: wrap; }.case-copy { min-width: calc(100% - 58px); }.case-row .priority-tag { margin-left: 42px; }.case-row .button { margin-left: auto; }
   .request-summary { flex-wrap: wrap; }.request-summary code { flex-basis: 65%; }.role-policy { font-size: 8px; }
-  .operation-grid { grid-template-columns: 1fr; gap: 11px; margin-top: 11px; }
+  .operation-grid { grid-template-columns: minmax(0, 1fr); gap: 11px; margin-top: 11px; }
   .operation-card { padding: 15px; }
   .operation-form { margin-top: 14px; }
   .operation-form .button { min-height: 46px; }
@@ -454,7 +455,7 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 .my-tasks { margin-top: 14px; padding: 18px; }
 
 @media (max-width: 760px) {
-  .form-columns { grid-template-columns: 1fr; }
+  .form-columns { grid-template-columns: minmax(0, 1fr); }
   .epic-stats { width: 100%; }
   .story-criteria, .case-list--nested { margin-left: 0; }
   .case-actions { width: 100%; justify-content: flex-start; }
@@ -546,3 +547,7 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 .qr-kind-label { color: var(--blue); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .qr-amount { font-size: 20px; color: var(--text-strong); font-variant-numeric: tabular-nums; }
 .qr-camera-start { margin-top: 12px; }
+
+/* Las tarjetas de una grilla nunca imponen su ancho: con la letra del sistema agrandada
+   (Android/iOS) un título largo se corta con "…" en vez de sacar la tarjeta de la pantalla. */
+.metric-grid > *, .lower-grid > *, .operation-grid > *, .form-columns > *, .surface-card { min-width: 0; }

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signInAsAdmin } from "./support";
+import { expectNoHorizontalOverflow, signInAsAdmin } from "./support";
 
 test("la app es instalable (manifiesto, íconos y service worker) y abre sin conexión", async ({ page, context }) => {
   await page.setViewportSize({ width: 1280, height: 800 }); // escritorio (Windows, macOS, Linux)
@@ -38,4 +38,15 @@ test("la app es instalable (manifiesto, íconos y service worker) y abre sin con
   expect(offline?.ok()).toBe(true);
   await expect(page.locator("#root, main")).toHaveCount(1);
   await context.setOffline(false);
+});
+
+test("el resumen cabe en un celular con la letra del sistema agrandada", async ({ page }) => {
+  // 280 px: lo que queda útil en un celular de 390 px con la letra al ~140 % (Android/iOS).
+  await page.setViewportSize({ width: 280, height: 700 });
+  await signInAsAdmin(page, "pwa");
+  const title = page.locator(".epic-row-copy strong").first();
+  await expect(title).toContainText("Implementar y validar programa");
+  // El título largo se corta con "…" dentro de su tarjeta en vez de ensancharla.
+  expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  await expectNoHorizontalOverflow(page);
 });
