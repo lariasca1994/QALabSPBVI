@@ -1,0 +1,2478 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "Programa de pruebas del directorio de llaves DIFE/DICE",
+  "epic": {
+    "ref": "EPIC-002",
+    "title": "Validar el directorio de llaves DIFE/DICE",
+    "description": "Objetivo: asegurar el registro, la validación, la unicidad global y el ciclo de vida completo de las llaves Bre-B entre el DIFE de cada SPBVI y el DICE. Alcance: catálogo de tipos, registro, forma canónica, unicidad, resolución, titular, suspensión, reactivación, eliminación y coordinación recuperable. Fuera de alcance: pagos (EPIC-003) y mensajería ISO 20022 (EPIC-001). Fecha objetivo: por definir."
+  },
+  "stories": [
+    {
+      "ref": "HU-019",
+      "title": "Preparar productos de depósito para el directorio de llaves",
+      "description": "Como analista de pruebas, quiero productos de depósito en spbvi-a y spbvi-b, para asociarles las llaves que se registran en esta épica.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "El producto llv-a-producto existe en spbvi-a (201 la primera vez, 409 después).",
+        "El producto llv-b-producto existe en spbvi-b (201 la primera vez, 409 después).",
+        "Ambos SPBVI aparecen en GET /spbvis."
+      ],
+      "labels": [
+        "datos-prueba",
+        "llaves"
+      ],
+      "story_points": 2,
+      "test_cases": [
+        {
+          "ref": "TC-101",
+          "title": "Crear producto de depósito llv-a-producto",
+          "description": "Crea la cuenta que recibe las llaves de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde 201 o 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La cuenta llv-a-producto existe.",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "llv-a-producto",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-102",
+          "title": "Crear producto de depósito llv-b-producto",
+          "description": "Crea la cuenta que recibe las llaves de spbvi-b.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde 201 o 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La cuenta llv-b-producto existe.",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "llv-b-producto",
+            "spbvi_id": "spbvi-b",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-103",
+          "title": "Listar los SPBVI conocidos",
+          "description": "Consulta los SPBVI con cuentas o llaves registradas.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /spbvis con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La lista incluye spbvi-a y spbvi-b.",
+          "labels": [
+            "consulta"
+          ],
+          "request_method": "GET",
+          "request_path": "/spbvis",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-020",
+      "title": "Consultar el catálogo de tipos de llave Bre-B",
+      "description": "Como integrante de una entidad, quiero consultar los tipos de llave soportados y sus reglas, para registrar solo llaves válidas.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "GET /keys/types devuelve los 5 tipos: document, phone, email, alias y merchant_code.",
+        "Cada tipo trae etiqueta, ejemplo y regla de formato (SUPUESTO del laboratorio).",
+        "Filtrar el listado de llaves por un tipo no soportado responde 422.",
+        "El listado de llaves confirmadas no expone datos del titular."
+      ],
+      "labels": [
+        "catalogo",
+        "llaves"
+      ],
+      "story_points": 2,
+      "test_cases": [
+        {
+          "ref": "TC-104",
+          "title": "Consultar el catálogo de tipos de llave",
+          "description": "Obtiene los tipos de llave con su regla de formato.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /keys/types con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Se listan los 5 tipos de llave del laboratorio.",
+          "labels": [
+            "catalogo"
+          ],
+          "request_method": "GET",
+          "request_path": "/keys/types",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-105",
+          "title": "Listar llaves confirmadas de tipo celular",
+          "description": "Lista las llaves phone confirmadas en spbvi-a.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Solo aparecen llaves confirmadas, sin owner_email.",
+          "labels": [
+            "consulta"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {
+            "key_type": "phone"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-106",
+          "title": "Rechazar el filtro por un tipo de llave no soportado",
+          "description": "Filtra el listado por key_type=fax.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La API rechaza el tipo con 422.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {
+            "key_type": "fax"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-021",
+      "title": "Registrar llaves válidas de cada tipo en el DIFE y el DICE",
+      "description": "Como administrador de un SPBVI, quiero registrar llaves de los 5 tipos, para que sus clientes puedan recibir pagos Bre-B.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Registrar una llave válida responde 201 con status confirmed.",
+        "El DICE reserva (pending), el DIFE activa y el DICE confirma; nunca queda a medias.",
+        "La llave queda en la lista de llaves de la épica para los CP siguientes.",
+        "Solo admin y administrador pueden registrar llaves."
+      ],
+      "labels": [
+        "registro",
+        "dife",
+        "dice",
+        "llaves"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-107",
+          "title": "Registrar llave celular generada en spbvi-a",
+          "description": "Registra una llave celular nueva generada por el sistema y la asocia a llv-a-producto.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "Producto llv-a-producto creado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave celular confirmada en DIFE y DICE.",
+          "labels": [
+            "registro",
+            "phone"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:new:phone}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "phone",
+            "spbvi_id": "spbvi-a",
+            "deposit_product_id": "llv-a-producto",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-108",
+          "title": "Registrar llave correo electrónico generada en spbvi-a",
+          "description": "Registra una llave correo electrónico nueva generada por el sistema y la asocia a llv-a-producto.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "Producto llv-a-producto creado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave correo electrónico confirmada en DIFE y DICE.",
+          "labels": [
+            "registro",
+            "email"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "email",
+            "key_value": "{{key:new:email}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "email",
+            "spbvi_id": "spbvi-a",
+            "deposit_product_id": "llv-a-producto",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-109",
+          "title": "Registrar llave documento de identidad generada en spbvi-a",
+          "description": "Registra una llave documento de identidad nueva generada por el sistema y la asocia a llv-a-producto.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "Producto llv-a-producto creado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave documento de identidad confirmada en DIFE y DICE.",
+          "labels": [
+            "registro",
+            "document"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:new:document}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "document",
+            "spbvi_id": "spbvi-a",
+            "deposit_product_id": "llv-a-producto",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-110",
+          "title": "Registrar llave alfanumérica (@) generada en spbvi-a",
+          "description": "Registra una llave alfanumérica (@) nueva generada por el sistema y la asocia a llv-a-producto.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "Producto llv-a-producto creado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave alfanumérica (@) confirmada en DIFE y DICE.",
+          "labels": [
+            "registro",
+            "alias"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "spbvi_id": "spbvi-a",
+            "deposit_product_id": "llv-a-producto",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-111",
+          "title": "Registrar llave código de comercio generada en spbvi-a",
+          "description": "Registra una llave código de comercio nueva generada por el sistema y la asocia a llv-a-producto.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "Producto llv-a-producto creado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave código de comercio confirmada en DIFE y DICE.",
+          "labels": [
+            "registro",
+            "merchant_code"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:new:merchant_code}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "merchant_code",
+            "spbvi_id": "spbvi-a",
+            "deposit_product_id": "llv-a-producto",
+            "status": "confirmed"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-022",
+      "title": "Validar el formato y la forma canónica de las llaves",
+      "description": "Como administrador de un SPBVI, quiero que el sistema valide y normalice cada llave según su tipo, para evitar registros inválidos o duplicados disfrazados.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Un valor que no cumple la regla de su tipo se rechaza con 422 y un mensaje claro.",
+        "El correo se guarda en minúsculas (forma canónica).",
+        "Un tipo de llave no soportado se rechaza con 422.",
+        "Un producto de depósito vacío se rechaza con 422."
+      ],
+      "labels": [
+        "validacion",
+        "formato",
+        "llaves"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-112",
+          "title": "Guardar un correo en mayúsculas en forma canónica",
+          "description": "Registra un correo escrito en mayúsculas y verifica que se guarda en minúsculas.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST con el correo en mayúsculas.",
+              "expected": "201 confirmed."
+            },
+            {
+              "action": "Revisar key_value en la respuesta.",
+              "expected": "El correo aparece en minúsculas."
+            }
+          ],
+          "expected_result": "La llave se guarda en minúsculas. SUPUESTO: el marcador {{op}} se puede componer dentro de un texto.",
+          "labels": [
+            "formato",
+            "email"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "email",
+            "key_value": "QA.MAYUS.{{op:correo-mayus:new}}@QALABSPBVI.TEST",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "email",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-113",
+          "title": "Rechazar un celular que no inicia en 3",
+          "description": "Intenta registrar 2001234567 como celular.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: el celular debe tener 10 dígitos e iniciar en 3.",
+          "labels": [
+            "negativo",
+            "phone"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "2001234567",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-114",
+          "title": "Rechazar un documento de 4 dígitos",
+          "description": "Intenta registrar 1234 como documento (mínimo 5).",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: el documento debe tener entre 5 y 15 dígitos.",
+          "labels": [
+            "negativo",
+            "document"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "1234",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-115",
+          "title": "Rechazar una llave alfanumérica sin @",
+          "description": "Intenta registrar qa12345 como alias.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: la llave alfanumérica inicia con @.",
+          "labels": [
+            "negativo",
+            "alias"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "qa12345",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-116",
+          "title": "Rechazar un código de comercio con letras",
+          "description": "Intenta registrar 12AB34 como código de comercio.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: el código de comercio debe tener entre 4 y 10 dígitos.",
+          "labels": [
+            "negativo",
+            "merchant_code"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "12AB34",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-117",
+          "title": "Rechazar un correo sin dominio",
+          "description": "Intenta registrar qa.sin.dominio como correo.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: el correo no tiene un formato válido.",
+          "labels": [
+            "negativo",
+            "email"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "email",
+            "key_value": "qa.sin.dominio",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-118",
+          "title": "Rechazar un tipo de llave no soportado",
+          "description": "Intenta registrar una llave de tipo fax.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: tipo de llave no soportado.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "fax",
+            "key_value": "6012345678",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-119",
+          "title": "Rechazar un producto de depósito vacío",
+          "description": "Envía deposit_product_id con solo espacios.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: el valor no puede quedar vacío; no se registra la llave.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:new:document}}",
+            "deposit_product_id": "   "
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-023",
+      "title": "Garantizar la unicidad global de las llaves en el DICE",
+      "description": "Como operador del DICE, quiero que una llave exista una sola vez en todo el ecosistema, para que cada pago llegue a un único destinatario.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Registrar de nuevo una llave existente en el mismo SPBVI responde 409.",
+        "Registrar en spbvi-b una llave que ya existe en spbvi-a responde 409.",
+        "Una llave escrita en otro formato equivalente (+57) también responde 409.",
+        "Ningún intento duplicado deja la llave a medias en DIFE o DICE."
+      ],
+      "labels": [
+        "unicidad",
+        "dice",
+        "llaves"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "TC-120",
+          "title": "Rechazar el registro repetido en el mismo SPBVI",
+          "description": "Registra otra vez la llave celular más reciente de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "CP de registro de celular ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "409: la llave ya está registrada.",
+          "labels": [
+            "negativo",
+            "unicidad"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:phone:spbvi-a}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-121",
+          "title": "Rechazar en spbvi-b una llave registrada en spbvi-a",
+          "description": "Intenta registrar en spbvi-b la llave celular de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "409: el DICE rechaza el duplicado global.",
+          "labels": [
+            "negativo",
+            "unicidad",
+            "inter-spbvi"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:phone:spbvi-a}}",
+            "deposit_product_id": "llv-b-producto"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-122",
+          "title": "Rechazar el mismo celular escrito con prefijo +57",
+          "description": "Registra +57 seguido del celular existente.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "409: la forma canónica coincide con la llave existente. SUPUESTO: el marcador se puede componer.",
+          "labels": [
+            "negativo",
+            "unicidad",
+            "formato"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "+57{{key:phone:spbvi-a}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-123",
+          "title": "Registrar una llave alfanumérica nueva en spbvi-b",
+          "description": "Registra un alias generado en spbvi-b.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Alias confirmado en spbvi-b.",
+          "labels": [
+            "registro",
+            "alias"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "llv-b-producto"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "spbvi_id": "spbvi-b",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-124",
+          "title": "Rechazar en spbvi-a el alias registrado en spbvi-b",
+          "description": "Intenta registrar en spbvi-a el alias de spbvi-b.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "409: el DICE rechaza el duplicado global.",
+          "labels": [
+            "negativo",
+            "unicidad"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-b}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-024",
+      "title": "Resolver llaves solo en el DIFE de su SPBVI",
+      "description": "Como SPBVI, quiero resolver una llave en mi propio DIFE, para enrutar pagos intra sin consultar el DICE.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Una llave confirmada se resuelve en su SPBVI con 200.",
+        "La misma llave consultada en otro SPBVI responde 404.",
+        "Una llave inexistente responde 404 y un valor inválido responde 422.",
+        "La resolución no devuelve datos del titular."
+      ],
+      "labels": [
+        "resolucion",
+        "dife",
+        "llaves"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-125",
+          "title": "Resolver la llave celular en spbvi-a",
+          "description": "Resuelve la llave celular más reciente de spbvi-a.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "200 con la llave confirmada.",
+          "labels": [
+            "resolucion"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "phone",
+            "key_value": "{{key:phone:spbvi-a}}"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "phone",
+            "spbvi_id": "spbvi-a",
+            "status": "active"
+          }
+        },
+        {
+          "ref": "TC-126",
+          "title": "No resolver en spbvi-b una llave de spbvi-a",
+          "description": "Consulta en el DIFE de spbvi-b la llave celular de spbvi-a.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-b/keys/resolve con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404: cada DIFE resuelve solo sus llaves.",
+          "labels": [
+            "negativo",
+            "resolucion"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-b/keys/resolve",
+          "request_query": {
+            "key_type": "phone",
+            "key_value": "{{key:phone:spbvi-a}}"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-127",
+          "title": "Responder 404 a una llave inexistente",
+          "description": "Consulta el documento 00000 que no está registrado.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404: llave no encontrada.",
+          "labels": [
+            "negativo",
+            "resolucion"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "document",
+            "key_value": "00000"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-128",
+          "title": "Rechazar la resolución con un valor inválido",
+          "description": "Consulta un celular de 5 dígitos.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: valor inválido para el tipo.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "phone",
+            "key_value": "30012"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-129",
+          "title": "Listar llaves confirmadas de spbvi-a",
+          "description": "Lista todas las llaves confirmadas de spbvi-a.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Solo llaves confirmadas y sin owner_email.",
+          "labels": [
+            "consulta"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-025",
+      "title": "Asignar el titular de una llave",
+      "description": "Como administrador de un SPBVI, quiero registrar o asignar el correo del titular de una llave, para que el titular pueda suspenderla o reactivarla por su cuenta.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Una llave se puede registrar con owner_email.",
+        "Una llave sin titular puede recibirlo con PATCH /difes/{spbvi_id}/keys/owner.",
+        "Asignar titular a una llave inexistente responde 404.",
+        "El correo del titular nunca aparece en las respuestas públicas."
+      ],
+      "labels": [
+        "titular",
+        "llaves"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-130",
+          "title": "Registrar un documento con titular",
+          "description": "Registra un documento nuevo con el correo del titular (secreto).",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "Variable QA_SECRET_OWNER_EMAIL configurada."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Documento confirmado con titular.",
+          "labels": [
+            "titular",
+            "document"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:new:document}}",
+            "deposit_product_id": "llv-a-producto",
+            "owner_email": "{{me:email}}"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "document",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-131",
+          "title": "Asignar titular a la llave código de comercio",
+          "description": "Asigna titular a la llave merchant_code registrada sin titular.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar PATCH /difes/spbvi-a/keys/owner con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La llave queda con titular.",
+          "labels": [
+            "titular",
+            "merchant_code"
+          ],
+          "request_method": "PATCH",
+          "request_path": "/difes/spbvi-a/keys/owner",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:merchant_code:spbvi-a}}",
+            "reason": "Asignación de titular para acciones personales",
+            "owner_email": "{{me:email}}"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "merchant_code",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-132",
+          "title": "Rechazar titular para una llave inexistente",
+          "description": "Asigna titular al documento 00000 que no existe.",
+          "priority": "medium",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar PATCH /difes/spbvi-a/keys/owner con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404: llave no encontrada.",
+          "labels": [
+            "negativo",
+            "titular"
+          ],
+          "request_method": "PATCH",
+          "request_path": "/difes/spbvi-a/keys/owner",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "00000",
+            "reason": "Llave inexistente",
+            "owner_email": "{{me:email}}"
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-026",
+      "title": "Suspender y reactivar llaves por decisión administrativa",
+      "description": "Como administrador de un SPBVI, quiero suspender y reactivar una llave, para bloquear pagos a una llave en revisión sin perder su registro.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "La suspensión administrativa responde 200 con status suspended_administrative.",
+        "Una llave suspendida no se resuelve (404) ni recibe pagos.",
+        "Repetir la misma suspensión es idempotente (200).",
+        "Registrar de nuevo una llave suspendida responde 409; no la reactiva.",
+        "La reactivación administrativa devuelve la llave a confirmed."
+      ],
+      "labels": [
+        "ciclo-vida",
+        "suspension",
+        "llaves"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-133",
+          "title": "Suspender administrativamente la llave alfanumérica",
+          "description": "Suspende el alias más reciente de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/suspend con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave suspendida en DIFE y DICE.",
+          "labels": [
+            "suspension"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/suspend",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "reason": "Revisión de fraude",
+            "suspension_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "status": "suspended_administrative"
+          }
+        },
+        {
+          "ref": "TC-134",
+          "title": "No resolver una llave suspendida",
+          "description": "Resuelve el alias suspendido.",
+          "priority": "highest",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404: la llave suspendida no se resuelve.",
+          "labels": [
+            "negativo",
+            "suspension"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "alias",
+            "key_value": "{{key:last:alias:spbvi-a}}"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-135",
+          "title": "Repetir la suspensión administrativa",
+          "description": "Envía otra vez la misma suspensión.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/suspend con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "200 idempotente, sin auditoría duplicada.",
+          "labels": [
+            "idempotencia",
+            "suspension"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/suspend",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:last:alias:spbvi-a}}",
+            "reason": "Revisión de fraude",
+            "suspension_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "suspended_administrative"
+          }
+        },
+        {
+          "ref": "TC-136",
+          "title": "Rechazar el registro de una llave suspendida",
+          "description": "Intenta registrar de nuevo el alias suspendido.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "409: el registro no reactiva la llave.",
+          "labels": [
+            "negativo",
+            "suspension"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:last:alias:spbvi-a}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-137",
+          "title": "Reactivar administrativamente la llave alfanumérica",
+          "description": "Reactiva el alias suspendido.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/reactivate con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave confirmada otra vez.",
+          "labels": [
+            "reactivacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/reactivate",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:last:alias:spbvi-a}}",
+            "reason": "Revisión cerrada",
+            "reactivation_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-138",
+          "title": "Resolver la llave reactivada",
+          "description": "Resuelve el alias reactivado.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "200: la llave vuelve a resolverse.",
+          "labels": [
+            "reactivacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "alias",
+            "key_value": "{{key:last:alias:spbvi-a}}"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "status": "active"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-027",
+      "title": "Suspender y reactivar llaves por solicitud del titular",
+      "description": "Como titular de una llave, quiero suspenderla y reactivarla yo mismo, para controlar cuándo recibo pagos.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "El titular suspende su llave con suspension_type personal (200, suspended_personal).",
+        "El titular reactiva su llave con reactivation_type personal (200, confirmed).",
+        "Un usuario que no es el titular recibe 403.",
+        "Una llave suspendida administrativamente no se puede reactivar por la vía personal (409).",
+        "Un usuario sin rol administrador no puede hacer suspensiones administrativas (403)."
+      ],
+      "labels": [
+        "ciclo-vida",
+        "titular",
+        "seguridad",
+        "llaves"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-139",
+          "title": "Suspender por el titular el documento",
+          "description": "El titular suspende su documento.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con el usuario cuyo correo es QA_SECRET_OWNER_EMAIL.",
+            "CP de registro de documento con titular ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/suspend con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Documento en suspended_personal.",
+          "labels": [
+            "suspension",
+            "titular"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/suspend",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:last:document:spbvi-a}}",
+            "reason": "Pérdida del celular",
+            "suspension_type": "personal"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "document",
+            "status": "suspended_personal"
+          }
+        },
+        {
+          "ref": "TC-140",
+          "title": "Reactivar por el titular el documento",
+          "description": "El titular reactiva su documento.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con el usuario titular."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/reactivate con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Documento confirmado otra vez.",
+          "labels": [
+            "reactivacion",
+            "titular"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/reactivate",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:last:document:spbvi-a}}",
+            "reason": "Recuperó el celular",
+            "reactivation_type": "personal"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "document",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-141",
+          "title": "Rechazar la suspensión personal de quien no es titular",
+          "description": "Otro usuario intenta suspender el documento.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol usuario (una cuenta que no sea la titular de la llave)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/suspend con el JSON del caso.",
+              "expected": "La API responde 403."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "403: solo el titular puede solicitar la acción personal.",
+          "labels": [
+            "negativo",
+            "seguridad"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/suspend",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:last:document:spbvi-a}}",
+            "reason": "Intento no autorizado",
+            "suspension_type": "personal"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-142",
+          "title": "Suspender administrativamente el documento",
+          "description": "Un administrador suspende el documento.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/suspend con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Documento en suspended_administrative.",
+          "labels": [
+            "suspension"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/suspend",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:last:document:spbvi-a}}",
+            "reason": "Orden administrativa",
+            "suspension_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "suspended_administrative"
+          }
+        },
+        {
+          "ref": "TC-143",
+          "title": "Rechazar la reactivación personal tras suspensión administrativa",
+          "description": "El titular intenta reactivar el documento.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con el usuario titular."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/reactivate con el JSON del caso.",
+              "expected": "La API responde 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "409: el estado actual no permite la reactivación personal.",
+          "labels": [
+            "negativo",
+            "reactivacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/reactivate",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:last:document:spbvi-a}}",
+            "reason": "Intento del titular",
+            "reactivation_type": "personal"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-144",
+          "title": "Reactivar administrativamente el documento",
+          "description": "Un administrador reactiva el documento.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/reactivate con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Documento confirmado.",
+          "labels": [
+            "reactivacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/reactivate",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:last:document:spbvi-a}}",
+            "reason": "Orden levantada",
+            "reactivation_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-145",
+          "title": "Rechazar la suspensión administrativa hecha por un usuario",
+          "description": "Un usuario con rol usuario intenta una suspensión administrativa.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/suspend con el JSON del caso.",
+              "expected": "La API responde 403."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "403: la suspensión administrativa requiere rol administrador.",
+          "labels": [
+            "negativo",
+            "seguridad",
+            "roles"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/suspend",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:phone:spbvi-a}}",
+            "reason": "Intento sin permiso",
+            "suspension_type": "administrative"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-028",
+      "title": "Eliminar llaves y liberarlas en ambos directorios",
+      "description": "Como administrador de un SPBVI, quiero eliminar una llave con su motivo, para liberarla en DIFE y DICE y dejar la auditoría.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "DELETE responde 200 con deleted true y libera la llave en DIFE y DICE.",
+        "Una llave eliminada no se resuelve (404) y eliminarla otra vez responde 404.",
+        "Una llave eliminada se puede registrar de nuevo (201).",
+        "Un usuario con rol usuario no puede eliminar llaves (403)."
+      ],
+      "labels": [
+        "ciclo-vida",
+        "eliminacion",
+        "auditoria",
+        "llaves"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-146",
+          "title": "Rechazar la eliminación hecha por un usuario",
+          "description": "Un usuario con rol usuario intenta eliminar el código de comercio.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar DELETE /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 403."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "403: requiere admin o administrador.",
+          "labels": [
+            "negativo",
+            "roles"
+          ],
+          "request_method": "DELETE",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:merchant_code:spbvi-a}}",
+            "reason": "Intento sin permiso"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-147",
+          "title": "Eliminar la llave código de comercio",
+          "description": "Elimina el código de comercio de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar DELETE /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave eliminada en DIFE y DICE con auditoría.",
+          "labels": [
+            "eliminacion"
+          ],
+          "request_method": "DELETE",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:last:merchant_code:spbvi-a}}",
+            "reason": "Cierre del punto de venta"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "deleted": true,
+            "key_type": "merchant_code",
+            "spbvi_id": "spbvi-a"
+          }
+        },
+        {
+          "ref": "TC-148",
+          "title": "No resolver una llave eliminada",
+          "description": "Resuelve el código de comercio eliminado.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "negativo",
+            "eliminacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:last:merchant_code:spbvi-a}}"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-149",
+          "title": "Repetir la eliminación de forma idempotente",
+          "description": "Eliminar otra vez la misma llave responde 200 sin duplicar la auditoría: la coordinación DIFE/DICE se puede reintentar.",
+          "priority": "medium",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar DELETE /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "200 con deleted = true; la auditoría no se duplica.",
+          "labels": [
+            "negativo",
+            "eliminacion"
+          ],
+          "request_method": "DELETE",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:last:merchant_code:spbvi-a}}",
+            "reason": "Cierre del punto de venta"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "deleted": true,
+            "key_type": "merchant_code"
+          }
+        },
+        {
+          "ref": "TC-150",
+          "title": "Registrar de nuevo la llave liberada",
+          "description": "Registra otra vez el código de comercio eliminado.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "201: la llave quedó libre en el DICE.",
+          "labels": [
+            "registro",
+            "eliminacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:last:merchant_code:spbvi-a}}",
+            "deposit_product_id": "llv-a-producto"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "merchant_code",
+            "status": "confirmed"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-029",
+      "title": "Coordinar DIFE y DICE de forma recuperable",
+      "description": "Como operador del laboratorio, quiero que un fallo entre DIFE y DICE se resuelva reintentando la misma solicitud, para no depender de transacciones distribuidas.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Reintentar una operación de ciclo de vida ya aplicada responde 200 sin duplicar la auditoría.",
+        "Una reserva pending en el DICE se reanuda al reintentar el registro.",
+        "Si el DIFE se confirmó y el DICE falló, reintentar la suspensión o la eliminación termina el proceso.",
+        "Dos reservas simultáneas de la misma llave no se duplican (restricción única del DICE)."
+      ],
+      "labels": [
+        "recuperacion",
+        "idempotencia",
+        "dife",
+        "dice"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "TC-151",
+          "title": "Reactivar una llave que ya está confirmada",
+          "description": "Reactiva administrativamente la llave celular confirmada.",
+          "priority": "medium",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/reactivate con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "200 idempotente: la llave sigue confirmada. La inyección de fallos se cubre con pytest (ver tareas).",
+          "labels": [
+            "idempotencia",
+            "recuperacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/reactivate",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:phone:spbvi-a}}",
+            "reason": "Reintento de reactivación",
+            "reactivation_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "phone",
+            "status": "confirmed"
+          }
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-014",
+      "title": "Preparar productos de depósito y datos de llaves por SPBVI",
+      "description": "Crear llv-a-producto y llv-b-producto en el lab y documentar el orden de ejecución de los CP de la épica.",
+      "labels": [
+        "datos-prueba"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-015",
+      "title": "Documentar el catálogo de tipos de llave y sus reglas",
+      "description": "Tabla de tipos, ejemplos y reglas de formato. Marcar como SUPUESTO las longitudes que Banrep no publica.",
+      "labels": [
+        "documentacion",
+        "catalogo"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-016",
+      "title": "Definir el orden de ejecución y el uso del pool de llaves",
+      "description": "Los CP usan la llave más reciente de cada tipo; documentar qué CP crea y cuál consume cada llave para evitar falsos fallos.",
+      "labels": [
+        "configuracion"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-017",
+      "title": "Configurar el secreto del titular y los usuarios de prueba",
+      "description": "Crear QA_SECRET_OWNER_EMAIL y tres usuarios: titular, no titular y rol usuario. Ninguna credencial en el JSON.",
+      "labels": [
+        "seguridad",
+        "configuracion"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-018",
+      "title": "Automatizar la recuperación de una suspensión con falla del DICE",
+      "description": "Prueba pytest con inyección de fallo después del commit del DIFE; reintentar debe terminar la suspensión sin duplicar auditoría.",
+      "labels": [
+        "automatizacion",
+        "recuperacion"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-019",
+      "title": "Automatizar la reanudación de reservas pending en el DICE",
+      "description": "Prueba pytest: si falla la confirmación, el reintento retoma la reserva pending.",
+      "labels": [
+        "automatizacion",
+        "recuperacion"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-020",
+      "title": "Probar reservas duplicadas simultáneas en el DICE",
+      "description": "Prueba de concurrencia: dos registros de la misma llave al mismo tiempo; solo uno queda.",
+      "labels": [
+        "concurrencia",
+        "unicidad"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-021",
+      "title": "Verificar la auditoría de eventos de estado de las llaves",
+      "description": "Consultar los eventos de estado (creación, suspensión, reactivación, eliminación) y confirmar actor, rol y motivo.",
+      "labels": [
+        "auditoria"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-050",
+      "title": "Diseñar la matriz de estados de una llave",
+      "description": "Transiciones permitidas entre confirmed, suspended_administrative, suspended_personal y deleted, con el código esperado de cada intento.",
+      "labels": [
+        "ciclo-vida"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-051",
+      "title": "Ejecutar la regresión del ciclo de vida y registrar bugs",
+      "description": "Ejecutar los CP de HU-026 y HU-027; abrir un bug por cada fallo con su ejecución como evidencia.",
+      "labels": [
+        "regresion"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-052",
+      "title": "Documentar los resultados de unicidad global",
+      "description": "Resumen de los CP de HU-023 y de la prueba de concurrencia.",
+      "labels": [
+        "documentacion"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-053",
+      "title": "Revisar la migración idempotente de columnas de ciclo de vida",
+      "description": "Confirmar que la migración del esquema de llaves se puede ejecutar dos veces sin error.",
+      "labels": [
+        "migracion"
+      ],
+      "story_points": null
+    }
+  ]
+}

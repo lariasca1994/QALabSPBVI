@@ -1,0 +1,1929 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "Programa de pruebas de pagos intra-SPBVI",
+  "epic": {
+    "ref": "EPIC-003",
+    "title": "Validar los pagos intra-SPBVI",
+    "description": "Objetivo: asegurar los pagos entre cuentas del mismo SPBVI resolviendo la llave solo en su DIFE. Alcance: pago a los 5 tipos de llave, idempotencia por operation_id, límite de 1.000 UVB, rechazos sin efecto en saldos, validación de la solicitud, extracto conciliado y consulta de estado. Fuera de alcance: pagos inter-SPBVI y MOL (épica posterior) y mensajería ISO detallada (EPIC-001). Fecha objetivo: por definir."
+  },
+  "stories": [
+    {
+      "ref": "HU-030",
+      "title": "Preparar cuentas y llaves para pagos intra-SPBVI",
+      "description": "Como analista de pruebas, quiero cuentas con saldo y llaves de los 5 tipos, para ejecutar los pagos de la épica.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Existen pin-a-origen (con saldo), pin-a-destino, pin-a-sinfondos y pin-b-destino.",
+        "Hay una llave confirmada de cada tipo en spbvi-a apuntando a pin-a-destino.",
+        "Hay una llave celular en spbvi-b para el caso de llave de otro SPBVI."
+      ],
+      "labels": [
+        "datos-prueba",
+        "pagos"
+      ],
+      "story_points": 2,
+      "test_cases": [
+        {
+          "ref": "TC-201",
+          "title": "Crear cuenta pin-a-origen",
+          "description": "Crea pin-a-origen en spbvi-a con saldo para muchas ejecuciones del pago por el límite.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde 201 o 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La cuenta pin-a-origen existe.",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "pin-a-origen",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 100000000000
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-202",
+          "title": "Crear cuenta pin-a-destino",
+          "description": "Cuenta que recibe los pagos intra.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde 201 o 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La cuenta pin-a-destino existe.",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "pin-a-destino",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-203",
+          "title": "Crear cuenta pin-a-sinfondos",
+          "description": "Cuenta con 100 centavos para el rechazo por saldo insuficiente.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde 201 o 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La cuenta pin-a-sinfondos existe.",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "pin-a-sinfondos",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 100
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-204",
+          "title": "Crear cuenta pin-b-destino",
+          "description": "Cuenta de spbvi-b para la llave de otro SPBVI.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde 201 o 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "La cuenta pin-b-destino existe.",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "pin-b-destino",
+            "spbvi_id": "spbvi-b",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-205",
+          "title": "Registrar llave celular para pagos en spbvi-a",
+          "description": "Registra una llave celular nueva asociada a pin-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave celular confirmada.",
+          "labels": [
+            "datos-prueba",
+            "phone"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:new:phone}}",
+            "deposit_product_id": "pin-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "phone",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-206",
+          "title": "Registrar llave correo electrónico para pagos en spbvi-a",
+          "description": "Registra una llave correo electrónico nueva asociada a pin-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave correo electrónico confirmada.",
+          "labels": [
+            "datos-prueba",
+            "email"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "email",
+            "key_value": "{{key:new:email}}",
+            "deposit_product_id": "pin-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "email",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-207",
+          "title": "Registrar llave documento de identidad para pagos en spbvi-a",
+          "description": "Registra una llave documento de identidad nueva asociada a pin-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave documento de identidad confirmada.",
+          "labels": [
+            "datos-prueba",
+            "document"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:new:document}}",
+            "deposit_product_id": "pin-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "document",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-208",
+          "title": "Registrar llave alfanumérica (@) para pagos en spbvi-a",
+          "description": "Registra una llave alfanumérica (@) nueva asociada a pin-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave alfanumérica (@) confirmada.",
+          "labels": [
+            "datos-prueba",
+            "alias"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "pin-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-209",
+          "title": "Registrar llave código de comercio para pagos en spbvi-a",
+          "description": "Registra una llave código de comercio nueva asociada a pin-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave código de comercio confirmada.",
+          "labels": [
+            "datos-prueba",
+            "merchant_code"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "merchant_code",
+            "key_value": "{{key:new:merchant_code}}",
+            "deposit_product_id": "pin-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "merchant_code",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-210",
+          "title": "Registrar llave celular para pagos en spbvi-b",
+          "description": "Registra un celular nuevo asociado a pin-b-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave celular confirmada en spbvi-b.",
+          "labels": [
+            "datos-prueba",
+            "phone"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:new:phone}}",
+            "deposit_product_id": "pin-b-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "phone",
+            "spbvi_id": "spbvi-b",
+            "status": "confirmed"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-031",
+      "title": "Pagar a cada tipo de llave dentro del mismo SPBVI",
+      "description": "Como cliente de spbvi-a, quiero pagar a cualquier tipo de llave de mi entidad, para transferir dinero de forma inmediata.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "El pago a una llave confirmada de cada tipo responde 201 con status completed y payment_type intra_spbvi.",
+        "La llave se resuelve solo en el DIFE; el DICE no recibe consultas.",
+        "La respuesta incluye pain002_xml con estado ACSC.",
+        "El débito y el crédito suman cero en el ledger."
+      ],
+      "labels": [
+        "pago-intra",
+        "pagos"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-211",
+          "title": "Pagar a una llave celular",
+          "description": "Paga 500,00 a la llave celular más reciente de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Pago completado y liquidado en una transacción.",
+          "labels": [
+            "pago-intra",
+            "phone"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:pago-phone:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:pago-phone}}",
+            "status": "completed",
+            "payment_type": "intra_spbvi",
+            "source_account_id": "pin-a-origen",
+            "destination_account_id": "pin-a-destino",
+            "amount_cents": 50000,
+            "replayed": false
+          }
+        },
+        {
+          "ref": "TC-212",
+          "title": "Pagar a una llave correo electrónico",
+          "description": "Paga 500,00 a la llave correo electrónico más reciente de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Pago completado y liquidado en una transacción.",
+          "labels": [
+            "pago-intra",
+            "email"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:pago-email:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "email",
+            "destination_key_value": "{{key:email:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:pago-email}}",
+            "status": "completed",
+            "payment_type": "intra_spbvi",
+            "source_account_id": "pin-a-origen",
+            "destination_account_id": "pin-a-destino",
+            "amount_cents": 50000,
+            "replayed": false
+          }
+        },
+        {
+          "ref": "TC-213",
+          "title": "Pagar a una llave documento de identidad",
+          "description": "Paga 500,00 a la llave documento de identidad más reciente de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Pago completado y liquidado en una transacción.",
+          "labels": [
+            "pago-intra",
+            "document"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:pago-document:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "document",
+            "destination_key_value": "{{key:document:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:pago-document}}",
+            "status": "completed",
+            "payment_type": "intra_spbvi",
+            "source_account_id": "pin-a-origen",
+            "destination_account_id": "pin-a-destino",
+            "amount_cents": 50000,
+            "replayed": false
+          }
+        },
+        {
+          "ref": "TC-214",
+          "title": "Pagar a una llave alfanumérica (@)",
+          "description": "Paga 500,00 a la llave alfanumérica (@) más reciente de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Pago completado y liquidado en una transacción.",
+          "labels": [
+            "pago-intra",
+            "alias"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:pago-alias:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "{{key:alias:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:pago-alias}}",
+            "status": "completed",
+            "payment_type": "intra_spbvi",
+            "source_account_id": "pin-a-origen",
+            "destination_account_id": "pin-a-destino",
+            "amount_cents": 50000,
+            "replayed": false
+          }
+        },
+        {
+          "ref": "TC-215",
+          "title": "Pagar a una llave código de comercio",
+          "description": "Paga 500,00 a la llave código de comercio más reciente de spbvi-a.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Pago completado y liquidado en una transacción.",
+          "labels": [
+            "pago-intra",
+            "merchant_code"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:pago-merchant-code:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "merchant_code",
+            "destination_key_value": "{{key:merchant_code:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:pago-merchant-code}}",
+            "status": "completed",
+            "payment_type": "intra_spbvi",
+            "source_account_id": "pin-a-origen",
+            "destination_account_id": "pin-a-destino",
+            "amount_cents": 50000,
+            "replayed": false
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-032",
+      "title": "Garantizar la idempotencia por operation_id",
+      "description": "Como SPBVI, quiero que un reenvío con el mismo operation_id no duplique el pago, para proteger al cliente ante reintentos de red.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "El primer envío responde 201 con replayed false.",
+        "El reenvío idéntico responde 200 con replayed true y no mueve saldos.",
+        "El mismo operation_id con otros datos responde 409.",
+        "La consulta del operation_id devuelve un solo pago."
+      ],
+      "labels": [
+        "idempotencia",
+        "pagos"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-216",
+          "title": "Enviar el pago original",
+          "description": "Envía un pago de 1.000,00 a la llave celular con un operation_id nuevo.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Pago creado.",
+          "labels": [
+            "idempotencia"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:idem:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 100000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:idem}}",
+            "status": "completed",
+            "replayed": false
+          }
+        },
+        {
+          "ref": "TC-217",
+          "title": "Reenviar el mismo pago",
+          "description": "Reenvía exactamente el mismo cuerpo.",
+          "priority": "highest",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "200 con el pago original; no hay doble abono.",
+          "labels": [
+            "idempotencia"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:idem}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 100000
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "{{op:idem}}",
+            "status": "completed",
+            "replayed": true
+          }
+        },
+        {
+          "ref": "TC-218",
+          "title": "Rechazar el mismo operation_id con otro monto",
+          "description": "Reenvía el operation_id con monto distinto.",
+          "priority": "highest",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "409: el identificador ya existe con otros datos.",
+          "labels": [
+            "negativo",
+            "idempotencia"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:idem}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 100001
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-219",
+          "title": "Consultar el pago idempotente",
+          "description": "Consulta el estado del operation_id reenviado.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/{{op:idem}} con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Un solo pago de 1.000,00.",
+          "labels": [
+            "consulta-estado"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:idem}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "{{op:idem}}",
+            "status": "completed",
+            "amount_cents": 100000
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-033",
+      "title": "Aplicar el límite de 1.000 UVB por operación",
+      "description": "Como regulador del ecosistema, quiero que ninguna operación supere 1.000 UVB, para cumplir la regla Bre-B.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Un pago exactamente en el límite (1.155.200.000 centavos) responde 201. SUPUESTO: UVB_VALUE_CENTS = 1.155.200.",
+        "Un pago de un centavo más responde 422 con reason_code AM02 y pain.002 RJCT.",
+        "El pago rechazado no queda registrado ni mueve saldos."
+      ],
+      "labels": [
+        "limite-uvb",
+        "pagos"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-220",
+          "title": "Pagar exactamente el límite de 1.000 UVB",
+          "description": "Paga el monto máximo permitido a la llave correo.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030).",
+            "pin-a-origen con saldo mayor o igual al límite."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 201."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "201: el límite es inclusivo.",
+          "labels": [
+            "limite-uvb"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:limite:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "email",
+            "destination_key_value": "{{key:email:spbvi-a}}",
+            "amount_cents": 1155200000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:limite}}",
+            "status": "completed",
+            "amount_cents": 1155200000
+          }
+        },
+        {
+          "ref": "TC-221",
+          "title": "Rechazar un pago que supera el límite",
+          "description": "Paga el límite más un centavo.",
+          "priority": "highest",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422 AM02: el monto supera el límite de 1000 UVB.",
+          "labels": [
+            "negativo",
+            "limite-uvb"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:sobre-limite:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "email",
+            "destination_key_value": "{{key:email:spbvi-a}}",
+            "amount_cents": 1155200001
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": {
+            "operation_id": "{{op:sobre-limite}}",
+            "status": "rejected",
+            "reason_code": "AM02"
+          }
+        },
+        {
+          "ref": "TC-222",
+          "title": "Confirmar que el pago sobre el límite no existe",
+          "description": "Consulta el operation_id rechazado.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/{{op:sobre-limite}} con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404: no se registró el pago.",
+          "labels": [
+            "negativo",
+            "consulta-estado"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:sobre-limite}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-034",
+      "title": "Rechazar pagos sin efecto en los saldos",
+      "description": "Como cliente, quiero que un pago rechazado no toque mi saldo, para confiar en que solo se mueve dinero cuando el pago se completa.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Llave inexistente o de otro SPBVI: 404 con reason_code AC03.",
+        "Saldo insuficiente: 409 con reason_code AM04.",
+        "Cuenta de origen inexistente: 404.",
+        "Llave suspendida: 404 AC03; al reactivarla vuelve a recibir pagos.",
+        "En todos los rechazos los saldos quedan iguales."
+      ],
+      "labels": [
+        "rechazos",
+        "pagos"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-223",
+          "title": "Rechazar el pago a una llave inexistente",
+          "description": "Paga al documento 00000, que no existe.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404 AC03 sin movimientos.",
+          "labels": [
+            "negativo",
+            "AC03"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:llave-inexistente:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "document",
+            "destination_key_value": "00000",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "operation_id": "{{op:llave-inexistente}}",
+            "status": "rejected",
+            "reason_code": "AC03"
+          }
+        },
+        {
+          "ref": "TC-224",
+          "title": "Rechazar el pago a una llave de otro SPBVI",
+          "description": "Paga desde spbvi-a a la llave celular de spbvi-b por la vía intra.",
+          "priority": "highest",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404 AC03: el pago intra solo resuelve en el DIFE de origen.",
+          "labels": [
+            "negativo",
+            "AC03"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:otro-spbvi:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-b}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "operation_id": "{{op:otro-spbvi}}",
+            "status": "rejected",
+            "reason_code": "AC03"
+          }
+        },
+        {
+          "ref": "TC-225",
+          "title": "Rechazar el pago por saldo insuficiente",
+          "description": "Paga 500,00 desde pin-a-sinfondos (saldo 1,00).",
+          "priority": "highest",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 409."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "409 AM04 sin movimientos.",
+          "labels": [
+            "negativo",
+            "AM04"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:sin-saldo:new}}",
+            "source_account_id": "pin-a-sinfondos",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": {
+            "operation_id": "{{op:sin-saldo}}",
+            "status": "rejected",
+            "reason_code": "AM04"
+          }
+        },
+        {
+          "ref": "TC-226",
+          "title": "Rechazar el pago desde una cuenta inexistente",
+          "description": "Paga desde la cuenta pin-no-existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404: no se encontró la cuenta de origen.",
+          "labels": [
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:sin-origen:new}}",
+            "source_account_id": "pin-no-existe",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-227",
+          "title": "Suspender la llave correo para el caso de llave suspendida",
+          "description": "Suspende administrativamente la llave correo de spbvi-a.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/suspend con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave correo suspendida.",
+          "labels": [
+            "suspension"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/suspend",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "email",
+            "key_value": "{{key:email:spbvi-a}}",
+            "reason": "Prueba de pago a llave suspendida",
+            "suspension_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "suspended_administrative"
+          }
+        },
+        {
+          "ref": "TC-228",
+          "title": "Rechazar el pago a una llave suspendida",
+          "description": "Paga a la llave correo suspendida.",
+          "priority": "highest",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404 AC03: solo se paga a llaves confirmadas.",
+          "labels": [
+            "negativo",
+            "AC03"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:llave-suspendida:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "email",
+            "destination_key_value": "{{key:last:email:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "operation_id": "{{op:llave-suspendida}}",
+            "status": "rejected",
+            "reason_code": "AC03"
+          }
+        },
+        {
+          "ref": "TC-229",
+          "title": "Reactivar la llave correo",
+          "description": "Reactiva la llave correo para dejar los datos listos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/reactivate con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Llave correo confirmada.",
+          "labels": [
+            "reactivacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/reactivate",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "email",
+            "key_value": "{{key:last:email:spbvi-a}}",
+            "reason": "Fin de la prueba",
+            "reactivation_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "confirmed"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-035",
+      "title": "Validar la estructura de la solicitud de pago",
+      "description": "Como SPBVI, quiero rechazar solicitudes mal formadas antes de procesarlas, para no generar pagos inconsistentes.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "amount_cents debe ser un entero JSON mayor que cero (422 en otro caso).",
+        "Todos los campos son obligatorios (422 si falta uno).",
+        "El tipo y el valor de la llave se validan con las reglas del catálogo (422)."
+      ],
+      "labels": [
+        "validacion",
+        "pagos"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-230",
+          "title": "Rechazar un monto en cero",
+          "description": "Envía amount_cents 0.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar antes los CP de preparación (HU-030)."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: el monto debe ser mayor que cero.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:monto-cero:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 0
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-231",
+          "title": "Rechazar un monto como texto",
+          "description": "Envía amount_cents \"50000\" como cadena.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: el monto debe ser entero JSON.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:monto-texto:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": "50000"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-232",
+          "title": "Rechazar un pago sin operation_id",
+          "description": "Omite operation_id.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: campo obligatorio.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-a}}",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-233",
+          "title": "Rechazar un tipo de llave destino no soportado",
+          "description": "Envía destination_key_type fax.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: tipo no soportado.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:tipo-fax:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "fax",
+            "destination_key_value": "6012345678",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-234",
+          "title": "Rechazar un valor de llave destino inválido",
+          "description": "Envía un celular de 5 dígitos.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde 422."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "422: valor inválido para el tipo.",
+          "labels": [
+            "negativo",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:celular-corto:new}}",
+            "source_account_id": "pin-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "30012",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-036",
+      "title": "Conciliar el ledger y el extracto de las cuentas",
+      "description": "Como contador del SPBVI, quiero un extracto con saldo inicial, movimientos y saldo final conciliados, para comprobar que el ledger siempre suma cero.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "GET /accounts/{account_id}/statement responde 200 con reconciled true.",
+        "Saldo inicial + créditos − débitos = saldo final.",
+        "Una cuenta inexistente responde 404."
+      ],
+      "labels": [
+        "ledger",
+        "conciliacion",
+        "pagos"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-235",
+          "title": "Consultar el extracto de la cuenta destino",
+          "description": "Extracto de pin-a-destino después de los pagos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar después de HU-031 a HU-034."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/pin-a-destino/statement con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Extracto conciliado.",
+          "labels": [
+            "conciliacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/pin-a-destino/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "account_id": "pin-a-destino",
+            "spbvi_id": "spbvi-a",
+            "reconciled": true
+          }
+        },
+        {
+          "ref": "TC-236",
+          "title": "Consultar el extracto de la cuenta origen",
+          "description": "Extracto de pin-a-origen.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/pin-a-origen/statement con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "Extracto conciliado.",
+          "labels": [
+            "conciliacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/pin-a-origen/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "account_id": "pin-a-origen",
+            "reconciled": true
+          }
+        },
+        {
+          "ref": "TC-237",
+          "title": "Responder 404 al extracto de una cuenta inexistente",
+          "description": "Extracto de pin-no-existe.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/pin-no-existe/statement con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "negativo",
+            "conciliacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/pin-no-existe/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-037",
+      "title": "Consultar el estado de un pago intra",
+      "description": "Como cliente, quiero consultar el estado de mi pago por su operation_id, para saber si se completó.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "GET /payments/{operation_id} responde 200 con status, iso_status y payment_type.",
+        "Un operation_id inexistente responde 404."
+      ],
+      "labels": [
+        "consulta-estado",
+        "pagos"
+      ],
+      "story_points": 2,
+      "test_cases": [
+        {
+          "ref": "TC-238",
+          "title": "Consultar el estado de un pago completado",
+          "description": "Consulta el pago a la llave celular.",
+          "priority": "high",
+          "preconditions": [
+            "CP de pago a llave celular ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/{{op:pago-phone}} con el JSON del caso.",
+              "expected": "La API responde 200."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "200 con el estado completed.",
+          "labels": [
+            "consulta-estado"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:pago-phone}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "{{op:pago-phone}}",
+            "status": "completed",
+            "payment_type": "intra_spbvi"
+          }
+        },
+        {
+          "ref": "TC-239",
+          "title": "Responder 404 a un operation_id inexistente",
+          "description": "Consulta op-no-existe-qa.",
+          "priority": "medium",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/op-no-existe-qa con el JSON del caso.",
+              "expected": "La API responde 404."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Solo se valida el código HTTP."
+            },
+            {
+              "action": "Validar la respuesta contra el contrato OpenAPI del endpoint.",
+              "expected": "El JSON cumple el esquema."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "negativo",
+            "consulta-estado"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/op-no-existe-qa",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-022",
+      "title": "Preparar cuentas y llaves de pagos intra",
+      "description": "Ejecutar HU-030 en el lab y verificar saldos iniciales.",
+      "labels": [
+        "datos-prueba"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-023",
+      "title": "Parametrizar el límite UVB por entorno",
+      "description": "Configurar PAYMENT_LIMIT_UVB y UVB_VALUE_CENTS en lab y producción. SUPUESTO: actualizar al valor oficial vigente de la UVB.",
+      "labels": [
+        "configuracion",
+        "limite-uvb"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-024",
+      "title": "Verificar que el DICE recibe cero consultas en pagos intra",
+      "description": "Instrumentar o revisar logs para confirmar que el pago intra no consulta el DICE.",
+      "labels": [
+        "trazabilidad",
+        "dice"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-025",
+      "title": "Automatizar el rollback ante falla al escribir el crédito",
+      "description": "Prueba pytest: si falla el crédito, débito y pago se revierten (ninguno queda).",
+      "labels": [
+        "automatizacion",
+        "ledger"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-026",
+      "title": "Verificar que el ledger suma cero tras la regresión",
+      "description": "Consulta SQL de control: suma de entradas del ledger por pago igual a cero.",
+      "labels": [
+        "ledger",
+        "control"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "TASK-027",
+      "title": "Validar pain.002 ACSC y RJCT contra el XSD de laboratorio",
+      "description": "Validar pain002_xml de pagos completados y rechazados contra pain.002.001.10-lab.xsd.",
+      "labels": [
+        "iso20022",
+        "pain002"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-054",
+      "title": "Diseñar la matriz de rechazos y códigos ISO",
+      "description": "AC03, AM04 y AM02 con su código HTTP y condición de disparo.",
+      "labels": [
+        "rechazos"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-055",
+      "title": "Ejecutar la regresión de idempotencia y registrar bugs",
+      "description": "Ejecutar HU-032 dos veces seguidas y comparar saldos.",
+      "labels": [
+        "regresion",
+        "idempotencia"
+      ],
+      "story_points": null
+    },
+    {
+      "ref": "SUB-056",
+      "title": "Documentar los resultados del límite UVB",
+      "description": "Evidencia de los CP de HU-033 con el valor de UVB usado.",
+      "labels": [
+        "documentacion"
+      ],
+      "story_points": null
+    }
+  ]
+}

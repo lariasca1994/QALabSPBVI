@@ -278,3 +278,39 @@ def test_qr_placeholders_reuse_the_last_qr_generated_by_a_case() -> None:
     assert resolved == {"payload": "000201...", "path": "/qr/charges/abc"}
     with pytest.raises(PlaceholderError, match="mal formado"):
         validate_placeholders({"payload": "{{qr:otro}}"})
+
+
+def test_context_placeholders_resolve_executor_email_and_epic_key() -> None:
+    import mongomock
+
+    from app.domains.qa.placeholders import PlaceholderError, Resolver, validate_placeholders
+
+    database = mongomock.MongoClient()["context_placeholders"]
+    resolved = Resolver(database, "EPIC-00004", actor_email="ana@example.test").resolve(
+        {"owner_email": "{{me:email}}", "path": "/qa/epics/{{epic:key}}/bugs"}
+    )
+    assert resolved == {"owner_email": "ana@example.test", "path": "/qa/epics/EPIC-00004/bugs"}
+    with pytest.raises(PlaceholderError, match="mal formado"):
+        validate_placeholders({"owner_email": "{{me:nombre}}"})
+
+
+def test_key_last_follows_the_lifecycle_of_the_last_touched_key() -> None:
+    import mongomock
+
+    from app.domains.qa.placeholders import Resolver, list_epic_keys, record_key_result
+
+    database = mongomock.MongoClient()["key_last"]
+
+    def record(method: str, path: str, body: dict) -> None:
+        record_key_result(database, epic_key="EP-1", method=method, path=path, status_code=200,
+                          response_body=body, case_key="CP-1", execution_key="EX-1")
+
+    record("POST", "/difes/spbvi-a/keys", {"key_type": "alias", "key_value": "@uno", "status": "confirmed"})
+    record("POST", "/difes/spbvi-a/keys", {"key_type": "alias", "key_value": "@dos", "status": "confirmed"})
+    record("POST", "/difes/spbvi-a/keys/suspend", {"key_type": "alias", "key_value": "@uno", "status": "suspended_administrative"})
+    # La activa más reciente es @dos; la última tocada (la suspendida) es @uno.
+    assert Resolver(database, "EP-1").resolve("{{key:alias:spbvi-a}}") == "@dos"
+    assert Resolver(database, "EP-1").resolve("{{key:last:alias:spbvi-a}}") == "@uno"
+    record("DELETE", "/difes/spbvi-a/keys", {"key_type": "alias", "key_value": "@dos", "deleted": True})
+    assert Resolver(database, "EP-1").resolve("{{key:last:alias:spbvi-a}}") == "@dos"
+    assert [key["key_value"] for key in list_epic_keys(database, "EP-1")] == ["@uno"]

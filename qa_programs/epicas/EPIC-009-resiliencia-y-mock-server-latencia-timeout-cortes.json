@@ -1,0 +1,476 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "QALabSPBVI EPIC-009",
+  "epic": {
+    "ref": "EPIC-009",
+    "title": "Resiliencia y mock server: latencia, timeout, cortes, servicio inestable, reintentos 502/503/504",
+    "description": "Objetivo: asegurar Resiliencia y mock server: latencia, timeout, cortes, servicio inestable, reintentos 502/503/504. Alcance limitado al laboratorio simulado; fecha objetivo: por definir."
+  },
+  "stories": [
+    {
+      "ref": "HU-901",
+      "title": "Observar latencia simulada",
+      "description": "Como QA, quiero consultar la latencia del mock server, para diseñar pruebas de tolerancia.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "La latencia se consulta por endpoint real.",
+        "La respuesta es JSON válido.",
+        "El acceso no modifica el estado del mock."
+      ],
+      "labels": [
+        "epic-009",
+        "api"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-901",
+          "title": "Consultar latencia del mock",
+          "description": "CP API para HU-901.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "Se obtiene la configuración o medición de latencia del mock."
+            }
+          ],
+          "expected_result": "Se obtiene la configuración o medición de latencia del mock.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/latency",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-902",
+          "title": "Respuesta upstream disponible",
+          "description": "CP API para HU-901.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "El mock informa disponibilidad upstream."
+            }
+          ],
+          "expected_result": "El mock informa disponibilidad upstream.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/upstream",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-902",
+      "title": "Manejar timeout upstream",
+      "description": "Como consumidor API, quiero recibir un error controlado ante timeout, para aplicar reintentos seguros.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "El timeout se representa con código 504.",
+        "No se generan operaciones duplicadas.",
+        "La respuesta conserva trazabilidad."
+      ],
+      "labels": [
+        "epic-009",
+        "api"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-903",
+          "title": "Simular timeout 504",
+          "description": "CP API para HU-902.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "La respuesta representa timeout transitorio."
+            }
+          ],
+          "expected_result": "La respuesta representa timeout transitorio.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/status/504",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            504
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-904",
+          "title": "Verificar estado tras timeout",
+          "description": "CP API para HU-902.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "Una operación no confirmada no aparece como pago exitoso."
+            }
+          ],
+          "expected_result": "Una operación no confirmada no aparece como pago exitoso.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:resilience:new}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-903",
+      "title": "Manejar cortes de conectividad",
+      "description": "Como consumidor API, quiero manejar desconexiones upstream, para informar una indisponibilidad recuperable.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "La desconexión se expone por endpoint real.",
+        "No se confirma una operación no procesada.",
+        "Los reintentos se delegan a la política definida."
+      ],
+      "labels": [
+        "epic-009",
+        "api"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-905",
+          "title": "Recuperarse de cortes de conexión",
+          "description": "La conexión se corta dos veces a mitad de la respuesta; el ejecutor reintenta y a la tercera responde.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "La desconexión se comunica como indisponibilidad transitoria."
+            }
+          ],
+          "expected_result": "Aprobado tras dos desconexiones registradas como intentos fallidos.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/flaky/{{op:corte:new}}",
+          "request_query": {
+            "failures": 2,
+            "mode": "disconnect"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "scenario": "flaky:{{op:corte}}",
+            "attempts": 3
+          }
+        },
+        {
+          "ref": "TC-906",
+          "title": "Simular upstream 502",
+          "description": "CP API para HU-903.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "La respuesta se identifica como fallo transitorio."
+            }
+          ],
+          "expected_result": "La respuesta se identifica como fallo transitorio.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/status/502",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            502
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-904",
+      "title": "Manejar servicio inestable",
+      "description": "Como QA, quiero ejecutar escenarios flaky, para validar comportamiento ante fallos intermitentes.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "El escenario se identifica por scenario_id.",
+        "Las respuestas 502/503/504 se reconocen como transitorias.",
+        "No se confunde un fallo transitorio con éxito."
+      ],
+      "labels": [
+        "epic-009",
+        "api"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-907",
+          "title": "Ejecutar escenario flaky",
+          "description": "El servicio responde 503 dos veces y a la tercera 200: el ejecutor reintenta solo.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "El resultado corresponde al comportamiento definido para el escenario."
+            }
+          ],
+          "expected_result": "Aprobado en el tercer intento; la ejecución guarda los tres intentos.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/flaky/{{op:inestable:new}}",
+          "request_query": {
+            "failures": 2,
+            "mode": "503"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "scenario": "flaky:{{op:inestable}}",
+            "attempts": 3
+          }
+        },
+        {
+          "ref": "TC-908",
+          "title": "Simular indisponibilidad 503",
+          "description": "CP API para HU-904.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "La respuesta representa servicio temporalmente no disponible."
+            }
+          ],
+          "expected_result": "La respuesta representa servicio temporalmente no disponible.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/status/503",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            503
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-905",
+      "title": "Reintentar de forma segura",
+      "description": "Como desarrollador, quiero aplicar reintentos controlados a 502/503/504, para mejorar resiliencia sin duplicar operaciones.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Solo se reintentan errores transitorios definidos.",
+        "Las operaciones financieras usan operation_id idempotente.",
+        "Las pruebas de concurrencia e inyección quedan como tareas."
+      ],
+      "labels": [
+        "epic-009",
+        "api"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "TC-909",
+          "title": "Simular gateway timeout 504",
+          "description": "CP API para HU-905.",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "El cliente puede clasificar la respuesta como reintentable."
+            }
+          ],
+          "expected_result": "El cliente puede clasificar la respuesta como reintentable.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "mock"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/status/504",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            504
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-910",
+          "title": "Consultar el estado de las bases",
+          "description": "200 si todas están listas; 503 con Retry-After mientras alguna se reanuda (DIFE en Australia tarda cerca de un minuto).",
+          "priority": "high",
+          "preconditions": [
+            "Usuario autenticado con el rol indicado y token CSRF vigente cuando el método no es GET."
+          ],
+          "steps": [
+            {
+              "action": "Enviar la solicitud REST",
+              "expected": "Mientras las bases despiertan se recibe 503 y cabecera Retry-After."
+            }
+          ],
+          "expected_result": "200 con ready = true, o 503 mientras despiertan.",
+          "labels": [
+            "epic-009",
+            "api",
+            "resilience",
+            "health"
+          ],
+          "request_method": "GET",
+          "request_path": "/health/databases",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200,
+            503
+          ],
+          "expected_response": null
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-00901",
+      "title": "Diseñar matriz de fallos transitorios",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-009",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00902",
+      "title": "Configurar escenarios de latencia",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-009",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00903",
+      "title": "Inyectar timeout y corte controlados",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-009",
+        "task"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-00904",
+      "title": "Validar política de reintentos idempotentes",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-009",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00905",
+      "title": "Ejecutar prueba de concurrencia fuera de CP REST",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-009",
+        "task"
+      ],
+      "story_points": 2
+    }
+  ]
+}

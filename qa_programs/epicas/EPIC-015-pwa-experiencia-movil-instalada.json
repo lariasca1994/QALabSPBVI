@@ -1,0 +1,444 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-015 · PWA: experiencia móvil instalada",
+  "epic": {
+    "ref": "EPIC-015",
+    "title": "PWA: experiencia móvil instalada",
+    "description": "PWA: experiencia móvil instalada (cobrar y pagar con QR por cámara, imagen o texto, estado del cobro solo visible, acceso con MFA, pagos, ejecución de CP y bugs) y seguridad de la sesión"
+  },
+  "stories": [
+    {
+      "ref": "HU-01501",
+      "title": "Acceso móvil con MFA",
+      "description": "Como usuario/responsable QA, quiero validar autenticación mfa, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01502",
+      "title": "Cobrar con QR",
+      "description": "Como usuario/responsable QA, quiero validar cobro qr, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01503",
+      "title": "Pagar con QR",
+      "description": "Como usuario/responsable QA, quiero validar pago qr por cámara/imagen/texto, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01504",
+      "title": "Estado visible del cobro",
+      "description": "Como usuario/responsable QA, quiero validar estado solo visible, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01505",
+      "title": "Pagos y navegación instalada",
+      "description": "Como usuario/responsable QA, quiero validar navegación de pagos, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01506",
+      "title": "Ejecución de CP y bugs",
+      "description": "Como usuario/responsable QA, quiero validar cp y bugs/fixes, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01507",
+      "title": "Seguridad de sesión",
+      "description": "Como usuario/responsable QA, quiero validar seguridad de sesión, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1501",
+      "title": "Matriz móvil instalada",
+      "description": "Ejecutar matriz Android, iPhone, tablet y escritorio instalado.",
+      "labels": [
+        "qalabspbvi",
+        "mobile"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1502",
+      "title": "Cámara simulada para QR",
+      "description": "Preparar recorrido E2E con cámara simulada en 390×844.",
+      "labels": [
+        "qalabspbvi",
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1503",
+      "title": "Lectura QR desde imagen y texto",
+      "description": "Preparar datos y evidencia de lectura.",
+      "labels": [
+        "qalabspbvi",
+        "qr"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-1504",
+      "title": "Estado de cobro visible",
+      "description": "Comprobar consulta solo con pantalla visible y hasta vencimiento.",
+      "labels": [
+        "qalabspbvi",
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1505",
+      "title": "Ejecución de CP y bugs",
+      "description": "Ejecutar y documentar calidad, bugs y fixes.",
+      "labels": [
+        "qalabspbvi",
+        "qa"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1506",
+      "title": "Seguridad de sesión PWA",
+      "description": "Comprobar logout, inactividad y vencimiento absoluto.",
+      "labels": [
+        "qalabspbvi",
+        "security"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TC-1501",
+      "title": "Prueba de interfaz TC-1501: Acceso móvil con MFA: Acceso y sesión",
+      "description": "Validar acceso y sesión dentro de acceso móvil con mfa sin introducir funciones no definidas.\nDispositivo: Android/iPhone · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Usuario QA; PWA instalada\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Login, MFA válido y logout funcionan; la sesión vencida exige autenticación.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1502",
+      "title": "Prueba de interfaz TC-1502: Acceso móvil con MFA: QR por cámara, imagen o texto",
+      "description": "Validar qr por cámara, imagen o texto dentro de acceso móvil con mfa sin introducir funciones no definidas.\nDispositivo: Android · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Payload/imagen QR válidos; cuenta válida\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Pagar con QR procesa cámara simulada, imagen o texto y permite continuar al flujo real.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1503",
+      "title": "Prueba de interfaz TC-1503: Acceso móvil con MFA: Estado, QA y seguridad",
+      "description": "Validar estado, qa y seguridad dentro de acceso móvil con mfa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Playwright + DevTools\nPrecondiciones: Cobro/pago/CP/bug disponibles según escenario\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: El estado del cobro solo se consulta visible; CP y bugs se pueden gestionar; no se habilitan funciones offline/ocultas.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1504",
+      "title": "Prueba de interfaz TC-1504: Cobrar con QR: Acceso y sesión",
+      "description": "Validar acceso y sesión dentro de cobrar con qr sin introducir funciones no definidas.\nDispositivo: Android/iPhone · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Usuario QA; PWA instalada\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Login, MFA válido y logout funcionan; la sesión vencida exige autenticación.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1505",
+      "title": "Prueba de interfaz TC-1505: Cobrar con QR: QR por cámara, imagen o texto",
+      "description": "Validar qr por cámara, imagen o texto dentro de cobrar con qr sin introducir funciones no definidas.\nDispositivo: Android · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Payload/imagen QR válidos; cuenta válida\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Pagar con QR procesa cámara simulada, imagen o texto y permite continuar al flujo real.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1506",
+      "title": "Prueba de interfaz TC-1506: Cobrar con QR: Estado, QA y seguridad",
+      "description": "Validar estado, qa y seguridad dentro de cobrar con qr sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Playwright + DevTools\nPrecondiciones: Cobro/pago/CP/bug disponibles según escenario\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: El estado del cobro solo se consulta visible; CP y bugs se pueden gestionar; no se habilitan funciones offline/ocultas.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1507",
+      "title": "Prueba de interfaz TC-1507: Pagar con QR: Acceso y sesión",
+      "description": "Validar acceso y sesión dentro de pagar con qr sin introducir funciones no definidas.\nDispositivo: Android/iPhone · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Usuario QA; PWA instalada\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Login, MFA válido y logout funcionan; la sesión vencida exige autenticación.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1508",
+      "title": "Prueba de interfaz TC-1508: Pagar con QR: QR por cámara, imagen o texto",
+      "description": "Validar qr por cámara, imagen o texto dentro de pagar con qr sin introducir funciones no definidas.\nDispositivo: Android · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Payload/imagen QR válidos; cuenta válida\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Pagar con QR procesa cámara simulada, imagen o texto y permite continuar al flujo real.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1509",
+      "title": "Prueba de interfaz TC-1509: Pagar con QR: Estado, QA y seguridad",
+      "description": "Validar estado, qa y seguridad dentro de pagar con qr sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Playwright + DevTools\nPrecondiciones: Cobro/pago/CP/bug disponibles según escenario\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: El estado del cobro solo se consulta visible; CP y bugs se pueden gestionar; no se habilitan funciones offline/ocultas.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1510",
+      "title": "Prueba de interfaz TC-1510: Estado visible del cobro: Acceso y sesión",
+      "description": "Validar acceso y sesión dentro de estado visible del cobro sin introducir funciones no definidas.\nDispositivo: Android/iPhone · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Usuario QA; PWA instalada\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Login, MFA válido y logout funcionan; la sesión vencida exige autenticación.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1511",
+      "title": "Prueba de interfaz TC-1511: Estado visible del cobro: QR por cámara, imagen o texto",
+      "description": "Validar qr por cámara, imagen o texto dentro de estado visible del cobro sin introducir funciones no definidas.\nDispositivo: Android · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Payload/imagen QR válidos; cuenta válida\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Pagar con QR procesa cámara simulada, imagen o texto y permite continuar al flujo real.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1512",
+      "title": "Prueba de interfaz TC-1512: Estado visible del cobro: Estado, QA y seguridad",
+      "description": "Validar estado, qa y seguridad dentro de estado visible del cobro sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Playwright + DevTools\nPrecondiciones: Cobro/pago/CP/bug disponibles según escenario\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: El estado del cobro solo se consulta visible; CP y bugs se pueden gestionar; no se habilitan funciones offline/ocultas.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1513",
+      "title": "Prueba de interfaz TC-1513: Pagos y navegación instalada: Acceso y sesión",
+      "description": "Validar acceso y sesión dentro de pagos y navegación instalada sin introducir funciones no definidas.\nDispositivo: Android/iPhone · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Usuario QA; PWA instalada\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Login, MFA válido y logout funcionan; la sesión vencida exige autenticación.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1514",
+      "title": "Prueba de interfaz TC-1514: Pagos y navegación instalada: QR por cámara, imagen o texto",
+      "description": "Validar qr por cámara, imagen o texto dentro de pagos y navegación instalada sin introducir funciones no definidas.\nDispositivo: Android · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Payload/imagen QR válidos; cuenta válida\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Pagar con QR procesa cámara simulada, imagen o texto y permite continuar al flujo real.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1515",
+      "title": "Prueba de interfaz TC-1515: Pagos y navegación instalada: Estado, QA y seguridad",
+      "description": "Validar estado, qa y seguridad dentro de pagos y navegación instalada sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Playwright + DevTools\nPrecondiciones: Cobro/pago/CP/bug disponibles según escenario\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: El estado del cobro solo se consulta visible; CP y bugs se pueden gestionar; no se habilitan funciones offline/ocultas.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1516",
+      "title": "Prueba de interfaz TC-1516: Ejecución de CP y bugs: Acceso y sesión",
+      "description": "Validar acceso y sesión dentro de ejecución de cp y bugs sin introducir funciones no definidas.\nDispositivo: Android/iPhone · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Usuario QA; PWA instalada\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Login, MFA válido y logout funcionan; la sesión vencida exige autenticación.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1517",
+      "title": "Prueba de interfaz TC-1517: Ejecución de CP y bugs: QR por cámara, imagen o texto",
+      "description": "Validar qr por cámara, imagen o texto dentro de ejecución de cp y bugs sin introducir funciones no definidas.\nDispositivo: Android · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Payload/imagen QR válidos; cuenta válida\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Pagar con QR procesa cámara simulada, imagen o texto y permite continuar al flujo real.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1518",
+      "title": "Prueba de interfaz TC-1518: Ejecución de CP y bugs: Estado, QA y seguridad",
+      "description": "Validar estado, qa y seguridad dentro de ejecución de cp y bugs sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Playwright + DevTools\nPrecondiciones: Cobro/pago/CP/bug disponibles según escenario\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: El estado del cobro solo se consulta visible; CP y bugs se pueden gestionar; no se habilitan funciones offline/ocultas.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1519",
+      "title": "Prueba de interfaz TC-1519: Seguridad de sesión: Acceso y sesión",
+      "description": "Validar acceso y sesión dentro de seguridad de sesión sin introducir funciones no definidas.\nDispositivo: Android/iPhone · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Usuario QA; PWA instalada\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Login, MFA válido y logout funcionan; la sesión vencida exige autenticación.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1520",
+      "title": "Prueba de interfaz TC-1520: Seguridad de sesión: QR por cámara, imagen o texto",
+      "description": "Validar qr por cámara, imagen o texto dentro de seguridad de sesión sin introducir funciones no definidas.\nDispositivo: Android · Modo: Instalada · Red: En línea · Herramienta: Playwright\nPrecondiciones: Payload/imagen QR válidos; cuenta válida\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: Pagar con QR procesa cámara simulada, imagen o texto y permite continuar al flujo real.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1521",
+      "title": "Prueba de interfaz TC-1521: Seguridad de sesión: Estado, QA y seguridad",
+      "description": "Validar estado, qa y seguridad dentro de seguridad de sesión sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Playwright + DevTools\nPrecondiciones: Cobro/pago/CP/bug disponibles según escenario\nPasos:\n1. Abrir la PWA instalada → La pantalla solicitada queda disponible.\n2. Ejecutar el flujo con datos de prueba → La aplicación consume únicamente capacidades definidas.\n3. Verificar API/Network/UI → El resultado coincide con el comportamiento del laboratorio.\nResultado esperado: El estado del cobro solo se consulta visible; CP y bugs se pueden gestionar; no se habilitan funciones offline/ocultas.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-015",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    }
+  ]
+}

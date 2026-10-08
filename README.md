@@ -50,7 +50,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | **Backend y datos** | Monolito modular en FastAPI con cinco motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle, MongoDB y MySQL (TiDB). Ninguno se comparte, y la coordinación entre DIFE y DICE, y entre cobros QR y pagos, es recuperable, sin transacciones distribuidas. |
 | **Seguridad** | Contraseñas Argon2id, MFA por correo con reenvío, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
 | **Cloud y DevOps** | Ocho plataformas cloud con una función cada una (ver [Plataformas](#plataformas)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
-| **Pruebas** | 190 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles, incluida la lectura de QR con cámara simulada y la app instalable. |
+| **Pruebas** | 210 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles, incluida la lectura de QR con cámara simulada y la app instalable. |
 | **Trazabilidad** | Registro de cada solicitud en una base propia, con identificador de correlación y `operation_id` para seguir todos los mensajes de un pago, pantalla de auditoría y exportación CSV. |
 
 ## Funcionalidades
@@ -363,6 +363,14 @@ Reglas de los pagos con QR:
 - **Titular:** un `usuario` solo cobra con llaves de las que es titular; `admin` y `administrador`, con cualquiera.
 - **Marcadores de CP:** `{{qr:static}}`, `{{qr:charge}}` y `{{qr:charge-id}}` reutilizan el último QR generado por un CP de la épica.
 
+Otros marcadores de los CP:
+
+| Marcador | Se reemplaza por |
+|---|---|
+| `{{me:email}}` | El correo de quien ejecuta el CP (por ejemplo, para registrar una llave de la que es titular) |
+| `{{epic:key}}` | La clave de la épica del CP, para CP que operan sobre su propia épica |
+| `{{key:last:TIPO:SPBVI}}` | La llave de ese tipo modificada más recientemente, en cualquier estado, para seguir el ciclo de vida de una misma llave (suspender, reactivar, eliminar) |
+
 El formato toma los campos del estándar EMVCo de las entidades administradoras de pagos colombianas. **Supuesto del laboratorio:** usa identificadores propios (`CO.COM.LAB.*`) en lugar de los de las redes reales, el hash de seguridad es un HMAC-SHA256 y el vencimiento vive en la base de cobros. No prueba conformidad con ningún esquema real.
 
 ### Casos de prueba
@@ -440,6 +448,24 @@ Cada respuesta lleva `X-Request-ID`. La escritura es asíncrona y por lotes: si 
 
 El programa se regenera con `python qa_programs/build_iso20022_breb.py`.
 
+### Épicas de pruebas
+
+En [`qa_programs/epicas/`](qa_programs/epicas) hay 17 épicas más (EPIC-002 a EPIC-018), con 118 HU, 254 CP ejecutables y 187 tareas, listas para importarse:
+
+| Épicas | Tema |
+|---|---|
+| EPIC-002 a EPIC-005 | Llaves DIFE/DICE, pagos intra e inter-SPBVI y ciclo posterior al pago |
+| EPIC-006 y EPIC-007 | Autenticación y matriz de roles |
+| EPIC-008 y EPIC-009 | Plataforma QA y resiliencia |
+| EPIC-010 a EPIC-012 | Auditoría, pagos con QR y salud |
+| EPIC-013 a EPIC-016 | App instalable (PWA) e interfaz web |
+| EPIC-017 y EPIC-018 | Seguridad e integridad entre las bases |
+
+- **Rol de ejecución:** cada CP indica en sus precondiciones con qué rol se ejecuta (`admin`, `administrador` o `usuario`). Los casos negativos de permisos los ejecuta un `usuario`.
+- **Seguros en producción:** ningún CP cierra la sesión de quien ejecuta, cambia su contraseña, envía correos ni crea épicas, HU o cuentas basura.
+- **Lo que el ejecutor no puede probar** (cabeceras, límites 429, ausencia de sesión o CSRF, caídas simuladas, vencimientos de más de un minuto, CI/CD y carga) queda como criterio de aceptación cubierto por las pruebas automáticas o como tarea.
+- **Pruebas de interfaz:** las de PWA y web son tareas con dispositivo, pasos, resultado esperado y evidencia, porque la plataforma solo ejecuta CP REST.
+
 En [`qa_programs/plantillas/`](qa_programs/plantillas/README.md) hay plantillas para cada pieza. El `admin` usa la de épica. Las de programa, HU, CP, tarea, bug y fix sirven para el resto de la documentación.
 
 ## Pruebas
@@ -458,6 +484,7 @@ cd web; npm run build; npm run test:e2e   # compilación y E2E con Playwright
   - Devoluciones, cancelaciones, investigaciones, notificaciones y pain.002, con sus XML validados.
   - Validación de contrato, mock server y registro de auditoría.
   - Programa ISO 20022 completo: 60 CP en dos rondas contra un servidor real, con llaves nuevas en cada una.
+  - Las 17 épicas de `qa_programs/epicas/`: se importan y sus 254 CP pasan contra un servidor real, cada uno con el rol que indica.
   - Pagos con QR: formato EMVCo y CRC, QR alterados, cobro de un solo uso, reserva, rechazo que libera el cobro, vencimiento, anulación y conciliación entre bases.
 - **E2E:** levantan una API aislada (puerto 8010) y Vite (5174). Recorren MFA, ejecución y edición de un CP, ciclo de llaves, pagos intra e inter con devolución, cancelación y notificaciones, auditoría, el ciclo completo de un bug y los pagos con QR (lectura por texto, imagen y cámara simulada), en anchos de 320 a 1280 px. También comprueban que la app es instalable (manifiesto, íconos y service worker), que abre sin conexión, que no guarda respuestas de la API y que no hace consultas con la app oculta.
 

@@ -1,0 +1,401 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-013 · PWA: instalación y ciclo de vida",
+  "epic": {
+    "ref": "EPIC-013",
+    "title": "PWA: instalación y ciclo de vida",
+    "description": "PWA: instalación, manifest, íconos, shortcut a QR, registro y ciclo de vida del service worker, cabeceras Vercel"
+  },
+  "stories": [
+    {
+      "ref": "HU-01301",
+      "title": "Instalación PWA",
+      "description": "Como usuario/responsable QA, quiero validar instalación como pwa, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01302",
+      "title": "Manifest PWA",
+      "description": "Como usuario/responsable QA, quiero validar manifest y presentación, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01303",
+      "title": "Íconos y shortcut QR",
+      "description": "Como usuario/responsable QA, quiero validar íconos y shortcut de qr, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01304",
+      "title": "Registro del service worker",
+      "description": "Como usuario/responsable QA, quiero validar registro en https, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01305",
+      "title": "Ciclo de vida del service worker",
+      "description": "Como usuario/responsable QA, quiero validar install/activate/claim, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01306",
+      "title": "Cabeceras y recursos PWA",
+      "description": "Como usuario/responsable QA, quiero validar cabeceras de vercel, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1301",
+      "title": "Verificar metadata del manifest",
+      "description": "Comprobar name, short_name, lang, start_url, scope, display, orientación y colores.",
+      "labels": [
+        "qalabspbvi",
+        "manifest"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-1302",
+      "title": "Verificar conjunto de íconos",
+      "description": "Revisar íconos 192, 512 any, 512 maskable, SVG y apple-touch-icon.",
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-1303",
+      "title": "Validar shortcut de Pagos con QR",
+      "description": "Comprobar que el shortcut apunte a /?vista=qr.",
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-1304",
+      "title": "Validar registro HTTPS",
+      "description": "Comprobar registro del service worker en contexto seguro.",
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-1305",
+      "title": "Validar ciclo install/activate/claim",
+      "description": "Revisar skipWaiting, clients.claim y limpieza de versiones anteriores.",
+      "labels": [
+        "qalabspbvi",
+        "service-worker"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1306",
+      "title": "Validar cabeceras Vercel",
+      "description": "Verificar Cache-Control, Service-Worker-Allowed y cabeceras de seguridad.",
+      "labels": [
+        "qalabspbvi",
+        "security"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1307",
+      "title": "Matriz de dispositivos PWA",
+      "description": "Registrar resultados en dispositivos de referencia.",
+      "labels": [
+        "qalabspbvi",
+        "mobile"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TC-1301",
+      "title": "Prueba de interfaz TC-1301: Instalación PWA: Instalación y modo standalone",
+      "description": "Validar instalación y modo standalone dentro de instalación pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Chrome/Edge DevTools\nPrecondiciones: HTTPS; PWA no instalada\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: La PWA se instala y se detecta display-mode standalone.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1302",
+      "title": "Prueba de interfaz TC-1302: Instalación PWA: Manifest y presentación",
+      "description": "Validar manifest y presentación dentro de instalación pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application\nPrecondiciones: Manifest accesible\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El manifest contiene los valores definidos: name, short_name, lang, start_url, scope, display, display_override, orientation y colores.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1303",
+      "title": "Prueba de interfaz TC-1303: Instalación PWA: Service worker y entrega segura",
+      "description": "Validar service worker y entrega segura dentro de instalación pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application/Network\nPrecondiciones: SW disponible; despliegue Vercel\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El SW completa install/activate/claim y las cabeceras/Content-Type requeridos están presentes.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1304",
+      "title": "Prueba de interfaz TC-1304: Manifest PWA: Instalación y modo standalone",
+      "description": "Validar instalación y modo standalone dentro de manifest pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Chrome/Edge DevTools\nPrecondiciones: HTTPS; PWA no instalada\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: La PWA se instala y se detecta display-mode standalone.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1305",
+      "title": "Prueba de interfaz TC-1305: Manifest PWA: Manifest y presentación",
+      "description": "Validar manifest y presentación dentro de manifest pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application\nPrecondiciones: Manifest accesible\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El manifest contiene los valores definidos: name, short_name, lang, start_url, scope, display, display_override, orientation y colores.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1306",
+      "title": "Prueba de interfaz TC-1306: Manifest PWA: Service worker y entrega segura",
+      "description": "Validar service worker y entrega segura dentro de manifest pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application/Network\nPrecondiciones: SW disponible; despliegue Vercel\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El SW completa install/activate/claim y las cabeceras/Content-Type requeridos están presentes.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1307",
+      "title": "Prueba de interfaz TC-1307: Íconos y shortcut QR: Instalación y modo standalone",
+      "description": "Validar instalación y modo standalone dentro de íconos y shortcut qr sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Chrome/Edge DevTools\nPrecondiciones: HTTPS; PWA no instalada\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: La PWA se instala y se detecta display-mode standalone.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1308",
+      "title": "Prueba de interfaz TC-1308: Íconos y shortcut QR: Manifest y presentación",
+      "description": "Validar manifest y presentación dentro de íconos y shortcut qr sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application\nPrecondiciones: Manifest accesible\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El manifest contiene los valores definidos: name, short_name, lang, start_url, scope, display, display_override, orientation y colores.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1309",
+      "title": "Prueba de interfaz TC-1309: Íconos y shortcut QR: Service worker y entrega segura",
+      "description": "Validar service worker y entrega segura dentro de íconos y shortcut qr sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application/Network\nPrecondiciones: SW disponible; despliegue Vercel\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El SW completa install/activate/claim y las cabeceras/Content-Type requeridos están presentes.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1310",
+      "title": "Prueba de interfaz TC-1310: Registro del service worker: Instalación y modo standalone",
+      "description": "Validar instalación y modo standalone dentro de registro del service worker sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Chrome/Edge DevTools\nPrecondiciones: HTTPS; PWA no instalada\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: La PWA se instala y se detecta display-mode standalone.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1311",
+      "title": "Prueba de interfaz TC-1311: Registro del service worker: Manifest y presentación",
+      "description": "Validar manifest y presentación dentro de registro del service worker sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application\nPrecondiciones: Manifest accesible\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El manifest contiene los valores definidos: name, short_name, lang, start_url, scope, display, display_override, orientation y colores.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1312",
+      "title": "Prueba de interfaz TC-1312: Registro del service worker: Service worker y entrega segura",
+      "description": "Validar service worker y entrega segura dentro de registro del service worker sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application/Network\nPrecondiciones: SW disponible; despliegue Vercel\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El SW completa install/activate/claim y las cabeceras/Content-Type requeridos están presentes.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1313",
+      "title": "Prueba de interfaz TC-1313: Ciclo de vida del service worker: Instalación y modo standalone",
+      "description": "Validar instalación y modo standalone dentro de ciclo de vida del service worker sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Chrome/Edge DevTools\nPrecondiciones: HTTPS; PWA no instalada\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: La PWA se instala y se detecta display-mode standalone.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1314",
+      "title": "Prueba de interfaz TC-1314: Ciclo de vida del service worker: Manifest y presentación",
+      "description": "Validar manifest y presentación dentro de ciclo de vida del service worker sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application\nPrecondiciones: Manifest accesible\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El manifest contiene los valores definidos: name, short_name, lang, start_url, scope, display, display_override, orientation y colores.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1315",
+      "title": "Prueba de interfaz TC-1315: Ciclo de vida del service worker: Service worker y entrega segura",
+      "description": "Validar service worker y entrega segura dentro de ciclo de vida del service worker sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application/Network\nPrecondiciones: SW disponible; despliegue Vercel\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El SW completa install/activate/claim y las cabeceras/Content-Type requeridos están presentes.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1316",
+      "title": "Prueba de interfaz TC-1316: Cabeceras y recursos PWA: Instalación y modo standalone",
+      "description": "Validar instalación y modo standalone dentro de cabeceras y recursos pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: Chrome/Edge DevTools\nPrecondiciones: HTTPS; PWA no instalada\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: La PWA se instala y se detecta display-mode standalone.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1317",
+      "title": "Prueba de interfaz TC-1317: Cabeceras y recursos PWA: Manifest y presentación",
+      "description": "Validar manifest y presentación dentro de cabeceras y recursos pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application\nPrecondiciones: Manifest accesible\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El manifest contiene los valores definidos: name, short_name, lang, start_url, scope, display, display_override, orientation y colores.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1318",
+      "title": "Prueba de interfaz TC-1318: Cabeceras y recursos PWA: Service worker y entrega segura",
+      "description": "Validar service worker y entrega segura dentro de cabeceras y recursos pwa sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea · Herramienta: DevTools > Application/Network\nPrecondiciones: SW disponible; despliegue Vercel\nPasos:\n1. Abrir la aplicación → Se carga QALabSPBVI.\n2. Revisar configuración o ejecutar el flujo → Se observan los valores/estado definidos.\n3. Comprobar resultado final → Se cumple el comportamiento esperado.\nResultado esperado: El SW completa install/activate/claim y las cabeceras/Content-Type requeridos están presentes.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-013",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    }
+  ]
+}

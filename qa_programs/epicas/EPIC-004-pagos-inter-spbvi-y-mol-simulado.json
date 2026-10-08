@@ -1,0 +1,591 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-004 - Pagos inter-SPBVI y MOL simulado",
+  "epic": {
+    "ref": "EPIC-004",
+    "title": "Pagos inter-SPBVI y MOL simulado",
+    "description": "Validación completa de pagos inter-SPBVI con resolución en DICE y liquidación en MOL simulado. Incluye flujos exitosos, idempotencia, errores del MOL simulado y preparación de datos."
+  },
+  "stories": [
+    {
+      "ref": "HU-4011",
+      "title": "Preparar cuentas y llaves inter-SPBVI",
+      "description": "Como administrador, quiero crear cuentas con prefijo int- en dos SPBVI y una llave en el SPBVI destino, para tener datos reproducibles para los pagos inter-SPBVI.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "POST /accounts crea las cuentas int- (409 si ya existen).",
+        "POST /difes/spbvi-b/keys registra una llave confirmada en DIFE y DICE.",
+        "La llave queda en la lista de la épica para los CP siguientes."
+      ],
+      "labels": [
+        "epic-004",
+        "data-setup"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-4011",
+          "title": "Crear la cuenta int-a-origen",
+          "description": "Crea int-a-origen en spbvi-a con saldo inicial de 500000 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba",
+            "inter"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "int-a-origen",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 500000
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-4012",
+          "title": "Crear la cuenta int-a-sinfondos",
+          "description": "Crea int-a-sinfondos en spbvi-a con saldo inicial de 100 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba",
+            "inter"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "int-a-sinfondos",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 100
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-4013",
+          "title": "Crear la cuenta int-b-destino",
+          "description": "Crea int-b-destino en spbvi-b con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba",
+            "inter"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "int-b-destino",
+            "spbvi_id": "spbvi-b",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-4014",
+          "title": "Registrar una llave document en spbvi-b",
+          "description": "Genera una llave document válida y la registra en el DIFE de spbvi-b apuntando a int-b-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y entra a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "inter",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "document",
+            "key_value": "{{key:new:document}}",
+            "deposit_product_id": "int-b-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "document",
+            "spbvi_id": "spbvi-b",
+            "status": "confirmed"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-4012",
+      "title": "Pago inter-SPBVI exitoso",
+      "description": "Como cliente de spbvi-a, quiero pagar a una llave de spbvi-b, para que el DICE resuelva la llave y el MOL simulado liquide entre SPBVI.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "POST /payments/inter-spbvi responde 201 con pacs.008 y pacs.002.",
+        "Reenviar el mismo operation_id devuelve el pago original (200, replayed).",
+        "GET /payments/{operation_id} muestra el estado final."
+      ],
+      "labels": [
+        "epic-004",
+        "inter-spbvi",
+        "mol"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-4021",
+          "title": "Pagar a una llave de otro SPBVI",
+          "description": "Pago de int-a-origen (spbvi-a) a la llave documento de spbvi-b: resuelve en DICE y liquida en el MOL simulado.",
+          "priority": "highest",
+          "preconditions": [
+            "CP de HU-4011 ejecutados."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 con pacs008_xml y pacs002_xml.",
+          "labels": [
+            "inter",
+            "mol"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:int-pago:new}}",
+            "source_account_id": "int-a-origen",
+            "destination_key_type": "document",
+            "destination_key_value": "{{key:document:spbvi-b}}",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:int-pago}}",
+            "payment_type": "inter_spbvi",
+            "status": "completed",
+            "replayed": false
+          }
+        },
+        {
+          "ref": "TC-4022",
+          "title": "Reenviar el mismo pago (idempotencia)",
+          "description": "El mismo operation_id con los mismos datos devuelve el pago original sin duplicar el abono.",
+          "priority": "high",
+          "preconditions": [
+            "TC-4021 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con replayed = true.",
+          "labels": [
+            "inter",
+            "idempotencia"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:int-pago}}",
+            "source_account_id": "int-a-origen",
+            "destination_key_type": "document",
+            "destination_key_value": "{{key:document:spbvi-b}}",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "{{op:int-pago}}",
+            "replayed": true
+          }
+        },
+        {
+          "ref": "TC-4023",
+          "title": "Consultar el estado del pago inter",
+          "description": "Consulta equivalente a pacs.028 → pacs.002.",
+          "priority": "high",
+          "preconditions": [
+            "TC-4021 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/{{op:int-pago}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con el estado completed.",
+          "labels": [
+            "inter",
+            "estado"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:int-pago}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "{{op:int-pago}}",
+            "payment_type": "inter_spbvi",
+            "status": "completed"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-4013",
+      "title": "Rechazos del pago inter-SPBVI",
+      "description": "Como analista de pruebas, quiero validar los rechazos del flujo inter-SPBVI, para comprobar que ningún rechazo mueve saldos.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Saldo insuficiente: 409 sin movimientos.",
+        "Llave del mismo SPBVI: 422 (debe usarse el pago intra).",
+        "Llave inexistente en DICE: 404.",
+        "Monto sobre 1.000 UVB: 422 con pacs.002 RJCT."
+      ],
+      "labels": [
+        "epic-004",
+        "inter-spbvi",
+        "errores"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-4031",
+          "title": "Rechazar por saldo insuficiente",
+          "description": "int-a-sinfondos tiene 100 centavos e intenta pagar 1.000.",
+          "priority": "high",
+          "preconditions": [
+            "CP de HU-4011 ejecutados."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409 sin débito ni crédito.",
+          "labels": [
+            "inter",
+            "saldo"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:int-sinfondos:new}}",
+            "source_account_id": "int-a-sinfondos",
+            "destination_key_type": "document",
+            "destination_key_value": "{{key:document:spbvi-b}}",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": {
+            "detail": "La cuenta de origen no tiene saldo suficiente."
+          }
+        },
+        {
+          "ref": "TC-4032",
+          "title": "Rechazar una llave del mismo SPBVI",
+          "description": "int-b-destino (spbvi-b) paga a una llave de spbvi-b por el flujo inter: corresponde al flujo intra.",
+          "priority": "high",
+          "preconditions": [
+            "CP de HU-4011 ejecutados."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 sin movimientos.",
+          "labels": [
+            "inter",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:int-mismo:new}}",
+            "source_account_id": "int-b-destino",
+            "destination_key_type": "document",
+            "destination_key_value": "{{key:document:spbvi-b}}",
+            "amount_cents": 100
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": {
+            "detail": "La llave pertenece al mismo SPBVI; usa el endpoint intra-SPBVI."
+          }
+        },
+        {
+          "ref": "TC-4033",
+          "title": "Rechazar una llave inexistente en DICE",
+          "description": "Documento válido que no está registrado en ningún SPBVI.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404 sin movimientos.",
+          "labels": [
+            "inter",
+            "dice"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:int-sinllave:new}}",
+            "source_account_id": "int-a-origen",
+            "destination_key_type": "document",
+            "destination_key_value": "99999999999",
+            "amount_cents": 100
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": {
+            "detail": "DICE no encontro una llave confirmada o su cuenta receptora."
+          }
+        },
+        {
+          "ref": "TC-4034",
+          "title": "Rechazar un monto sobre el límite de 1.000 UVB",
+          "description": "El monto supera PAYMENT_LIMIT_UVB × UVB_VALUE_CENTS.",
+          "priority": "high",
+          "preconditions": [
+            "CP de HU-4011 ejecutados."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 con pacs002_xml RJCT.",
+          "labels": [
+            "inter",
+            "limite-uvb"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:int-limite:new}}",
+            "source_account_id": "int-a-origen",
+            "destination_key_type": "document",
+            "destination_key_value": "{{key:document:spbvi-b}}",
+            "amount_cents": 1155200001
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": {
+            "status": "rejected"
+          }
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-4011",
+      "title": "Configurar MOL simulado",
+      "description": "Crear escenarios: success, timeout, 502, 503, disconnect",
+      "labels": [
+        "mol-sim"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-4012",
+      "title": "Verificación de ledger",
+      "description": "Validar que saldos no cambian en errores del MOL",
+      "labels": [
+        "audit"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-4013",
+      "title": "Documentar prefijos inter-SPBVI",
+      "description": "Documentar cuentas y llaves creadas",
+      "labels": [
+        "documentation"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-4014",
+      "title": "Pruebas de concurrencia",
+      "description": "Ejecutar múltiples pagos simultáneos",
+      "labels": [
+        "concurrency"
+      ],
+      "story_points": 5
+    }
+  ]
+}

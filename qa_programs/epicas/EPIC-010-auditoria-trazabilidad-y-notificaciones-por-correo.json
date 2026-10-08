@@ -1,0 +1,839 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-010 - Auditoría, trazabilidad y notificaciones por correo",
+  "epic": {
+    "ref": "EPIC-010",
+    "title": "Auditoría, trazabilidad y notificaciones por correo",
+    "description": "Trazabilidad de punta a punta con X-Request-ID y operation_id, registro de solicitudes con consulta y exportación CSV, y avisos por correo con plantilla HTML y texto plano y reintento de los fallidos."
+  },
+  "stories": [
+    {
+      "ref": "HU-1001",
+      "title": "Propagación de X-Request-ID",
+      "description": "Como operador, quiero un identificador por solicitud para correlacionar los registros.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Toda respuesta trae X-Request-ID y conserva el que envía el cliente: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "El registro de solicitudes se filtra por request_id."
+      ],
+      "labels": [
+        "epic-010",
+        "trazabilidad"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1001",
+          "title": "Filtrar el registro por un X-Request-ID inexistente",
+          "description": "La consulta por request_id responde una lista vacía.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con [].",
+          "labels": [
+            "auditoria",
+            "x-request-id"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs",
+          "request_query": {
+            "request_id": "qa-no-existe"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1002",
+      "title": "Trazabilidad por operation_id",
+      "description": "Como operador, quiero asociar cada transacción a un operation_id único para seguir todos sus mensajes.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "El mismo operation_id con otros datos responde 409.",
+        "La consulta del pago y la del registro de solicitudes usan el operation_id.",
+        "El registro se escribe en segundo plano: puede tardar unos segundos en aparecer."
+      ],
+      "labels": [
+        "epic-010",
+        "trazabilidad"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1000A",
+          "title": "Crear la cuenta aud-a-origen",
+          "description": "Crea aud-a-origen en spbvi-a con saldo inicial de 500000 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "aud-a-origen",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 500000
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1000B",
+          "title": "Crear la cuenta aud-a-destino",
+          "description": "Crea aud-a-destino en spbvi-a con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "aud-a-destino",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1000C",
+          "title": "Registrar una llave alias en spbvi-a",
+          "description": "Genera una llave alias válida y la registra en el DIFE de spbvi-a apuntando a aud-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y entra a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "aud-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-1003",
+          "title": "Registrar un pago con operation_id",
+          "description": "Pago intra de 1.500 centavos.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1000A a TC-1000C ejecutados."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "operation-id"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:aud-pago:new}}",
+            "source_account_id": "aud-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "{{key:last:alias:spbvi-a}}",
+            "amount_cents": 1500
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:aud-pago}}",
+            "status": "completed"
+          }
+        },
+        {
+          "ref": "TC-1004",
+          "title": "Rechazar el mismo operation_id con otros datos",
+          "description": "Mismo identificador, otro monto.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1003 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409 sin segundo abono.",
+          "labels": [
+            "operation-id",
+            "idempotencia"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:aud-pago}}",
+            "source_account_id": "aud-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "{{key:last:alias:spbvi-a}}",
+            "amount_cents": 1600
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": {
+            "detail": "El identificador de operacion ya existe con otros datos."
+          }
+        },
+        {
+          "ref": "TC-1005",
+          "title": "Consultar el pago por operation_id",
+          "description": "Estado del pago.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1003 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/{{op:aud-pago}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "operation-id"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:aud-pago}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "{{op:aud-pago}}",
+            "status": "completed"
+          }
+        },
+        {
+          "ref": "TC-1005B",
+          "title": "Consultar el registro por operation_id",
+          "description": "Solicitudes del pago en el registro de auditoría.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "TC-1003 ejecutado; el registro puede tardar unos segundos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con las solicitudes de esa operación.",
+          "labels": [
+            "auditoria",
+            "operation-id"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs",
+          "request_query": {
+            "operation_id": "{{op:aud-pago}}"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1003",
+      "title": "Exportación del registro en CSV",
+      "description": "Como administrador, quiero exportar el registro de solicitudes en CSV para analizarlo fuera.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "GET /audit/logs/export responde CSV para admin y administrador.",
+        "Un usuario recibe 403."
+      ],
+      "labels": [
+        "epic-010",
+        "auditoria"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1006",
+          "title": "Exportar el registro en CSV",
+          "description": "Últimas 50 solicitudes.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs/export con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con el CSV.",
+          "labels": [
+            "auditoria",
+            "csv"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs/export",
+          "request_query": {
+            "limit": 50
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1007",
+          "title": "Denegar la exportación a un usuario",
+          "description": "La auditoría es solo para admin y administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs/export con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "auditoria",
+            "rbac"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs/export",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1004",
+      "title": "Plantillas de correo HTML y texto",
+      "description": "Como integrante, quiero avisos con un formato sobrio, legible en móvil y con texto plano.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "HTML con CSS inline y texto plano alternativo: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "Sin credenciales ni datos de pagos en los correos: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "Los caracteres especiales se escapan: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-010",
+        "correo"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1005",
+      "title": "Reintento de avisos fallidos",
+      "description": "Como administrador, quiero reintentar los avisos que no salieron.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "POST /qa/notifications/retry es solo para admin y administrador.",
+        "El reintento real envía correos: se ejecuta a mano, no como CP."
+      ],
+      "labels": [
+        "epic-010",
+        "correo"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1014",
+          "title": "Denegar el reintento a un usuario",
+          "description": "Solo admin y administrador reintentan avisos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/notifications/retry con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403 sin enviar correos.",
+          "labels": [
+            "correo",
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/notifications/retry",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1006",
+      "title": "Eventos de seguridad",
+      "description": "Como administrador, quiero ver los intentos rechazados (401, 403) en el registro.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Login fallido, cambio y recuperación de contraseña quedan en el registro: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "El registro se filtra por código HTTP."
+      ],
+      "labels": [
+        "epic-010",
+        "seguridad"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1015",
+          "title": "Consultar las solicitudes rechazadas con 401",
+          "description": "Filtro por código HTTP.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con los intentos no autenticados.",
+          "labels": [
+            "auditoria",
+            "seguridad"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs",
+          "request_query": {
+            "status_code": 401,
+            "limit": 20
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1007",
+      "title": "Consulta del registro por rol",
+      "description": "Como administrador, quiero filtrar el registro por código y cantidad.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Filtros por código HTTP y límite.",
+        "Un usuario recibe 403.",
+        "Un límite fuera de rango responde 422."
+      ],
+      "labels": [
+        "epic-010",
+        "auditoria"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1019",
+          "title": "Filtrar el registro por código 200",
+          "description": "Las 10 últimas solicitudes exitosas.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "auditoria"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs",
+          "request_query": {
+            "status_code": 200,
+            "limit": 10
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1020",
+          "title": "Consultar las últimas 5 solicitudes",
+          "description": "Estructura: método, ruta, código, duración, usuario y operation_id.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "auditoria"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs",
+          "request_query": {
+            "limit": 5
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1021",
+          "title": "Denegar la consulta a un usuario",
+          "description": "La auditoría es solo para admin y administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "auditoria",
+            "rbac"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1022",
+          "title": "Rechazar un límite fuera de rango",
+          "description": "limit va de 1 a 1.000.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /audit/logs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422.",
+          "labels": [
+            "auditoria",
+            "validacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/audit/logs",
+          "request_query": {
+            "limit": 0
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1001",
+      "title": "Revisar el middleware de X-Request-ID",
+      "description": "Confirmar que toda respuesta trae X-Request-ID y que se conserva el del cliente.",
+      "labels": [
+        "trazabilidad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1002",
+      "title": "Revisar la persistencia de operation_id",
+      "description": "Verificar que el operation_id queda en el registro de solicitudes (Neon) para correlacionar mensajes.",
+      "labels": [
+        "trazabilidad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1003",
+      "title": "Revisar la exportación CSV del registro",
+      "description": "Exportar desde la pantalla de auditoría y validar columnas y filtros (la base de logs es PostgreSQL en Neon).",
+      "labels": [
+        "auditoria"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1004",
+      "title": "Revisar las plantillas de correo",
+      "description": "Revisar HTML y texto plano de MFA, ejecuciones y avisos de gestión en móvil y escritorio.",
+      "labels": [
+        "correo"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1005",
+      "title": "Probar el reintento de avisos fallidos",
+      "description": "Con avisos fallidos, reintentar desde la plataforma y verificar el envío (consume cupo de correo).",
+      "labels": [
+        "correo"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1006",
+      "title": "Revisar los eventos de seguridad en el registro",
+      "description": "Buscar 401 y 403 recientes y confirmar que no exponen datos sensibles.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1007",
+      "title": "Revisar filtros y límites de la auditoría",
+      "description": "Probar filtros por operación, ruta y código desde la pantalla de auditoría.",
+      "labels": [
+        "auditoria"
+      ],
+      "story_points": 3
+    }
+  ]
+}

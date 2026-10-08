@@ -1,0 +1,897 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-005 - Ciclo posterior al pago",
+  "epic": {
+    "ref": "EPIC-005",
+    "title": "Ciclo posterior al pago",
+    "description": "Validación completa de devoluciones, cancelaciones FOCR, investigaciones, notificaciones y status-report."
+  },
+  "stories": [
+    {
+      "ref": "HU-5011",
+      "title": "Devolución de un pago (pacs.004)",
+      "description": "Como SPBVI receptor, quiero devolver total o parcialmente un pago liquidado, para corregir abonos sin superar el monto pagado.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "POST /payments/{operation_id}/returns responde 201 con pacs.004.",
+        "Pago inexistente: 404.",
+        "Una devolución mayor que lo devolvible se rechaza.",
+        "Montos no positivos: 422."
+      ],
+      "labels": [
+        "epic-005",
+        "pacs004"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-5001",
+          "title": "Crear la cuenta cpp-a-origen",
+          "description": "Crea cpp-a-origen en spbvi-a con saldo inicial de 500000 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "cpp-a-origen",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 500000
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-5002",
+          "title": "Crear la cuenta cpp-a-destino",
+          "description": "Crea cpp-a-destino en spbvi-a con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "cpp-a-destino",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-5003",
+          "title": "Registrar una llave alias en spbvi-a",
+          "description": "Genera una llave alias válida y la registra en el DIFE de spbvi-a apuntando a cpp-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y entra a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "cpp-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-5004",
+          "title": "Hacer el pago que se devolverá",
+          "description": "Pago intra de 10.000 centavos de cpp-a-origen a la llave alfanumérica de cpp-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "TC-5001 a TC-5003 ejecutados."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 con el pago liquidado.",
+          "labels": [
+            "datos-prueba",
+            "pagos"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:cpp-pago:new}}",
+            "source_account_id": "cpp-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "{{key:last:alias:spbvi-a}}",
+            "amount_cents": 10000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "operation_id": "{{op:cpp-pago}}",
+            "status": "completed"
+          }
+        },
+        {
+          "ref": "TC-5011",
+          "title": "Devolver parcialmente el pago",
+          "description": "Devolución de 2.500 centavos con motivo MD06 (reembolso solicitado por el cliente).",
+          "priority": "high",
+          "preconditions": [
+            "TC-5004 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/{{op:cpp-pago}}/returns con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 con el pacs.004.",
+          "labels": [
+            "pacs004"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/{{op:cpp-pago}}/returns",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "return_id": "{{op:cpp-dev:new}}",
+            "amount_cents": 2500,
+            "reason_code": "MD06"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "amount_cents": 2500,
+            "reason_code": "MD06"
+          }
+        },
+        {
+          "ref": "TC-5012",
+          "title": "Rechazar la devolución de un pago inexistente",
+          "description": "El operation_id no existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/qa-cpp-no-existe/returns con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404 sin movimientos.",
+          "labels": [
+            "pacs004",
+            "errores"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/qa-cpp-no-existe/returns",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "return_id": "{{op:cpp-dev-404:new}}",
+            "amount_cents": 500,
+            "reason_code": "MD06"
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-5013",
+          "title": "Rechazar una devolución mayor que lo devolvible",
+          "description": "Intenta devolver más de lo que queda del pago.",
+          "priority": "high",
+          "preconditions": [
+            "TC-5011 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/{{op:cpp-pago}}/returns con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409, 422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "Rechazo sin movimientos.",
+          "labels": [
+            "pacs004",
+            "errores"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/{{op:cpp-pago}}/returns",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "return_id": "{{op:cpp-dev-exceso:new}}",
+            "amount_cents": 999999,
+            "reason_code": "MD06"
+          },
+          "expected_status_codes": [
+            409,
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-5014",
+          "title": "Rechazar un monto no positivo",
+          "description": "amount_cents debe ser un entero mayor que cero.",
+          "priority": "high",
+          "preconditions": [
+            "TC-5004 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/{{op:cpp-pago}}/returns con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 de validación.",
+          "labels": [
+            "pacs004",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/{{op:cpp-pago}}/returns",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "return_id": "{{op:cpp-dev-neg:new}}",
+            "amount_cents": -1,
+            "reason_code": "MD06"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-5012",
+      "title": "Solicitud de cancelación (camt.056)",
+      "description": "Como SPBVI de origen, quiero solicitar la cancelación de un pago, para abrir una investigación que el SPBVI receptor resuelve.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "POST /payments/{operation_id}/cancellation-requests responde 202 con la investigación pendiente.",
+        "Investigación inexistente: 404.",
+        "Motivo fuera de la lista: 422."
+      ],
+      "labels": [
+        "epic-005",
+        "camt056"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-5021",
+          "title": "Solicitar la cancelación del pago",
+          "description": "Solicitud con motivo DUPL (pago duplicado).",
+          "priority": "high",
+          "preconditions": [
+            "TC-5004 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/{{op:cpp-pago}}/cancellation-requests con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (202).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "202 con la investigación pendiente (camt.056).",
+          "labels": [
+            "camt056"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/{{op:cpp-pago}}/cancellation-requests",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "cancellation_id": "{{op:cpp-cxl:new}}",
+            "reason_code": "DUPL"
+          },
+          "expected_status_codes": [
+            202
+          ],
+          "expected_response": {
+            "status": "pending",
+            "reason_code": "DUPL"
+          }
+        },
+        {
+          "ref": "TC-5022",
+          "title": "Consultar una investigación inexistente",
+          "description": "La cancelación consultada no existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /investigations/qa-cpp-no-existe con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "camt029",
+            "errores"
+          ],
+          "request_method": "GET",
+          "request_path": "/investigations/qa-cpp-no-existe",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-5023",
+          "title": "Rechazar un motivo de cancelación inválido",
+          "description": "XXXX no está en la lista de motivos ISO 20022 del laboratorio.",
+          "priority": "high",
+          "preconditions": [
+            "TC-5004 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/{{op:cpp-pago}}/cancellation-requests con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 sin abrir investigación.",
+          "labels": [
+            "camt056",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/{{op:cpp-pago}}/cancellation-requests",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "cancellation_id": "{{op:cpp-cxl-mal:new}}",
+            "reason_code": "XXXX"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-5013",
+      "title": "Resolución de la investigación (camt.029)",
+      "description": "Como SPBVI receptor, quiero aceptar o rechazar la cancelación, para que una aceptación devuelva el pago con motivo FOCR.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Aceptar responde 200 y genera la devolución FOCR (pacs.004).",
+        "Investigación inexistente: 404.",
+        "Resolver dos veces: 409."
+      ],
+      "labels": [
+        "epic-005",
+        "camt029"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-5031",
+          "title": "Aceptar la cancelación",
+          "description": "El receptor acepta: se devuelve lo que queda del pago con motivo FOCR.",
+          "priority": "high",
+          "preconditions": [
+            "TC-5021 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /investigations/{{op:cpp-cxl}}/resolution con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con la devolución FOCR.",
+          "labels": [
+            "camt029",
+            "focr"
+          ],
+          "request_method": "POST",
+          "request_path": "/investigations/{{op:cpp-cxl}}/resolution",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "accepted": true
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "accepted",
+            "payment_return": {
+              "reason_code": "FOCR"
+            }
+          }
+        },
+        {
+          "ref": "TC-5032",
+          "title": "Resolver una investigación inexistente",
+          "description": "La cancelación no existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /investigations/qa-cpp-no-existe/resolution con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "camt029",
+            "errores"
+          ],
+          "request_method": "POST",
+          "request_path": "/investigations/qa-cpp-no-existe/resolution",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "accepted": true
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-5033",
+          "title": "Rechazar una segunda resolución",
+          "description": "La investigación ya fue resuelta.",
+          "priority": "high",
+          "preconditions": [
+            "TC-5031 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /investigations/{{op:cpp-cxl}}/resolution con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409 sin cambios.",
+          "labels": [
+            "camt029",
+            "errores"
+          ],
+          "request_method": "POST",
+          "request_path": "/investigations/{{op:cpp-cxl}}/resolution",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "accepted": false,
+            "rejection_reason": "CUST"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-5014",
+      "title": "Notificaciones por cuenta (camt.054)",
+      "description": "Como titular, quiero consultar los créditos y débitos de mi cuenta, para conciliar pagos y devoluciones.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "GET /accounts/{account_id}/notifications responde 200 con el camt.054.",
+        "Cuenta inexistente: 404."
+      ],
+      "labels": [
+        "epic-005",
+        "camt054"
+      ],
+      "story_points": 2,
+      "test_cases": [
+        {
+          "ref": "TC-5041",
+          "title": "Consultar las notificaciones de la cuenta receptora",
+          "description": "Incluye el crédito del pago y los débitos de las devoluciones.",
+          "priority": "high",
+          "preconditions": [
+            "TC-5004 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/cpp-a-destino/notifications con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con totales y camt.054.",
+          "labels": [
+            "camt054"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/cpp-a-destino/notifications",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "account_id": "cpp-a-destino"
+          }
+        },
+        {
+          "ref": "TC-5042",
+          "title": "Consultar una cuenta inexistente",
+          "description": "La cuenta no existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/qa-cpp-no-existe/notifications con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "camt054",
+            "errores"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/qa-cpp-no-existe/notifications",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-5015",
+      "title": "Reporte de estado para el cliente (pain.002)",
+      "description": "Como cliente, quiero el estado de mi pago en pain.002, para saber si se liquidó.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "GET /payments/{operation_id}/status-report responde 200 con pain.002.",
+        "Pago inexistente: 404."
+      ],
+      "labels": [
+        "epic-005",
+        "pain002"
+      ],
+      "story_points": 2,
+      "test_cases": [
+        {
+          "ref": "TC-5051",
+          "title": "Consultar el pain.002 del pago",
+          "description": "El pago intra liquidado reporta ACSC.",
+          "priority": "high",
+          "preconditions": [
+            "TC-5004 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/{{op:cpp-pago}}/status-report con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con pain002_xml.",
+          "labels": [
+            "pain002"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:cpp-pago}}/status-report",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "operation_id": "{{op:cpp-pago}}",
+            "transaction_status": "ACSC"
+          }
+        },
+        {
+          "ref": "TC-5052",
+          "title": "Consultar el pain.002 de un pago inexistente",
+          "description": "El operation_id no existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/qa-cpp-no-existe/status-report con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "pain002",
+            "errores"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/qa-cpp-no-existe/status-report",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-5011",
+      "title": "Exportación CSV de auditoría",
+      "description": "Validar GET /logs/export y formato CSV.",
+      "labels": [
+        "audit"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-5012",
+      "title": "Conciliación de reservas QR",
+      "description": "Procedimiento manual para conciliar reservas caídas.",
+      "labels": [
+        "qr"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-5013",
+      "title": "Documentar flujo FOCR",
+      "description": "Documentar mapping de motivos ISO.",
+      "labels": [
+        "documentation"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-5014",
+      "title": "Validar notificaciones",
+      "description": "Revisar que todos los eventos generen notificaciones.",
+      "labels": [
+        "notifications"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-5015",
+      "title": "Validar status-report",
+      "description": "Confirmar que motivos ISO se reflejan correctamente.",
+      "labels": [
+        "status-report"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-5016",
+      "title": "Pruebas de regresión del ciclo posterior",
+      "description": "Ejecutar regresión completa.",
+      "labels": [
+        "regression"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-5017",
+      "title": "Validación de auditoría",
+      "description": "Confirmar que todos los eventos generan logs.",
+      "labels": [
+        "audit"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-5018",
+      "title": "Pruebas de carga del ciclo posterior",
+      "description": "Ejecutar pruebas de carga sobre returns y FOCR.",
+      "labels": [
+        "load"
+      ],
+      "story_points": 5
+    }
+  ]
+}

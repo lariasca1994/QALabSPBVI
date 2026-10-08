@@ -1,0 +1,426 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-006 - Autenticación API",
+  "epic": {
+    "ref": "EPIC-006",
+    "title": "Autenticación API",
+    "description": "Validación de CSRF, login, MFA por correo, reenvío de código, registro público, gestión de usuarios, cambio y reset de contraseña, sesiones y seguridad Argon2id."
+  },
+  "stories": [
+    {
+      "ref": "HU-6011",
+      "title": "Obtener el token CSRF",
+      "description": "Como cliente web, quiero un token CSRF por sesión, para proteger las mutaciones.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "GET /auth/csrf responde 200 y deja la cookie qalab_csrf."
+      ],
+      "labels": [
+        "epic-006",
+        "csrf"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-6011",
+          "title": "Obtener el token CSRF",
+          "description": "El servidor entrega el token de doble envío (cookie + cabecera).",
+          "priority": "high",
+          "preconditions": [
+            "Seguro en producción: no cambia la sesión ni la cuenta de quien ejecuta."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /auth/csrf con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200; el token no se guarda en la evidencia.",
+          "labels": [
+            "csrf"
+          ],
+          "request_method": "GET",
+          "request_path": "/auth/csrf",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-6012",
+      "title": "Login con credenciales",
+      "description": "Como usuario, quiero un error claro si me equivoco de credenciales, sin revelar si la cuenta existe.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Credenciales inválidas: 401 con el mismo mensaje exista o no la cuenta.",
+        "Datos mal formados: 422.",
+        "Rechazar un correo que no existe (POST /auth/login → 401): cubierto por las pruebas automáticas del backend y E2E.",
+        "Rechazar una contraseña incorrecta (POST /auth/login → 401): cubierto por las pruebas automáticas del backend y E2E.",
+        "Rechazar un correo mal formado (POST /auth/login → 422): cubierto por las pruebas automáticas del backend y E2E."
+      ],
+      "labels": [
+        "epic-006",
+        "login"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-6013",
+      "title": "Código MFA por correo",
+      "description": "Como usuario, quiero que solo un código vigente me deje entrar.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Un código sin inicio de sesión pendiente o incorrecto no abre sesión.",
+        "Un código con formato inválido responde 422.",
+        "Rechazar un código sin inicio de sesión pendiente (POST /auth/verify-email-code → 400, 401): cubierto por las pruebas automáticas del backend y E2E.",
+        "Rechazar un código con formato inválido (POST /auth/verify-email-code → 422): cubierto por las pruebas automáticas del backend y E2E."
+      ],
+      "labels": [
+        "epic-006",
+        "mfa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-6014",
+      "title": "Registro público de la demo",
+      "description": "Como visitante, quiero crear una cuenta usuario; como sistema, no se repiten correos.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Correo ya registrado: 409.",
+        "Contraseña corta o correo inválido: 422.",
+        "Rechazar un correo ya registrado (POST /auth/register → 409): cubierto por las pruebas automáticas del backend y E2E.",
+        "Rechazar datos inválidos (POST /auth/register → 422): cubierto por las pruebas automáticas del backend y E2E."
+      ],
+      "labels": [
+        "epic-006",
+        "registro"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-6015",
+      "title": "Gestión de usuarios",
+      "description": "Como admin o administrador, quiero listar las cuentas; como usuario, no puedo gestionarlas.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "GET /auth/users: 200 para admin y administrador.",
+        "Un usuario recibe 403.",
+        "Crear con datos inválidos: 422.",
+        "Rechazar la creación de una cuenta con datos inválidos (POST /auth/users → 422): cubierto por las pruebas automáticas del backend y E2E."
+      ],
+      "labels": [
+        "epic-006",
+        "usuarios"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-6052",
+          "title": "Listar las cuentas",
+          "description": "Admin y administrador ven todas las cuentas, incluidas las inactivas.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /auth/users con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con la lista.",
+          "labels": [
+            "usuarios"
+          ],
+          "request_method": "GET",
+          "request_path": "/auth/users",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-6053",
+          "title": "Rechazar el listado a un usuario",
+          "description": "La gestión de cuentas es solo para admin y administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /auth/users con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "usuarios",
+            "rbac"
+          ],
+          "request_method": "GET",
+          "request_path": "/auth/users",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-6016",
+      "title": "Activar y desactivar cuentas",
+      "description": "Como admin, quiero activar o desactivar cuentas; un usuario no puede.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Cuenta inexistente: 404.",
+        "Un usuario recibe 403.",
+        "Rechazar la desactivación hecha por un usuario (PATCH /auth/users/1 → 403): cubierto por las pruebas automáticas del backend y E2E.",
+        "Responder 404 a una cuenta inexistente (PATCH /auth/users/999999 → 404): cubierto por las pruebas automáticas del backend y E2E."
+      ],
+      "labels": [
+        "epic-006",
+        "usuarios"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-6017",
+      "title": "Cambio de la propia contraseña",
+      "description": "Como usuario, quiero cambiar mi contraseña confirmando la actual.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Contraseña actual incorrecta: 400.",
+        "Contraseña nueva corta: 422.",
+        "Rechazar una contraseña actual incorrecta (POST /auth/password → 400): cubierto por las pruebas automáticas del backend y E2E.",
+        "Rechazar una contraseña nueva corta (POST /auth/password → 422): cubierto por las pruebas automáticas del backend y E2E."
+      ],
+      "labels": [
+        "epic-006",
+        "password"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-6018",
+      "title": "Recuperación de contraseña",
+      "description": "Como usuario, quiero recuperar el acceso con un código por correo, sin que se revele qué correos existen.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "La solicitud responde 202 igual exista o no el correo.",
+        "Un código incorrecto: 400.",
+        "Solicitar recuperación para un correo inexistente (POST /auth/password-reset/request → 202): cubierto por las pruebas automáticas del backend y E2E.",
+        "Rechazar un código de recuperación incorrecto (POST /auth/password-reset/confirm → 400): cubierto por las pruebas automáticas del backend y E2E."
+      ],
+      "labels": [
+        "epic-006",
+        "reset"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-6019",
+      "title": "Sesión actual",
+      "description": "Como usuario, quiero consultar mi sesión para que la interfaz sepa quién soy.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "GET /auth/me responde 200 con el correo y el rol de la sesión."
+      ],
+      "labels": [
+        "epic-006",
+        "sesion"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-6092",
+          "title": "Consultar la sesión actual",
+          "description": "Devuelve los datos de quien ejecuta.",
+          "priority": "high",
+          "preconditions": [
+            "Seguro en producción: no cambia la sesión ni la cuenta de quien ejecuta."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /auth/me con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con el correo de quien ejecuta.",
+          "labels": [
+            "sesion"
+          ],
+          "request_method": "GET",
+          "request_path": "/auth/me",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "email": "{{me:email}}",
+            "is_active": true
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-6020",
+      "title": "Contraseñas con Argon2id",
+      "description": "Como responsable de seguridad, quiero las contraseñas guardadas con Argon2id.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Se verifica en las pruebas automáticas del backend; no hay endpoint que exponga el hash."
+      ],
+      "labels": [
+        "epic-006",
+        "seguridad"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-6011",
+      "title": "Configurar hashing Argon2id",
+      "description": "Configurar parámetros de Argon2id.",
+      "labels": [
+        "security"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-6012",
+      "title": "Pruebas de expiración de sesión",
+      "description": "Validar expiración por inactividad y tiempo absoluto.",
+      "labels": [
+        "sessions"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-6013",
+      "title": "Mock de correo MFA",
+      "description": "Configurar correo simulado para MFA.",
+      "labels": [
+        "mfa"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-6014",
+      "title": "Pruebas CSRF automáticas",
+      "description": "Validar protección CSRF en endpoints sensibles.",
+      "labels": [
+        "csrf"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-6015",
+      "title": "Validación de registro público",
+      "description": "Verificar límites y errores en registro.",
+      "labels": [
+        "register"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-6016",
+      "title": "Validación de reset de contraseña",
+      "description": "Validar flujo completo de reset.",
+      "labels": [
+        "password-reset"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-6017",
+      "title": "Validación de login MFA",
+      "description": "Probar login con MFA en distintos escenarios.",
+      "labels": [
+        "mfa"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-6018",
+      "title": "Validación de usuarios y roles",
+      "description": "Verificar creación, actualización y permisos.",
+      "labels": [
+        "users"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-6019",
+      "title": "Pruebas de carga de autenticación",
+      "description": "Ejecutar pruebas de carga sobre login y registro.",
+      "labels": [
+        "load"
+      ],
+      "story_points": 5
+    },
+    {
+      "ref": "TASK-6020",
+      "title": "Validación de auditoría de autenticación",
+      "description": "Confirmar que todos los eventos generan logs.",
+      "labels": [
+        "audit"
+      ],
+      "story_points": 3
+    }
+  ]
+}

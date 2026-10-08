@@ -1136,7 +1136,7 @@ def execute_test_case(
         raise QaForbiddenError
 
     # Primero los marcadores dinámicos (llaves y operaciones), luego los secretos.
-    resolver = Resolver(database, epic["key"], selected_keys)
+    resolver = Resolver(database, epic["key"], selected_keys, actor_email=actor.email)
     try:
         request_spec = resolver.resolve(case["request"])
         resolved_expected = resolver.resolve(case.get("expected_response"))

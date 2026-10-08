@@ -1,0 +1,1816 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-011 - Pagos con QR EMVCo (API)",
+  "epic": {
+    "ref": "EPIC-011",
+    "title": "Pagos con QR EMVCo (API)",
+    "description": "Cobros y pagos con QR en formato EMVCo de laboratorio: estático, híbrido y dinámico; lectura sin mover dinero; pago intra o inter; un solo uso (409), vencimiento y anulación (410), titularidad (403), QR alterado (422) y liberación de reservas. Cobros en TiDB Cloud (MySQL)."
+  },
+  "stories": [
+    {
+      "ref": "HU-1101",
+      "title": "Generación de QR estático e híbrido",
+      "description": "Como comercio, quiero un QR estático (monto libre) o híbrido (monto fijo) para mi llave.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "POST /qr/static responde 200 con el contenido EMVCo.",
+        "Llave inexistente: 404.",
+        "Nombre de comercio vacío: 422."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1100A",
+          "title": "Crear la cuenta qr-a-origen",
+          "description": "Crea qr-a-origen en spbvi-a con saldo inicial de 5000000 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qr-a-origen",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 5000000
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1100B",
+          "title": "Crear la cuenta qr-a-sinfondos",
+          "description": "Crea qr-a-sinfondos en spbvi-a con saldo inicial de 100 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qr-a-sinfondos",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 100
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1100C",
+          "title": "Crear la cuenta qr-a-comercio",
+          "description": "Crea qr-a-comercio en spbvi-a con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qr-a-comercio",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1100D",
+          "title": "Crear la cuenta qr-b-comercio",
+          "description": "Crea qr-b-comercio en spbvi-b con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "qr-b-comercio",
+            "spbvi_id": "spbvi-b",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1100E",
+          "title": "Registrar una llave alias en spbvi-b",
+          "description": "Genera una llave alias válida y la registra en el DIFE de spbvi-b apuntando a qr-b-comercio.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y entra a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "qr-b-comercio"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "spbvi_id": "spbvi-b",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-1100F",
+          "title": "Registrar una llave alias en spbvi-a",
+          "description": "Genera una llave alias válida y la registra en el DIFE de spbvi-a apuntando a qr-a-comercio.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y entra a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "qr-a-comercio"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-1101",
+          "title": "Generar un QR estático sin monto",
+          "description": "Quien paga define el monto.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/static con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con un QR tipo 11.",
+          "labels": [
+            "qr",
+            "estatico"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/static",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "qr_type": "static",
+            "amount_cents": null
+          }
+        },
+        {
+          "ref": "TC-1102",
+          "title": "Generar un QR estático híbrido",
+          "description": "Monto fijo de 5.000 centavos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/static con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con un QR tipo 11 y monto.",
+          "labels": [
+            "qr",
+            "hibrido"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/static",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA",
+            "amount_cents": 5000
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "qr_type": "static_hybrid",
+            "amount_cents": 5000
+          }
+        },
+        {
+          "ref": "TC-1103",
+          "title": "Rechazar una llave inexistente",
+          "description": "La llave no está confirmada en ese SPBVI.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/static con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "qr",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/static",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "@qanoexiste1103",
+            "merchant_name": "Comercio QA"
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1104",
+          "title": "Rechazar un nombre de comercio vacío",
+          "description": "merchant_name es obligatorio.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/static con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422.",
+          "labels": [
+            "qr",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/static",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": ""
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1102",
+      "title": "Cobros QR dinámicos",
+      "description": "Como comercio, quiero cobros de un solo uso con vencimiento configurable.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "POST /qr/charges acepta vencimientos de 60 a 3.600 segundos y responde 201 pendiente.",
+        "Cobro inexistente: 404."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1105",
+          "title": "Crear un cobro dinámico",
+          "description": "Cobro de 2.500 centavos que vence en 10 minutos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 pendiente.",
+          "labels": [
+            "qr",
+            "dinamico"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA",
+            "amount_cents": 2500,
+            "reference": "Factura QA",
+            "expires_in_seconds": 600
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "status": "pending",
+            "amount_cents": 2500,
+            "reference": "Factura QA"
+          }
+        },
+        {
+          "ref": "TC-1106",
+          "title": "Consultar el cobro recién creado",
+          "description": "Estado y tiempo restante.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1105 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 pendiente.",
+          "labels": [
+            "qr",
+            "dinamico"
+          ],
+          "request_method": "GET",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "pending"
+          }
+        },
+        {
+          "ref": "TC-1107",
+          "title": "Rechazar un vencimiento fuera de rango",
+          "description": "30 segundos es menos que el mínimo (60).",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 sin crear el cobro.",
+          "labels": [
+            "qr",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA",
+            "amount_cents": 2500,
+            "expires_in_seconds": 30
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1108",
+          "title": "Consultar un cobro inexistente",
+          "description": "El identificador no existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /qr/charges/00000000000000000000000000000000 con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "qr",
+            "negativo"
+          ],
+          "request_method": "GET",
+          "request_path": "/qr/charges/00000000000000000000000000000000",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1103",
+      "title": "Lectura y validación del QR",
+      "description": "Como pagador, quiero ver qué voy a pagar antes de confirmar, sin mover dinero.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "POST /qr/decode valida CRC y firma y responde 200.",
+        "Contenido mal formado: 422.",
+        "El QR dinámico muestra el estado del cobro."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1109",
+          "title": "Leer el QR híbrido",
+          "description": "El monto no se puede editar.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1102 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/decode con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "qr",
+            "lectura"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/decode",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:static}}"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "qr_type": "static_hybrid",
+            "amount_editable": false,
+            "amount_cents": 5000
+          }
+        },
+        {
+          "ref": "TC-1110",
+          "title": "Rechazar un contenido que no es QR",
+          "description": "Texto sin estructura EMVCo.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/decode con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 con el motivo.",
+          "labels": [
+            "qr",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/decode",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "esto-no-es-un-qr"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1111",
+          "title": "Leer el QR dinámico pendiente",
+          "description": "Muestra el estado del cobro.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1105 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/decode con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "qr",
+            "lectura"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/decode",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "qr_type": "dynamic",
+            "charge_status": "pending",
+            "amount_cents": 2500
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1104",
+      "title": "Pagos con QR intra e inter-SPBVI",
+      "description": "Como pagador, quiero pagar un QR y que el sistema elija el flujo según la llave.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Llave en el DIFE del SPBVI de origen: intra (sin DICE).",
+        "Llave en otro SPBVI: inter por DICE y MOL.",
+        "El híbrido no admite otro monto (422)."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 8,
+      "test_cases": [
+        {
+          "ref": "TC-1113",
+          "title": "Pagar el QR híbrido",
+          "description": "Pago intra de 5.000 centavos.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1102 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 intra.",
+          "labels": [
+            "qr",
+            "intra"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:static}}",
+            "source_account_id": "qr-a-origen",
+            "operation_id": "{{op:qr-hibrido:new}}"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "flow": "intra",
+            "qr_type": "static_hybrid",
+            "payment": {
+              "amount_cents": 5000
+            }
+          }
+        },
+        {
+          "ref": "TC-1115",
+          "title": "Pagar el cobro dinámico",
+          "description": "El cobro queda pagado.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1105 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 pagado.",
+          "labels": [
+            "qr",
+            "dinamico"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}",
+            "source_account_id": "qr-a-origen"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "flow": "intra",
+            "charge_status": "paid",
+            "payment": {
+              "amount_cents": 2500
+            }
+          }
+        },
+        {
+          "ref": "TC-1116",
+          "title": "Rechazar otro monto en el QR híbrido",
+          "description": "El monto del híbrido es fijo.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1102 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422.",
+          "labels": [
+            "qr",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:static}}",
+            "source_account_id": "qr-a-origen",
+            "amount_cents": 4999,
+            "operation_id": "{{op:qr-otro-monto:new}}"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": {
+            "detail": "El monto no coincide con el del QR; no se puede cambiar."
+          }
+        },
+        {
+          "ref": "TC-1114A",
+          "title": "Crear un cobro en otro SPBVI",
+          "description": "Cobro de 1.500 centavos a una llave de spbvi-b.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "qr",
+            "inter"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-b",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-b}}",
+            "merchant_name": "Comercio B",
+            "amount_cents": 1500
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "status": "pending",
+            "spbvi_id": "spbvi-b"
+          }
+        },
+        {
+          "ref": "TC-1114",
+          "title": "Pagar con QR un cobro de otro SPBVI",
+          "description": "Va por DICE y MOL.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1114A ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 inter.",
+          "labels": [
+            "qr",
+            "inter"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}",
+            "source_account_id": "qr-a-origen"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "flow": "inter",
+            "charge_status": "paid",
+            "payment": {
+              "payment_type": "inter_spbvi"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1105",
+      "title": "Uso único del cobro (409)",
+      "description": "Como sistema, quiero rechazar el segundo pago de un cobro dinámico.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Segundo pago: 409.",
+        "Cobro reservado por otra cuenta: 409; cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "Dos pagos simultáneos dejan uno solo: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1117",
+          "title": "Rechazar el segundo pago del cobro",
+          "description": "El cobro ya está pagado.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1114 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409 sin segundo débito.",
+          "labels": [
+            "qr",
+            "idempotencia"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}",
+            "source_account_id": "qr-a-origen"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": {
+            "detail": "El cobro ya fue pagado."
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1106",
+      "title": "Anulación y vencimiento (410)",
+      "description": "Como comercio, quiero anular un cobro; un cobro anulado o vencido no se paga.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Anular un cobro pendiente: 200.",
+        "Pagar un cobro anulado: 410.",
+        "Pagar un cobro vencido: 410; cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1120A",
+          "title": "Crear un cobro para anularlo",
+          "description": "Cobro de 1.000 centavos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "qr",
+            "anulacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "status": "pending"
+          }
+        },
+        {
+          "ref": "TC-1120",
+          "title": "Anular el cobro",
+          "description": "Quien lo creó (o un administrador) lo anula.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "TC-1120A ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar DELETE /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 anulado.",
+          "labels": [
+            "qr",
+            "anulacion"
+          ],
+          "request_method": "DELETE",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "cancelled"
+          }
+        },
+        {
+          "ref": "TC-1121",
+          "title": "Rechazar el pago de un cobro anulado",
+          "description": "El cobro fue anulado.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1120 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (410).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "410.",
+          "labels": [
+            "qr",
+            "anulacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}",
+            "source_account_id": "qr-a-origen"
+          },
+          "expected_status_codes": [
+            410
+          ],
+          "expected_response": {
+            "detail": "El cobro fue anulado."
+          }
+        },
+        {
+          "ref": "TC-1122",
+          "title": "Consultar el cobro anulado",
+          "description": "Queda en cancelled.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1120 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "qr",
+            "anulacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "cancelled",
+            "seconds_left": 0
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1107",
+      "title": "Titularidad de la llave (403)",
+      "description": "Como sistema, quiero que un usuario solo cobre con sus llaves y no anule cobros ajenos.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Usuario no titular: 403 al generar QR.",
+        "Usuario ajeno: 403 al anular.",
+        "Administrador: puede anular."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1124",
+          "title": "Rechazar un QR con llave ajena",
+          "description": "La llave no es del usuario que ejecuta.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/static con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "qr",
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/static",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": {
+            "detail": "Solo puedes cobrar con llaves de las que eres titular."
+          }
+        },
+        {
+          "ref": "TC-1125A",
+          "title": "Crear un cobro para probar la anulación",
+          "description": "Lo crea un administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "qr",
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA",
+            "amount_cents": 1200
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "status": "pending"
+          }
+        },
+        {
+          "ref": "TC-1125",
+          "title": "Rechazar la anulación de un usuario ajeno",
+          "description": "Solo quien lo creó o un administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "TC-1125A ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar DELETE /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403; sigue pendiente.",
+          "labels": [
+            "qr",
+            "rbac"
+          ],
+          "request_method": "DELETE",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1126",
+          "title": "Anular como administrador",
+          "description": "Un administrador anula cualquier cobro pendiente.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "TC-1125A ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar DELETE /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "qr",
+            "rbac"
+          ],
+          "request_method": "DELETE",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "cancelled"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1108",
+      "title": "QR alterado (CRC y firma)",
+      "description": "Como sistema, quiero rechazar todo QR con el CRC o la firma alterados.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "CRC alterado: 422.",
+        "Firma (campo 91) alterada: 422.",
+        "Pagar un QR alterado: 422 sin mover dinero."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1127",
+          "title": "Rechazar un CRC alterado",
+          "description": "El CRC (campo 63) no coincide.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/decode con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422.",
+          "labels": [
+            "qr",
+            "integridad"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/decode",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "00020101021126320014CO.COM.LAB.LLA0410@qalterado49250014CO.COM.LAB.RED0103LAB520400005303170540510.005802CO5911Comercio QA6006Bogota62150705QALAB08020380270016CO.COM.LAB.CANAL0103APP91860014CO.COM.LAB.SEC0164000000000000000000000000000000000000000000000000000000000000000063040000"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": {
+            "detail": "El CRC del QR no coincide: el contenido está dañado o fue modificado."
+          }
+        },
+        {
+          "ref": "TC-1129",
+          "title": "Rechazar una firma alterada",
+          "description": "El CRC es correcto pero el hash de seguridad no.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/decode con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422.",
+          "labels": [
+            "qr",
+            "seguridad"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/decode",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "00020101021126320014CO.COM.LAB.LLA0410@qalterado49250014CO.COM.LAB.RED0103LAB520400005303170540510.005802CO5911Comercio QA6006Bogota62150705QALAB08020380270016CO.COM.LAB.CANAL0103APP91860014CO.COM.LAB.SEC0164000000000000000000000000000000000000000000000000000000000000000063042DAD"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": {
+            "detail": "La firma del QR no es válida: el QR fue alterado o no lo generó este laboratorio."
+          }
+        },
+        {
+          "ref": "TC-1128",
+          "title": "Rechazar el pago de un QR alterado",
+          "description": "No mueve dinero.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422.",
+          "labels": [
+            "qr",
+            "seguridad"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "00020101021126320014CO.COM.LAB.LLA0410@qalterado49250014CO.COM.LAB.RED0103LAB520400005303170540510.005802CO5911Comercio QA6006Bogota62150705QALAB08020380270016CO.COM.LAB.CANAL0103APP91860014CO.COM.LAB.SEC0164000000000000000000000000000000000000000000000000000000000000000063042DAD",
+            "source_account_id": "qr-a-origen",
+            "operation_id": "{{op:qr-alterado:new}}"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1109",
+      "title": "Liberación de reservas",
+      "description": "Como sistema, quiero que un pago rechazado libere el cobro para otro pago.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Rechazo de negocio: el cobro vuelve a pending.",
+        "Reserva caída (>60 s sin pago): la consulta la libera; cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-011",
+        "qr"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1130A",
+          "title": "Crear un cobro para un pago sin fondos",
+          "description": "Cobro de 10.000 centavos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "qr",
+            "conciliacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA",
+            "amount_cents": 10000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "status": "pending"
+          }
+        },
+        {
+          "ref": "TC-1130",
+          "title": "Rechazar el pago por saldo insuficiente",
+          "description": "pain.002 RJCT AM04; el cobro se libera.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1130A ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409 sin movimientos.",
+          "labels": [
+            "qr",
+            "conciliacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}",
+            "source_account_id": "qr-a-sinfondos"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": {
+            "status": "rejected",
+            "reason_code": "AM04"
+          }
+        },
+        {
+          "ref": "TC-1131",
+          "title": "Verificar que el cobro quedó libre",
+          "description": "Vuelve a pending sin cuenta reservada.",
+          "priority": "high",
+          "preconditions": [
+            "TC-1130 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 pendiente.",
+          "labels": [
+            "qr",
+            "conciliacion"
+          ],
+          "request_method": "GET",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "pending",
+            "payer_account_id": null
+          }
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1101",
+      "title": "Revisar el perfil EMVCo frente al estándar publicado",
+      "description": "Comparar campos y longitudes con el estándar EMVCo de las EASPBV colombianas.",
+      "labels": [
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1102",
+      "title": "Probar cobros dinámicos con distintos vencimientos",
+      "description": "Crear cobros de 60 a 3.600 s desde la pantalla Código QR.",
+      "labels": [
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1103",
+      "title": "Probar la lectura del QR por cámara, imagen y texto",
+      "description": "Desde la PWA en celular y en escritorio.",
+      "labels": [
+        "qr",
+        "pwa"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1104",
+      "title": "Probar pagos QR intra e inter",
+      "description": "Verificar el flujo elegido y los mensajes ISO de cada pago.",
+      "labels": [
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1105",
+      "title": "Probar el doble pago simultáneo",
+      "description": "Dos personas pagan el mismo cobro a la vez: uno solo debe pasar.",
+      "labels": [
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1106",
+      "title": "Probar un cobro vencido",
+      "description": "Crear un cobro de 60 s, esperar y verificar 410 al pagar.",
+      "labels": [
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1107",
+      "title": "Revisar la titularidad en DIFE",
+      "description": "Asignar titular a una llave y cobrar con esa cuenta.",
+      "labels": [
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1108",
+      "title": "Revisar la conciliación en TiDB",
+      "description": "Consultar cobros paid y pagos qr- y confirmar que coinciden.",
+      "labels": [
+        "qr",
+        "tidb"
+      ],
+      "story_points": 3
+    }
+  ]
+}

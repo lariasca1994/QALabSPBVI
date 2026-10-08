@@ -8,11 +8,17 @@ Se resuelven al ejecutar un CP, antes de enviar la solicitud:
 - ``{{key:TIPO}}`` o ``{{key:TIPO:SPBVI}}``: valor de una llave ya creada en la épica (la
   lista de llaves), filtrada por tipo y, si se indica, por SPBVI. Por defecto se usa la más
   reciente activa; quien ejecuta puede elegir otra de la lista.
+- ``{{key:last:TIPO:SPBVI}}``: la llave más reciente de ese tipo en cualquier estado
+  (suspendida o eliminada incluidas), para seguir el ciclo de vida de una misma llave.
 - ``{{op:NOMBRE:new}}``: genera un identificador de operación nuevo y lo guarda en la épica.
 - ``{{op:NOMBRE}}``: reutiliza el último identificador generado con ese nombre (reenvíos
   idempotentes y consultas de estado).
 - ``{{qr:static}}``, ``{{qr:charge}}`` y ``{{qr:charge-id}}``: contenido del último QR
   estático o dinámico generado por un CP de la épica, y el identificador de ese cobro.
+- ``{{me:email}}``: correo de quien ejecuta el CP (p. ej. para registrar una llave de la
+  que es titular y luego hacer acciones personales sobre ella).
+- ``{{epic:key}}``: clave de la épica del CP (p. ej. EPIC-00004), para CP que operan
+  sobre su propia épica sin depender de su número.
 
 Dentro de una misma ejecución, el mismo marcador siempre resuelve al mismo valor, así que
 puede aparecer en el cuerpo, la ruta y la respuesta esperada.
@@ -29,9 +35,10 @@ from pymongo.database import Database
 
 from app.domains.keys.key_types import KEY_TYPE_CODES, normalize_key_value
 
-KEY_PLACEHOLDER = re.compile(r"\{\{key:(?:(new):)?([a-z_]+)(?::([a-z0-9-]+))?\}\}")
+KEY_PLACEHOLDER = re.compile(r"\{\{key:(?:(new|last):)?([a-z_]+)(?::([a-z0-9-]+))?\}\}")
 OP_PLACEHOLDER = re.compile(r"\{\{op:([a-z0-9-]{1,40})(:new)?\}\}")
 QR_PLACEHOLDER = re.compile(r"\{\{qr:(static|charge|charge-id)\}\}")
+CONTEXT_PLACEHOLDER = re.compile(r"\{\{(me:email|epic:key)\}\}")
 QR_PATHS = {"/qr/static": "static", "/qr/charges": "charge"}
 KEYS_PATH = re.compile(r"^/difes/([a-z0-9-]+)/keys(?:/(suspend|reactivate|owner))?$")
 USABLE_KEY_STATUSES = ("confirmed", "active")
@@ -80,7 +87,7 @@ def validate_placeholders(*values: Any) -> None:
                 raise PlaceholderError(
                     f"Tipo de llave desconocido en {match.group(0)}. Usa uno de: {allowed}."
                 )
-            if match.group(1) and match.group(3):
+            if match.group(1) == "new" and match.group(3):
                 raise PlaceholderError(
                     f"{match.group(0)}: una llave nueva no lleva SPBVI; va en la ruta del registro."
                 )
@@ -88,9 +95,10 @@ def validate_placeholders(*values: Any) -> None:
             "{{key:" in KEY_PLACEHOLDER.sub("", text)
             or "{{op:" in OP_PLACEHOLDER.sub("", text)
             or "{{qr:" in QR_PLACEHOLDER.sub("", text)
+            or any(f"{{{{{prefix}:" in CONTEXT_PLACEHOLDER.sub("", text) for prefix in ("me", "epic"))
         ):
             raise PlaceholderError(
-                "Hay un marcador {{key:…}}, {{op:…}} o {{qr:…}} mal formado en el CP."
+                "Hay un marcador {{key:…}}, {{op:…}}, {{qr:…}}, {{me:…}} o {{epic:…}} mal formado en el CP."
             )
 
 
@@ -112,7 +120,8 @@ def list_epic_keys(
     key_type: str | None = None,
     spbvi_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    query: dict[str, Any] = {"epic_key": epic_key}
+    # Las llaves eliminadas quedan en la lista (para {{key:last:…}}) pero no se ofrecen.
+    query: dict[str, Any] = {"epic_key": epic_key, "status": {"$ne": "deleted"}}
     if key_type:
         query["key_type"] = key_type
     if spbvi_id:
@@ -131,17 +140,29 @@ class Resolver:
         database: Database,
         epic_key: str,
         selected_keys: dict[str, str] | None = None,
+        actor_email: str | None = None,
     ) -> None:
         self.database = database
         self.epic_key = epic_key
         self.selected_keys = selected_keys or {}
+        self.actor_email = actor_email
         self.values: dict[str, str] = {}
         self.new_operations: dict[str, str] = {}
 
     def _key(self, match: re.Match[str]) -> str:
         new, key_type, spbvi_id = match.groups()
-        if new:
+        if new == "new":
             return generate_key_value(key_type)
+        if new == "last":
+            query = {"epic_key": self.epic_key, "key_type": key_type}
+            if spbvi_id:
+                query["spbvi_id"] = spbvi_id
+            document = self.database.qa_keys.find_one(query, sort=[("touched_ns", -1), ("updated_at_epoch", -1), ("_id", -1)])
+            if document is None:
+                raise PlaceholderError(
+                    f"No hay llaves de tipo {key_type}{':' + spbvi_id if spbvi_id else ''} en la lista de la épica."
+                )
+            return document["key_value"]
         spec = key_type + (f":{spbvi_id}" if spbvi_id else "")
         query: dict[str, Any] = {"epic_key": self.epic_key, "key_type": key_type}
         if spbvi_id:
@@ -183,6 +204,13 @@ class Resolver:
             )
         return document["value"]
 
+    def _context(self, match: re.Match[str]) -> str:
+        if match.group(1) == "epic:key":
+            return self.epic_key
+        if not self.actor_email:
+            raise PlaceholderError("{{me:email}} solo se resuelve al ejecutar el CP con una sesión.")
+        return self.actor_email
+
     def _qr(self, match: re.Match[str]) -> str:
         name = match.group(1)
         kind = "static" if name == "static" else "charge"
@@ -213,6 +241,7 @@ class Resolver:
         if isinstance(value, str):
             text = self._replace(OP_PLACEHOLDER, self._operation, value)
             text = self._replace(QR_PLACEHOLDER, self._qr, text)
+            text = self._replace(CONTEXT_PLACEHOLDER, self._context, text)
             return self._replace(KEY_PLACEHOLDER, self._key, text)
         return value
 
@@ -256,9 +285,11 @@ def record_key_result(
         "spbvi_id": spbvi_id,
     }
     now = int(time.time())
+    # Orden exacto de los cambios (dos CP pueden caer en el mismo segundo): {{key:last:…}}.
+    touched = time.time_ns()
     if method == "DELETE":
         if response_body.get("deleted"):
-            database.qa_keys.delete_one(identity)
+            database.qa_keys.update_one(identity, {"$set": {"status": "deleted", "updated_at_epoch": now, "touched_ns": touched}})
         return
     if method == "POST" and match.group(2) is None:
         database.qa_keys.update_one(
@@ -268,6 +299,7 @@ def record_key_result(
                     "status": response_body.get("status", "confirmed"),
                     "deposit_product_id": response_body.get("deposit_product_id"),
                     "updated_at_epoch": now,
+                    "touched_ns": touched,
                 },
                 "$setOnInsert": {
                     "created_at_epoch": now,
@@ -281,7 +313,7 @@ def record_key_result(
     if "status" in response_body:
         database.qa_keys.update_one(
             identity,
-            {"$set": {"status": response_body["status"], "updated_at_epoch": now}},
+            {"$set": {"status": response_body["status"], "updated_at_epoch": now, "touched_ns": touched}},
         )
 
 

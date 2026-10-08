@@ -1,0 +1,338 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-012 - Salud, despliegue y no funcionales",
+  "epic": {
+    "ref": "EPIC-012",
+    "title": "Salud, despliegue y no funcionales",
+    "description": "Salud de la API y de sus bases, despertar de las bases que se pausan (503 con Retry-After), CI/CD con GitHub Actions, rendimiento básico y aislamiento del laboratorio."
+  },
+  "stories": [
+    {
+      "ref": "HU-1201",
+      "title": "Salud general y de las bases",
+      "description": "Como administrador, quiero saber si la API y sus bases están listas.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "GET /health responde 200 sin tocar bases.",
+        "GET /health/databases informa pagos, DIFE, DICE y cobros QR."
+      ],
+      "labels": [
+        "epic-012",
+        "salud"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1201",
+          "title": "Consultar la salud de la API",
+          "description": "No toca ninguna base, así que no las despierta.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /health con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "salud"
+          ],
+          "request_method": "GET",
+          "request_path": "/health",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "ok"
+          }
+        },
+        {
+          "ref": "TC-1202",
+          "title": "Consultar el estado de las bases",
+          "description": "200 si todas están listas; 503 mientras alguna despierta.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /health/databases con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200, 503).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con ready = true, o 503 con Retry-After.",
+          "labels": [
+            "salud",
+            "bases"
+          ],
+          "request_method": "GET",
+          "request_path": "/health/databases",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200,
+            503
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1202",
+      "title": "Despertar de las bases (503 y Retry-After)",
+      "description": "Como sistema, quiero responder 503 con Retry-After mientras una base se reanuda.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "503 con Retry-After mientras una base despierta: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "La interfaz habilita Ejecutar cuando las bases están listas."
+      ],
+      "labels": [
+        "epic-012",
+        "salud"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1206",
+          "title": "Comprobar la recuperación de las bases",
+          "description": "Tras despertar, /health/databases responde 200.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /health/databases con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200, 503).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 cuando todas están listas.",
+          "labels": [
+            "salud",
+            "bases"
+          ],
+          "request_method": "GET",
+          "request_path": "/health/databases",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200,
+            503
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1203",
+      "title": "CI/CD con GitHub Actions",
+      "description": "Como DevOps, quiero que cada push pruebe y despliegue lab y producción.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Backend, compilación y E2E en cada push; despliegue a lab y luego a producción: se verifica en GitHub Actions (no es un CP de API)."
+      ],
+      "labels": [
+        "epic-012",
+        "ci-cd"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1204",
+      "title": "Rendimiento básico",
+      "description": "Como QA, quiero medir la respuesta de los endpoints de salud.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "La ejecución registra la duración de cada solicitud.",
+        "La carga concurrente se mide con herramientas externas (tarea)."
+      ],
+      "labels": [
+        "epic-012",
+        "rendimiento"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1209",
+          "title": "Medir la respuesta de /health",
+          "description": "La ejecución guarda la duración.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /health con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200; revisar la duración en la ejecución.",
+          "labels": [
+            "rendimiento"
+          ],
+          "request_method": "GET",
+          "request_path": "/health",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "ok"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1205",
+      "title": "Aislamiento del laboratorio",
+      "description": "Como administrador, quiero que el laboratorio no toque infraestructura real de pagos.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "El servicio aguas arriba es un mock (/mock/*).",
+        "Los secretos viven en gestores de secretos: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-012",
+        "aislamiento"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1211",
+          "title": "Verificar que el servicio aguas arriba es simulado",
+          "description": "El mock responde sin salir a internet.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /mock/upstream con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 del mock.",
+          "labels": [
+            "aislamiento"
+          ],
+          "request_method": "GET",
+          "request_path": "/mock/upstream",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1201",
+      "title": "Revisar /health y /health/databases",
+      "description": "Verificar que /health no toca bases y que /health/databases incluye la base de cobros QR.",
+      "labels": [
+        "salud"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1202",
+      "title": "Observar el despertar de DIFE en Australia",
+      "description": "Entrar tras una hora sin uso y medir cuánto tarda en estar lista.",
+      "labels": [
+        "salud"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1203",
+      "title": "Revisar el workflow de CI/CD",
+      "description": "Leer .github/workflows/ci.yml y verificar el orden lab → producción.",
+      "labels": [
+        "ci-cd"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1204",
+      "title": "Simular un fallo en CI",
+      "description": "En una rama, romper una prueba y confirmar que no se despliega.",
+      "labels": [
+        "ci-cd"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1205",
+      "title": "Medir latencia con carga moderada",
+      "description": "Herramienta externa contra /health con 10 usuarios simultáneos.",
+      "labels": [
+        "rendimiento"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1206",
+      "title": "Verificar que las bases duermen sin uso",
+      "description": "Confirmar en cada nube que las bases se pausan sin actividad.",
+      "labels": [
+        "costos",
+        "salud"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1207",
+      "title": "Revisar el aislamiento lab/producción",
+      "description": "Confirmar que cada entorno usa sus propias bases y secretos.",
+      "labels": [
+        "aislamiento"
+      ],
+      "story_points": 3
+    }
+  ]
+}

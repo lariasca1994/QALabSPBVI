@@ -1,0 +1,391 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-014 · PWA: offline y caché seguro",
+  "epic": {
+    "ref": "EPIC-014",
+    "title": "PWA: offline y caché seguro",
+    "description": "PWA: sin conexión, caché seguro (nunca /api), actualización de versiones y regla de cero trabajo en segundo plano"
+  },
+  "stories": [
+    {
+      "ref": "HU-01401",
+      "title": "Cáscara offline",
+      "description": "Como usuario/responsable QA, quiero validar apertura offline, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01402",
+      "title": "Aislamiento de API",
+      "description": "Como usuario/responsable QA, quiero validar aislamiento de /api, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01403",
+      "title": "Estrategia de navegación",
+      "description": "Como usuario/responsable QA, quiero validar online-first y fallback, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01404",
+      "title": "Caché de recursos estáticos",
+      "description": "Como usuario/responsable QA, quiero validar caché de assets e icons, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01405",
+      "title": "Actualización de versiones",
+      "description": "Como usuario/responsable QA, quiero validar actualización y limpieza, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-01406",
+      "title": "Cero trabajo en segundo plano",
+      "description": "Como usuario/responsable QA, quiero validar ausencia de background work, para validar el comportamiento PWA definido.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "1. El flujo cumple el comportamiento definido en el contexto.",
+        "2. El resultado es observable y verificable en el dispositivo/mode indicado.",
+        "3. No se habilitan funciones fuera de alcance."
+      ],
+      "labels": [
+        "qalabspbvi",
+        "pwa"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1401",
+      "title": "Inspeccionar Cache Storage",
+      "description": "Verificar contenido de qalab-v1.",
+      "labels": [
+        "qalabspbvi",
+        "offline"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-1402",
+      "title": "Comprobar exclusión de /api",
+      "description": "Auditar que /api no sea interceptado ni almacenado.",
+      "labels": [
+        "qalabspbvi",
+        "security"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1403",
+      "title": "Comprobar exclusión de métodos no GET",
+      "description": "Verificar que POST y otros métodos no sean interceptados.",
+      "labels": [
+        "qalabspbvi",
+        "service-worker"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-1404",
+      "title": "Probar navegación online-first",
+      "description": "Ejecutar red disponible, pérdida de red y recuperación.",
+      "labels": [
+        "qalabspbvi",
+        "offline"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1405",
+      "title": "Validar limpieza de cachés antiguas",
+      "description": "Comprobar eliminación durante activate.",
+      "labels": [
+        "qalabspbvi",
+        "service-worker"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1406",
+      "title": "Auditar ausencia de trabajo oculto",
+      "description": "Revisar ausencia de background sync, push y polling oculto.",
+      "labels": [
+        "qalabspbvi",
+        "cost-zero"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TC-1401",
+      "title": "Prueba de interfaz TC-1401: Cáscara offline: Cáscara offline",
+      "description": "Validar cáscara offline dentro de cáscara offline sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador/Instalada · Red: Sin conexión · Herramienta: DevTools > Network/Cache Storage\nPrecondiciones: Cáscara previamente almacenada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: La aplicación abre offline mediante la última versión o offline.html.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1402",
+      "title": "Prueba de interfaz TC-1402: Cáscara offline: Aislamiento del caché",
+      "description": "Validar aislamiento del caché dentro de cáscara offline sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea/Sin conexión · Herramienta: DevTools Network + Cache Storage\nPrecondiciones: Aplicación desplegada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: /api, métodos distintos de GET y otros orígenes no son interceptados ni almacenados.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1403",
+      "title": "Prueba de interfaz TC-1403: Cáscara offline: Cero trabajo en segundo plano",
+      "description": "Validar cero trabajo en segundo plano dentro de cáscara offline sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: DevTools + Playwright\nPrecondiciones: PWA instalada; escenario QR cuando aplique\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: No existen background sync, push ni consultas periódicas con la app oculta; no hay pago offline ni sincronización automática.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1404",
+      "title": "Prueba de interfaz TC-1404: Aislamiento de API: Cáscara offline",
+      "description": "Validar cáscara offline dentro de aislamiento de api sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador/Instalada · Red: Sin conexión · Herramienta: DevTools > Network/Cache Storage\nPrecondiciones: Cáscara previamente almacenada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: La aplicación abre offline mediante la última versión o offline.html.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1405",
+      "title": "Prueba de interfaz TC-1405: Aislamiento de API: Aislamiento del caché",
+      "description": "Validar aislamiento del caché dentro de aislamiento de api sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea/Sin conexión · Herramienta: DevTools Network + Cache Storage\nPrecondiciones: Aplicación desplegada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: /api, métodos distintos de GET y otros orígenes no son interceptados ni almacenados.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1406",
+      "title": "Prueba de interfaz TC-1406: Aislamiento de API: Cero trabajo en segundo plano",
+      "description": "Validar cero trabajo en segundo plano dentro de aislamiento de api sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: DevTools + Playwright\nPrecondiciones: PWA instalada; escenario QR cuando aplique\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: No existen background sync, push ni consultas periódicas con la app oculta; no hay pago offline ni sincronización automática.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1407",
+      "title": "Prueba de interfaz TC-1407: Estrategia de navegación: Cáscara offline",
+      "description": "Validar cáscara offline dentro de estrategia de navegación sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador/Instalada · Red: Sin conexión · Herramienta: DevTools > Network/Cache Storage\nPrecondiciones: Cáscara previamente almacenada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: La aplicación abre offline mediante la última versión o offline.html.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1408",
+      "title": "Prueba de interfaz TC-1408: Estrategia de navegación: Aislamiento del caché",
+      "description": "Validar aislamiento del caché dentro de estrategia de navegación sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea/Sin conexión · Herramienta: DevTools Network + Cache Storage\nPrecondiciones: Aplicación desplegada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: /api, métodos distintos de GET y otros orígenes no son interceptados ni almacenados.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1409",
+      "title": "Prueba de interfaz TC-1409: Estrategia de navegación: Cero trabajo en segundo plano",
+      "description": "Validar cero trabajo en segundo plano dentro de estrategia de navegación sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: DevTools + Playwright\nPrecondiciones: PWA instalada; escenario QR cuando aplique\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: No existen background sync, push ni consultas periódicas con la app oculta; no hay pago offline ni sincronización automática.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1410",
+      "title": "Prueba de interfaz TC-1410: Caché de recursos estáticos: Cáscara offline",
+      "description": "Validar cáscara offline dentro de caché de recursos estáticos sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador/Instalada · Red: Sin conexión · Herramienta: DevTools > Network/Cache Storage\nPrecondiciones: Cáscara previamente almacenada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: La aplicación abre offline mediante la última versión o offline.html.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1411",
+      "title": "Prueba de interfaz TC-1411: Caché de recursos estáticos: Aislamiento del caché",
+      "description": "Validar aislamiento del caché dentro de caché de recursos estáticos sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea/Sin conexión · Herramienta: DevTools Network + Cache Storage\nPrecondiciones: Aplicación desplegada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: /api, métodos distintos de GET y otros orígenes no son interceptados ni almacenados.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1412",
+      "title": "Prueba de interfaz TC-1412: Caché de recursos estáticos: Cero trabajo en segundo plano",
+      "description": "Validar cero trabajo en segundo plano dentro de caché de recursos estáticos sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: DevTools + Playwright\nPrecondiciones: PWA instalada; escenario QR cuando aplique\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: No existen background sync, push ni consultas periódicas con la app oculta; no hay pago offline ni sincronización automática.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1413",
+      "title": "Prueba de interfaz TC-1413: Actualización de versiones: Cáscara offline",
+      "description": "Validar cáscara offline dentro de actualización de versiones sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador/Instalada · Red: Sin conexión · Herramienta: DevTools > Network/Cache Storage\nPrecondiciones: Cáscara previamente almacenada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: La aplicación abre offline mediante la última versión o offline.html.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1414",
+      "title": "Prueba de interfaz TC-1414: Actualización de versiones: Aislamiento del caché",
+      "description": "Validar aislamiento del caché dentro de actualización de versiones sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea/Sin conexión · Herramienta: DevTools Network + Cache Storage\nPrecondiciones: Aplicación desplegada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: /api, métodos distintos de GET y otros orígenes no son interceptados ni almacenados.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1415",
+      "title": "Prueba de interfaz TC-1415: Actualización de versiones: Cero trabajo en segundo plano",
+      "description": "Validar cero trabajo en segundo plano dentro de actualización de versiones sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: DevTools + Playwright\nPrecondiciones: PWA instalada; escenario QR cuando aplique\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: No existen background sync, push ni consultas periódicas con la app oculta; no hay pago offline ni sincronización automática.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1416",
+      "title": "Prueba de interfaz TC-1416: Cero trabajo en segundo plano: Cáscara offline",
+      "description": "Validar cáscara offline dentro de cero trabajo en segundo plano sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador/Instalada · Red: Sin conexión · Herramienta: DevTools > Network/Cache Storage\nPrecondiciones: Cáscara previamente almacenada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: La aplicación abre offline mediante la última versión o offline.html.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1417",
+      "title": "Prueba de interfaz TC-1417: Cero trabajo en segundo plano: Aislamiento del caché",
+      "description": "Validar aislamiento del caché dentro de cero trabajo en segundo plano sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Navegador · Red: En línea/Sin conexión · Herramienta: DevTools Network + Cache Storage\nPrecondiciones: Aplicación desplegada\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: /api, métodos distintos de GET y otros orígenes no son interceptados ni almacenados.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    },
+    {
+      "ref": "TC-1418",
+      "title": "Prueba de interfaz TC-1418: Cero trabajo en segundo plano: Cero trabajo en segundo plano",
+      "description": "Validar cero trabajo en segundo plano dentro de cero trabajo en segundo plano sin introducir funciones no definidas.\nDispositivo: Android/Windows · Modo: Instalada · Red: En línea · Herramienta: DevTools + Playwright\nPrecondiciones: PWA instalada; escenario QR cuando aplique\nPasos:\n1. Preparar red y caché según precondiciones → El escenario queda listo.\n2. Ejecutar navegación/solicitud → El service worker aplica la regla definida.\n3. Inspeccionar Network y Cache Storage → Se confirma el aislamiento y/o fallback esperado.\nResultado esperado: No existen background sync, push ni consultas periódicas con la app oculta; no hay pago offline ni sincronización automática.\nEvidencia: Captura, trazas de DevTools o evidencia Playwright que demuestre el resultado.",
+      "labels": [
+        "epic-014",
+        "prueba-ui",
+        "pwa",
+        "qalabspbvi"
+      ],
+      "story_points": 1
+    }
+  ]
+}

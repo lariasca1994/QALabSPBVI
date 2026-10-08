@@ -1,0 +1,669 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "QALabSPBVI EPIC-007",
+  "epic": {
+    "ref": "EPIC-007",
+    "title": "Roles y permisos: matriz admin / administrador / usuario por endpoint (incluye /qr)",
+    "description": "Objetivo: asegurar Roles y permisos: matriz admin / administrador / usuario por endpoint (incluye /qr). Alcance limitado al laboratorio simulado; fecha objetivo: por definir."
+  },
+  "stories": [
+    {
+      "ref": "HU-701",
+      "title": "Matriz de acceso a épicas",
+      "description": "Solo admin crea épicas; administrador y usuario reciben 403.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Admin con datos inválidos: 422 (sin crear nada).",
+        "Administrador: 403.",
+        "Usuario: 403."
+      ],
+      "labels": [
+        "epic-007",
+        "rbac"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-701",
+          "title": "Admin pasa la autorización al crear una épica",
+          "description": "El admin está autorizado: con datos inválidos responde 422 y no crea nada.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin.",
+            "Seguro en producción: no cambia la sesión ni la cuenta de quien ejecuta."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422: autorizado, sin crear la épica.",
+          "labels": [
+            "rbac",
+            "epicas"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "",
+            "description": ""
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-702",
+          "title": "Administrador no crea épicas",
+          "description": "Crear épicas es solo del admin.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "rbac",
+            "epicas"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "EPIC RBAC",
+            "description": "Prueba de permisos"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-703",
+          "title": "Usuario no crea épicas",
+          "description": "Crear épicas es solo del admin.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "rbac",
+            "epicas"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "EPIC RBAC",
+            "description": "Prueba de permisos"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-702",
+      "title": "Integrantes de las épicas",
+      "description": "Solo admin y administrador asocian integrantes; una épica inexistente responde 404.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Usuario: 403.",
+        "Épica inexistente: 404."
+      ],
+      "labels": [
+        "epic-007",
+        "rbac"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-705",
+          "title": "Usuario no cambia integrantes",
+          "description": "Un usuario no gestiona integrantes.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar PUT /qa/epics/{{epic:key}}/members con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403 sin cambios.",
+          "labels": [
+            "rbac",
+            "integrantes"
+          ],
+          "request_method": "PUT",
+          "request_path": "/qa/epics/{{epic:key}}/members",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "member_ids": [
+              1
+            ]
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-706",
+          "title": "Integrantes de una épica inexistente",
+          "description": "La épica no existe.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar PUT /qa/epics/EPIC-99999/members con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404 sin cambios.",
+          "labels": [
+            "rbac",
+            "integrantes"
+          ],
+          "request_method": "PUT",
+          "request_path": "/qa/epics/EPIC-99999/members",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "member_ids": [
+              1
+            ]
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-703",
+      "title": "Permisos de llaves",
+      "description": "Registrar llaves es administrativo; un usuario recibe 403.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Usuario: 403 al registrar.",
+        "Admin o administrador: 201."
+      ],
+      "labels": [
+        "epic-007",
+        "rbac"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-707",
+          "title": "Usuario no registra llaves",
+          "description": "El alta de llaves requiere admin o administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "rbac",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "rbac-a-destino"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-7071",
+          "title": "Administrador registra una llave para los cobros QR",
+          "description": "Llave que usan los CP de HU-704.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 con la llave confirmada.",
+          "labels": [
+            "rbac",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "rbac-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "status": "confirmed"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-704",
+      "title": "Permisos de cobros QR",
+      "description": "Un usuario solo cobra con llaves de las que es titular y no anula cobros ajenos.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Usuario no titular: 403 al crear.",
+        "Admin/administrador: 201.",
+        "Usuario ajeno: 403 al anular.",
+        "Administrador: 200 al anular."
+      ],
+      "labels": [
+        "epic-007",
+        "rbac",
+        "qr"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-708",
+          "title": "Usuario no titular no crea un cobro QR",
+          "description": "La llave no es del usuario que ejecuta.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "TC-7071 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "rbac",
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio RBAC",
+            "amount_cents": 1500
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": {
+            "detail": "Solo puedes cobrar con llaves de las que eres titular."
+          }
+        },
+        {
+          "ref": "TC-709",
+          "title": "Administrador crea un cobro QR dinámico",
+          "description": "Admin y administrador cobran con cualquier llave.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "TC-7071 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 con el cobro pendiente.",
+          "labels": [
+            "rbac",
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio RBAC",
+            "amount_cents": 1500
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "status": "pending"
+          }
+        },
+        {
+          "ref": "TC-710",
+          "title": "Usuario ajeno no anula el cobro",
+          "description": "Solo quien lo creó o un administrador lo anula.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "TC-709 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar DELETE /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403; el cobro sigue pendiente.",
+          "labels": [
+            "rbac",
+            "qr"
+          ],
+          "request_method": "DELETE",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-711",
+          "title": "Administrador anula el cobro",
+          "description": "Un administrador puede anular cualquier cobro pendiente.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "TC-709 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar DELETE /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con status = cancelled.",
+          "labels": [
+            "rbac",
+            "qr"
+          ],
+          "request_method": "DELETE",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "cancelled"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-705",
+      "title": "Consultas del ciclo posterior",
+      "description": "Cualquier rol consulta; un pago inexistente responde 404.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "GET de devoluciones de un pago inexistente: 404."
+      ],
+      "labels": [
+        "epic-007",
+        "rbac"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-712",
+          "title": "Devoluciones de un pago inexistente",
+          "description": "El operation_id no existe.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /payments/{{op:rbac-missing:new}}/returns con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "rbac",
+            "pacs004"
+          ],
+          "request_method": "GET",
+          "request_path": "/payments/{{op:rbac-missing:new}}/returns",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-706",
+      "title": "Protección por sesión y CSRF",
+      "description": "Toda ruta protegida exige sesión y toda mutación exige CSRF.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Se verifica en las pruebas automáticas (pytest y E2E): el ejecutor de CP siempre envía la sesión y el CSRF de quien ejecuta, así que no puede probar su ausencia."
+      ],
+      "labels": [
+        "epic-007",
+        "seguridad"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-00701",
+      "title": "Definir matriz RBAC por endpoint",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-007",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00702",
+      "title": "Validar autorización de endpoints QA",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-007",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00703",
+      "title": "Validar autorización de DIFE y pagos",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-007",
+        "task"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-00704",
+      "title": "Validar permisos QR de titularidad y anulación",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-007",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00705",
+      "title": "Revisar protección CSRF en mutaciones",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-007",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00706",
+      "title": "Revisar evidencia de 401, 403 y 404",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-007",
+        "task"
+      ],
+      "story_points": 4
+    }
+  ]
+}

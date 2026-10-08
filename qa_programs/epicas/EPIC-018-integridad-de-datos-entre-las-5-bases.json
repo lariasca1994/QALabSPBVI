@@ -1,0 +1,1174 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-018 - Integridad de datos entre las 5 bases",
+  "epic": {
+    "ref": "EPIC-018",
+    "title": "Integridad de datos entre las 5 bases",
+    "description": "Consistencia entre DIFE (SQL Server) y DICE (Oracle), entre cobros QR (MySQL) y pagos (PostgreSQL), ledger que suma cero, historial de versiones de CP (MongoDB) y aislamiento lab/producción."
+  },
+  "stories": [
+    {
+      "ref": "HU-1801",
+      "title": "Preparación de datos de integridad",
+      "description": "Como QA, quiero cuentas y llaves propias (prefijo itg-) para las pruebas de integridad.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Cuentas itg- en spbvi-a y spbvi-b.",
+        "Llave registrada y resuelta en el DIFE."
+      ],
+      "labels": [
+        "epic-018",
+        "datos"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1801A",
+          "title": "Crear la cuenta itg-a-origen",
+          "description": "Crea itg-a-origen en spbvi-a con saldo inicial de 2000000 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "itg-a-origen",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 2000000
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1801B",
+          "title": "Crear la cuenta itg-a-destino",
+          "description": "Crea itg-a-destino en spbvi-a con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "itg-a-destino",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1801C",
+          "title": "Crear la cuenta itg-a-sinfondos",
+          "description": "Crea itg-a-sinfondos en spbvi-a con saldo inicial de 100 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "itg-a-sinfondos",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 100
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1801D",
+          "title": "Crear la cuenta itg-b-destino",
+          "description": "Crea itg-b-destino en spbvi-b con saldo inicial de 0 centavos.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La cuenta existe (201 la primera vez, 409 si ya estaba creada).",
+          "labels": [
+            "datos-prueba"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "itg-b-destino",
+            "spbvi_id": "spbvi-b",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1802",
+          "title": "Registrar una llave alias en spbvi-a",
+          "description": "Genera una llave alias válida y la registra en el DIFE de spbvi-a apuntando a itg-a-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y entra a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "itg-a-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-1802B",
+          "title": "Resolver la llave en el DIFE",
+          "description": "La llave recién registrada está activa.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "dife"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "status": "active"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1802",
+      "title": "DIFE ↔ DICE sin duplicados ni estados cruzados",
+      "description": "Como sistema, quiero que una llave apunte a un solo producto y que su estado sea coherente en ambos directorios.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Pago intra resuelto en el DIFE y pago inter resuelto en el DICE.",
+        "Llave duplicada en otro SPBVI: 409.",
+        "Suspendida: no se resuelve; reactivada: vuelve sin duplicarse.",
+        "Altas simultáneas de la misma llave: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-018",
+        "llaves"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1803",
+          "title": "Pagar a la llave dentro del mismo SPBVI",
+          "description": "Resolución intra (DIFE).",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "intra"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:itg-intra:new}}",
+            "source_account_id": "itg-a-origen",
+            "destination_key_type": "alias",
+            "destination_key_value": "{{key:alias:spbvi-a}}",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "payment_type": "intra_spbvi",
+            "status": "completed"
+          }
+        },
+        {
+          "ref": "TC-1804A",
+          "title": "Registrar una llave phone en spbvi-b",
+          "description": "Genera una llave phone válida y la registra en el DIFE de spbvi-b apuntando a itg-b-destino.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y entra a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "phone",
+            "key_value": "{{key:new:phone}}",
+            "deposit_product_id": "itg-b-destino"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "phone",
+            "spbvi_id": "spbvi-b",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-1804",
+          "title": "Pagar a una llave de otro SPBVI",
+          "description": "Resolución inter (DICE) y MOL.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments/inter-spbvi con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "inter"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments/inter-spbvi",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:itg-inter:new}}",
+            "source_account_id": "itg-a-origen",
+            "destination_key_type": "phone",
+            "destination_key_value": "{{key:phone:spbvi-b}}",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "payment_type": "inter_spbvi",
+            "status": "completed"
+          }
+        },
+        {
+          "ref": "TC-1805",
+          "title": "Rechazar la misma llave en otro SPBVI",
+          "description": "Unicidad global en el DICE.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-b/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409 sin duplicar.",
+          "labels": [
+            "dice",
+            "unicidad"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-b/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "deposit_product_id": "itg-b-destino"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1806",
+          "title": "Suspender la llave",
+          "description": "Suspensión administrativa.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/suspend con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "dife",
+            "dice"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/suspend",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "reason": "Prueba de integridad",
+            "suspension_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "suspended_administrative"
+          }
+        },
+        {
+          "ref": "TC-1806B",
+          "title": "No resolver la llave suspendida",
+          "description": "Una llave suspendida no se resuelve como activa.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /difes/spbvi-a/keys/resolve con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "dife"
+          ],
+          "request_method": "GET",
+          "request_path": "/difes/spbvi-a/keys/resolve",
+          "request_query": {
+            "key_type": "alias",
+            "key_value": "{{key:last:alias:spbvi-a}}"
+          },
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1807",
+          "title": "Reactivar la llave sin duplicarla",
+          "description": "Vuelve a confirmada.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys/reactivate con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "dife",
+            "dice"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys/reactivate",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:last:alias:spbvi-a}}",
+            "reason": "Fin de la prueba",
+            "reactivation_type": "administrative"
+          },
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-1807B",
+          "title": "Rechazar volver a registrar la llave reactivada",
+          "description": "Sigue siendo única.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409.",
+          "labels": [
+            "unicidad"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:last:alias:spbvi-a}}",
+            "deposit_product_id": "itg-a-destino"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1803",
+      "title": "Cobros QR (MySQL) ↔ pagos (PostgreSQL)",
+      "description": "Como sistema, quiero que cobro y pago queden coherentes sin transacción distribuida.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Pagar deja el cobro paid y el pago qr-{cobro} registrado.",
+        "Segundo pago: 409.",
+        "Rechazo: el cobro se libera.",
+        "Cobro vencido (410) y reservas caídas: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-018",
+        "qr"
+      ],
+      "story_points": 5,
+      "test_cases": [
+        {
+          "ref": "TC-1808A",
+          "title": "Crear un cobro",
+          "description": "Cobro de 1.000 centavos a la llave alfanumérica.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "status": "pending"
+          }
+        },
+        {
+          "ref": "TC-1808",
+          "title": "Pagar el cobro",
+          "description": "Queda paid con el pago qr-{cobro}.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}",
+            "source_account_id": "itg-a-origen"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "charge_status": "paid"
+          }
+        },
+        {
+          "ref": "TC-1808B",
+          "title": "Consultar el cobro pagado",
+          "description": "Registra quién pagó y el operation_id.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "GET",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "paid",
+            "payer_account_id": "itg-a-origen"
+          }
+        },
+        {
+          "ref": "TC-1809",
+          "title": "Rechazar el segundo pago",
+          "description": "Un solo uso.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}",
+            "source_account_id": "itg-a-origen"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1811A",
+          "title": "Crear un cobro mayor que el saldo",
+          "description": "Cobro de 50.000 centavos.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/charges con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/charges",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA",
+            "amount_cents": 50000
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "status": "pending"
+          }
+        },
+        {
+          "ref": "TC-1811",
+          "title": "Rechazar el pago sin fondos",
+          "description": "pain.002 AM04.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/pay con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/pay",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "{{qr:charge}}",
+            "source_account_id": "itg-a-sinfondos"
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": {
+            "status": "rejected",
+            "reason_code": "AM04"
+          }
+        },
+        {
+          "ref": "TC-1811B",
+          "title": "Verificar que el cobro se liberó",
+          "description": "Vuelve a pending.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /qr/charges/{{qr:charge-id}} con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "GET",
+          "request_path": "/qr/charges/{{qr:charge-id}}",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "status": "pending",
+            "payer_account_id": null
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1804",
+      "title": "Ledger que suma cero y extracto conciliado",
+      "description": "Como sistema, quiero que cada pago sume cero y que el extracto concilie.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "El extracto concilia saldo y movimientos.",
+        "Un pago rechazado no mueve saldos."
+      ],
+      "labels": [
+        "epic-018",
+        "ledger"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1813",
+          "title": "Consultar el extracto conciliado",
+          "description": "Saldo de apertura + movimientos = saldo de cierre.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /accounts/itg-a-origen/statement con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con reconciled = true.",
+          "labels": [
+            "ledger"
+          ],
+          "request_method": "GET",
+          "request_path": "/accounts/itg-a-origen/statement",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": {
+            "account_id": "itg-a-origen",
+            "reconciled": true
+          }
+        },
+        {
+          "ref": "TC-1814",
+          "title": "Rechazar un pago sin fondos sin mover saldos",
+          "description": "Saldo insuficiente.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /payments con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "409.",
+          "labels": [
+            "ledger"
+          ],
+          "request_method": "POST",
+          "request_path": "/payments",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "operation_id": "{{op:itg-sinfondos:new}}",
+            "source_account_id": "itg-a-sinfondos",
+            "destination_key_type": "alias",
+            "destination_key_value": "{{key:alias:spbvi-a}}",
+            "amount_cents": 1000
+          },
+          "expected_status_codes": [
+            409
+          ],
+          "expected_response": {
+            "status": "rejected",
+            "reason_code": "AM04"
+          }
+        }
+      ]
+    },
+    {
+      "ref": "HU-1805",
+      "title": "Historial de versiones de CP",
+      "description": "Como QA, quiero que editar un CP conserve la versión anterior.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Editar el JSON de un CP guarda la versión anterior en el historial: se prueba desde la pantalla del CP (editar y ver historial) y en las pruebas automáticas."
+      ],
+      "labels": [
+        "epic-018",
+        "versiones"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1806",
+      "title": "Aislamiento lab/producción y calidad de la auditoría",
+      "description": "Como administrador, quiero entornos aislados y un registro sin vacíos.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "Cada entorno usa sus propias bases y secretos (tarea).",
+        "Ninguna fila del registro tiene campos vacíos (tarea)."
+      ],
+      "labels": [
+        "epic-018",
+        "aislamiento"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1801",
+      "title": "Control en SQL Server: llaves activas sin duplicado",
+      "description": "Contar llaves activas por tipo y valor en el DIFE; debe dar 1.",
+      "labels": [
+        "integridad",
+        "sql-server"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1802",
+      "title": "Control en Oracle: unicidad global en el DICE",
+      "description": "Contar ocurrencias por valor de llave en el DICE; debe dar 1.",
+      "labels": [
+        "integridad",
+        "oracle"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1803",
+      "title": "Cruce DIFE ↔ DICE de estados contradictorios",
+      "description": "Llaves activas en un directorio y suspendidas en el otro: debe dar 0.",
+      "labels": [
+        "integridad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1804",
+      "title": "Cruce TiDB ↔ PostgreSQL de cobros y pagos",
+      "description": "Cobros paid sin pago qr- y pagos qr- sin cobro paid: debe dar 0.",
+      "labels": [
+        "integridad",
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1805",
+      "title": "Control: el ledger suma cero por operación",
+      "description": "Agrupar asientos por pago y verificar suma cero.",
+      "labels": [
+        "integridad",
+        "ledger"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1806",
+      "title": "Verificar el extracto conciliado por cuenta",
+      "description": "Comparar saldo del extracto con la suma de movimientos.",
+      "labels": [
+        "integridad",
+        "ledger"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1807",
+      "title": "Control en MongoDB: historial de versiones de CP",
+      "description": "Todo CP con más de una versión tiene su historial completo.",
+      "labels": [
+        "integridad",
+        "mongodb"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1808",
+      "title": "Ejecutar las migraciones dos veces",
+      "description": "La segunda ejecución no debe duplicar nada.",
+      "labels": [
+        "integridad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1809",
+      "title": "Verificar el aislamiento lab/producción",
+      "description": "Revisar cadenas de conexión y secretos de cada entorno.",
+      "labels": [
+        "aislamiento"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1810",
+      "title": "Calidad de los datos de auditoría",
+      "description": "Ninguna fila con método, ruta, código o duración vacíos.",
+      "labels": [
+        "auditoria"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1811",
+      "title": "Reproducir una reserva caída",
+      "description": "Cortar un pago QR a mitad de camino, esperar >60 s y consultar el cobro.",
+      "labels": [
+        "qr"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1812",
+      "title": "Concurrencia de la unicidad global",
+      "description": "Altas simultáneas de la misma llave en dos SPBVI: una sola debe quedar.",
+      "labels": [
+        "integridad"
+      ],
+      "story_points": 3
+    }
+  ]
+}

@@ -1,0 +1,216 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-016 Interfaz web en navegador (escritorio y tablet, sin instalar)",
+  "epic": {
+    "ref": "EPIC-016",
+    "title": "Interfaz web en navegador (escritorio y tablet, sin instalar)",
+    "description": "Calidad y pruebas (editor JSON versionado, Importar programa, Ejecutar con bases despertando), Bugs y fixes, Auditoría con filtros y CSV, Usuarios y roles, Directorio, tema claro/oscuro, navegación y accesibilidad básica."
+  },
+  "stories": [
+    {
+      "ref": "HU-1601",
+      "title": "Acceder a la web y navegar entre pantallas en escritorio y tablet",
+      "description": "Como usuario de laboratorio, quiero iniciar sesión y desplazarme por las pantallas de la web en escritorio y tablet, para operar el laboratorio sin instalar nada.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Con sesión iniciada, el encabezado muestra Buscar, Notificaciones, Cambiar contraseña, Cerrar sesión y el conmutador de tema.",
+        "Las nueve pantallas principales son alcanzables desde la navegación principal.",
+        "En 768, 800 y 1280 px ninguna pantalla presenta desbordamiento horizontal y la acción principal está visible.",
+        "Sin sesión, cualquier ruta protegida redirige a login.",
+        "El foco de teclado recorre los interactivos en orden lógico y es visible."
+      ],
+      "labels": [
+        "ui",
+        "navegacion",
+        "accesibilidad"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1602",
+      "title": "Gestionar épicas, HU, CP y editar el JSON de un CP con versionado",
+      "description": "Como administrador, quiero crear y consultar épicas, HU y CP y editar el JSON de un CP guardando la versión anterior, para mantener el programa de pruebas trazable sin perder cambios.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "La pantalla Calidad y pruebas lista épicas y, al abrir una, sus HU y CP.",
+        "El editor JSON valida sintaxis antes de guardar.",
+        "Al guardar un cambio, la versión anterior queda en el historial.",
+        "Un JSON inválido no se guarda y muestra un error comprensible.",
+        "La acción principal Guardar está visible y no hay desbordamiento en 768 y 1280 px."
+      ],
+      "labels": [
+        "ui",
+        "calidad",
+        "editor-json",
+        "versionado"
+      ],
+      "story_points": 8,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1603",
+      "title": "Importar un programa y ejecutar un CP con bases despertando",
+      "description": "Como administrador, quiero importar un programa y ejecutar un CP desde la interfaz, para correr el programa sin salir de la web y sin errores cuando las bases están despertando.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Importar programa acepta el JSON y crea épica, HU y CP con resumen.",
+        "Un JSON con formato distinto a qalabspbvi-qa-program/v1 se rechaza con mensaje claro.",
+        "Ejecutar está deshabilitado con GET /health/databases en 503 y se habilita en 200.",
+        "Ejecutar muestra código obtenido y comparación con el esperado.",
+        "Acción principal visible y sin desbordamiento en 768 y 1280 px."
+      ],
+      "labels": [
+        "ui",
+        "importar",
+        "ejecutar",
+        "health"
+      ],
+      "story_points": 8,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1604",
+      "title": "Gestionar Bugs y Fixes desde la web",
+      "description": "Como usuario, quiero reportar un bug, asignarlo, crear su fix y hacer el retest, para cerrar el ciclo de corrección sin salir de la web.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "El bug se crea asociado a una épica y aparece con open.",
+        "Las transiciones disponibles siguen open, assigned, in_fix, ready_for_retest, closed.",
+        "El fix se crea bajo el bug y avanza in_progress, ready_for_retest.",
+        "Un retest fallido deja el bug en reopened.",
+        "Sin desbordamiento horizontal en 768 y 1280 px."
+      ],
+      "labels": [
+        "ui",
+        "bugs",
+        "fixes"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1605",
+      "title": "Auditoría con filtros y exportación CSV",
+      "description": "Como administrador, quiero filtrar los logs de auditoría y exportarlos a CSV, para analizar la trazabilidad de las operaciones del laboratorio.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "La pantalla lista método, ruta, código, duración, usuario, operation_id y X-Request-ID.",
+        "Los filtros por método, código y ruta acotan el listado.",
+        "Un filtro sin resultados muestra estado vacío sin error.",
+        "La exportación CSV descarga un archivo con las columnas visibles.",
+        "Sin desbordamiento horizontal en 768 y 1280 px."
+      ],
+      "labels": [
+        "ui",
+        "auditoria",
+        "csv"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1606",
+      "title": "Administrar usuarios y roles y consultar el Directorio del laboratorio",
+      "description": "Como administrador, quiero gestionar usuarios y roles y consultar el Directorio del laboratorio, para mantener el equipo y sus permisos al día desde la web.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "La pantalla Usuarios y roles lista usuarios con rol y estado.",
+        "Un administrador puede cambiar el rol y desactivar.",
+        "El Directorio (Equipo) muestra miembros con su rol.",
+        "Un usuario sin privilegios no ve acciones de administración.",
+        "Sin desbordamiento horizontal en 768 y 1280 px."
+      ],
+      "labels": [
+        "ui",
+        "usuarios",
+        "roles",
+        "directorio"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1607",
+      "title": "Tema claro/oscuro, navegación por teclado y etiquetas accesibles",
+      "description": "Como usuario de laboratorio, quiero cambiar el tema y operar la web con teclado y lectores de pantalla, para usar la interfaz de forma cómoda y accesible.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "El conmutador de tema cambia y la preferencia se recuerda por navegador tras recargar.",
+        "Campos con etiqueta asociada y botones con nombre accesible.",
+        "Foco de teclado visible y en orden lógico sin trampas.",
+        "Jerarquía de encabezados coherente.",
+        "Sin desbordamiento horizontal en 768 y 1280 px."
+      ],
+      "labels": [
+        "ui",
+        "tema",
+        "accesibilidad"
+      ],
+      "story_points": 5,
+      "test_cases": []
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1601",
+      "title": "Configurar la suite UI en Playwright con viewports y axe-core",
+      "description": "Proyectos de Playwright para 320, 360, 375, 390, 768, 800 y 1280, y habilitar axe-core.",
+      "labels": [
+        "qa",
+        "playwright",
+        "setup"
+      ],
+      "story_points": 8
+    },
+    {
+      "ref": "TASK-1602",
+      "title": "Preparar y limpiar los datos de laboratorio",
+      "description": "Crear por API las cuentas, llaves y la épica con prefijo web-, y limpiar al final.",
+      "labels": [
+        "qa",
+        "datos"
+      ],
+      "story_points": 6
+    },
+    {
+      "ref": "TASK-1603",
+      "title": "Integrar la suite UI en CI/CD",
+      "description": "Job de Playwright en GitHub Actions con OIDC y artefactos de trazas.",
+      "labels": [
+        "ci",
+        "oidc"
+      ],
+      "story_points": 6
+    },
+    {
+      "ref": "TASK-1604",
+      "title": "Revisión manual de contraste y de jerarquía de encabezados",
+      "description": "Ejecutar Lighthouse accesibilidad y revisar contraste y jerarquía en las nueve pantallas.",
+      "labels": [
+        "accesibilidad",
+        "manual"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-1605",
+      "title": "Script de detección de desbordamiento horizontal",
+      "description": "Utilidad que falla si scrollWidth > innerWidth en cualquier viewport de referencia.",
+      "labels": [
+        "qa",
+        "layout"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-1606",
+      "title": "Documentar los localizadores accesibles por pantalla",
+      "description": "Anexo con nombres visibles usados en getByRole y getByLabel.",
+      "labels": [
+        "documentacion"
+      ],
+      "story_points": 3
+    }
+  ]
+}

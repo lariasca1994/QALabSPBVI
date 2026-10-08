@@ -1,0 +1,469 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "EPIC-017 - Seguridad de la aplicación",
+  "epic": {
+    "ref": "EPIC-017",
+    "title": "Seguridad de la aplicación",
+    "description": "Cookies de sesión y CSRF, límites de intentos, mensajes que no revelan cuentas, credenciales fuera de los CP, secretos ocultos en las ejecuciones, cabeceras de seguridad y permisos del QR validados en el servidor."
+  },
+  "stories": [
+    {
+      "ref": "HU-1701",
+      "title": "Cookies de sesión y CSRF",
+      "description": "Como responsable de seguridad, quiero cookies HttpOnly/Secure/SameSite=Strict y CSRF en toda mutación.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "GET /auth/csrf emite el token.",
+        "Mutación sin CSRF o con CSRF ajeno: 403; cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "Sesión cerrada: 401; cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "Una mutación con el CSRF de la sesión se acepta."
+      ],
+      "labels": [
+        "epic-017",
+        "sesion"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1701",
+          "title": "Obtener el token CSRF",
+          "description": "Doble envío: cookie y cabecera.",
+          "priority": "high",
+          "preconditions": [
+            "Seguro en producción: no cambia la sesión ni la cuenta de quien ejecuta."
+          ],
+          "steps": [
+            {
+              "action": "Enviar GET /auth/csrf con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "csrf"
+          ],
+          "request_method": "GET",
+          "request_path": "/auth/csrf",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1703",
+          "title": "Aceptar una mutación con el CSRF de la sesión",
+          "description": "El ejecutor envía el CSRF de quien ejecuta.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /accounts con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201, 409).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "201 o 409 si ya existía.",
+          "labels": [
+            "csrf"
+          ],
+          "request_method": "POST",
+          "request_path": "/accounts",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "account_id": "sec-a-cuenta",
+            "spbvi_id": "spbvi-a",
+            "balance_cents": 0
+          },
+          "expected_status_codes": [
+            201,
+            409
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-1702",
+      "title": "Límites de intentos (429)",
+      "description": "Como sistema, quiero limitar login, reenvío, registro y recuperación.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Login, reenvío de código, registro, recuperación y verificación responden 429 al superar el límite: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-017",
+        "limites"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1703",
+      "title": "Mensaje único ante credenciales inválidas",
+      "description": "Como sistema, quiero no revelar qué cuentas existen.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Contraseña incorrecta y cuenta inexistente devuelven el mismo mensaje: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "La recuperación responde igual exista o no la cuenta: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-017",
+        "credenciales"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1704",
+      "title": "Credenciales fuera de los CP",
+      "description": "Como sistema, quiero rechazar CP con credenciales literales; se usan {{secret:NOMBRE}}.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Un CP con password, token o credencial literal se rechaza al guardarse o importarse: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo).",
+        "Los secretos se referencian con {{secret:NOMBRE}} y viven en variables QA_SECRET_*."
+      ],
+      "labels": [
+        "epic-017",
+        "secretos"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1705",
+      "title": "Secretos ocultos en las ejecuciones",
+      "description": "Como sistema, quiero que ni la ejecución ni su historial muestren secretos.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Las ejecuciones guardan los valores de {{secret:…}} ocultos: cubierto por las pruebas automáticas del backend y E2E (el ejecutor de CP no puede probarlo)."
+      ],
+      "labels": [
+        "epic-017",
+        "secretos"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1706",
+      "title": "Cabeceras HTTP de seguridad",
+      "description": "Como responsable de seguridad, quiero nosniff, Referrer-Policy y X-Frame-Options.",
+      "priority": "medium",
+      "acceptance_criteria": [
+        "La API responde X-Content-Type-Options: nosniff y el sitio agrega las tres cabeceras: se verifica con el navegador o un escáner (tarea)."
+      ],
+      "labels": [
+        "epic-017",
+        "cabeceras"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-1707",
+      "title": "QR y permisos validados en el servidor",
+      "description": "Como sistema, quiero que firma, CRC y permisos se validen en el servidor, no en la interfaz.",
+      "priority": "highest",
+      "acceptance_criteria": [
+        "Firma alterada: 422.",
+        "CRC alterado: 422.",
+        "Llave ajena: 403.",
+        "Usuario creando una épica: 403."
+      ],
+      "labels": [
+        "epic-017",
+        "qr"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-1721",
+          "title": "Registrar una llave alias en spbvi-a",
+          "description": "Genera una llave alias válida y la registra en el DIFE de spbvi-a apuntando a sec-a-cuenta.",
+          "priority": "highest",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador: crear cuentas y llaves es una acción administrativa."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /difes/spbvi-a/keys con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (201).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "La llave queda confirmada en DIFE y DICE y entra a la lista de llaves de la épica.",
+          "labels": [
+            "datos-prueba",
+            "llaves"
+          ],
+          "request_method": "POST",
+          "request_path": "/difes/spbvi-a/keys",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "key_type": "alias",
+            "key_value": "{{key:new:alias}}",
+            "deposit_product_id": "sec-a-cuenta"
+          },
+          "expected_status_codes": [
+            201
+          ],
+          "expected_response": {
+            "key_type": "alias",
+            "spbvi_id": "spbvi-a",
+            "status": "confirmed"
+          }
+        },
+        {
+          "ref": "TC-1722",
+          "title": "Rechazar un QR con firma alterada",
+          "description": "Sin mover dinero.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/decode con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/decode",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "00020101021126320014CO.COM.LAB.LLA0410@qalterado49250014CO.COM.LAB.RED0103LAB520400005303170540510.005802CO5911Comercio QA6006Bogota62150705QALAB08020380270016CO.COM.LAB.CANAL0103APP91860014CO.COM.LAB.SEC0164000000000000000000000000000000000000000000000000000000000000000063042DAD"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1723",
+          "title": "Rechazar un QR con CRC alterado",
+          "description": "Sin mover dinero.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/decode con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422.",
+          "labels": [
+            "qr"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/decode",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "payload": "00020101021126320014CO.COM.LAB.LLA0410@qalterado49250014CO.COM.LAB.RED0103LAB520400005303170540510.005802CO5911Comercio QA6006Bogota62150705QALAB08020380270016CO.COM.LAB.CANAL0103APP91860014CO.COM.LAB.SEC0164000000000000000000000000000000000000000000000000000000000000000063040000"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1724",
+          "title": "Rechazar un QR con llave ajena",
+          "description": "El usuario no es titular.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "TC-1721 ejecutado."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qr/static con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "qr",
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qr/static",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "spbvi_id": "spbvi-a",
+            "key_type": "alias",
+            "key_value": "{{key:alias:spbvi-a}}",
+            "merchant_name": "Comercio QA"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-1725",
+          "title": "Rechazar que un usuario cree una épica",
+          "description": "Crear épicas es solo del admin.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "EPIC seguridad",
+            "description": "Prueba de permisos"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-1701",
+      "title": "Verificar los flags de las cookies en el navegador",
+      "description": "Inspeccionar en DevTools las cookies de sesión y CSRF (HttpOnly, Secure, SameSite=Strict).",
+      "labels": [
+        "seguridad",
+        "manual"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1702",
+      "title": "Revisar los límites de intentos",
+      "description": "Auditar umbrales y ventanas en login, reenvío, registro y recuperación.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1703",
+      "title": "Revisar que ningún log escriba secretos",
+      "description": "Buscar en el registro de solicitudes valores de QA_SECRET_* o contraseñas.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1704",
+      "title": "Escanear cabeceras de seguridad",
+      "description": "Analizar con una herramienta externa la web y la API y registrar desviaciones.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1705",
+      "title": "Rotar las variables QA_SECRET_*",
+      "description": "Definir el procedimiento de rotación sin exponer valores.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1706",
+      "title": "Comparar permisos del servidor con la interfaz",
+      "description": "Cada acción oculta en la interfaz debe responder 403 por API.",
+      "labels": [
+        "seguridad",
+        "rbac"
+      ],
+      "story_points": 3
+    },
+    {
+      "ref": "TASK-1707",
+      "title": "Probar concurrencia sobre los límites de intentos",
+      "description": "Solicitudes simultáneas: el contador no debe eludirse.",
+      "labels": [
+        "seguridad"
+      ],
+      "story_points": 3
+    }
+  ]
+}

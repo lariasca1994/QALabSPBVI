@@ -1,0 +1,1312 @@
+{
+  "format": "qalabspbvi-qa-program/v1",
+  "name": "QALabSPBVI EPIC-008",
+  "epic": {
+    "ref": "EPIC-008",
+    "title": "Plataforma QA (API): épicas, HU, CP versionados, importación, marcadores, contrato OpenAPI, bugs y fixes",
+    "description": "Objetivo: asegurar Plataforma QA (API): épicas, HU, CP versionados, importación, marcadores, contrato OpenAPI, bugs y fixes. Alcance limitado al laboratorio simulado; fecha objetivo: por definir."
+  },
+  "stories": [
+    {
+      "ref": "HU-801",
+      "title": "Crear y consultar épicas QA",
+      "description": "Solo el admin crea épicas; todos los integrantes las consultan.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Épica sin título ni descripción: 422.",
+        "GET /qa/epics: 200."
+      ],
+      "labels": [
+        "epic-008",
+        "epicas"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-801",
+          "title": "Rechazar una épica sin título",
+          "description": "Validación del cuerpo al crear una épica.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 sin crear la épica.",
+          "labels": [
+            "epicas",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "",
+            "description": ""
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-802",
+          "title": "Consultar las épicas",
+          "description": "Lista las épicas de quien ejecuta.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /qa/epics con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200 con la lista.",
+          "labels": [
+            "epicas"
+          ],
+          "request_method": "GET",
+          "request_path": "/qa/epics",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-802",
+      "title": "Gestionar historias de usuario",
+      "description": "El administrador crea HU con criterios de aceptación; un usuario no.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "HU sin criterios: 422.",
+        "Épica inexistente: 404.",
+        "Usuario: 403."
+      ],
+      "labels": [
+        "epic-008",
+        "hu"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-803",
+          "title": "Rechazar una HU sin criterios de aceptación",
+          "description": "acceptance_criteria es obligatorio.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/{{epic:key}}/stories con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 sin crear la HU.",
+          "labels": [
+            "hu",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/{{epic:key}}/stories",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "HU sin criterios",
+            "description": "Validación",
+            "priority": "low",
+            "acceptance_criteria": []
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-804",
+          "title": "Crear una HU en una épica inexistente",
+          "description": "La épica no existe.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/EPIC-99999/stories con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "hu",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/EPIC-99999/stories",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "HU",
+            "description": "Validación",
+            "priority": "low",
+            "acceptance_criteria": [
+              "Criterio"
+            ]
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-8041",
+          "title": "Usuario no crea HU",
+          "description": "Crear HU es del administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/{{epic:key}}/stories con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "hu",
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/{{epic:key}}/stories",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "HU",
+            "description": "Validación",
+            "priority": "low",
+            "acceptance_criteria": [
+              "Criterio"
+            ]
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-803",
+      "title": "Gestionar CP versionados",
+      "description": "El administrador crea CP; el usuario edita su JSON y cada cambio guarda versión.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "CP en una HU inexistente: 404.",
+        "Editar un CP inexistente: 404.",
+        "Usuario no crea CP: 403."
+      ],
+      "labels": [
+        "epic-008",
+        "cp"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-805",
+          "title": "Crear un CP en una HU inexistente",
+          "description": "La HU no existe.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/stories/HU-99999/test-cases con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "cp",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/stories/HU-99999/test-cases",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "CP de validación",
+            "description": "CP que no debe crearse.",
+            "priority": "medium",
+            "preconditions": [],
+            "steps": [
+              {
+                "action": "Enviar GET /health.",
+                "expected": "200."
+              }
+            ],
+            "expected_result": "200.",
+            "request_method": "GET",
+            "request_path": "/health",
+            "request_query": {},
+            "request_headers": {},
+            "request_body": null,
+            "expected_status_codes": [
+              200
+            ],
+            "expected_response": null
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-806",
+          "title": "Editar el JSON de un CP inexistente",
+          "description": "El CP no existe; no se crea versión.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar PUT /qa/cases/CP-99999 con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "cp",
+            "versionado"
+          ],
+          "request_method": "PUT",
+          "request_path": "/qa/cases/CP-99999",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "request_method": "GET",
+            "request_path": "/health",
+            "request_query": {},
+            "request_headers": {},
+            "request_body": null,
+            "expected_status_codes": [
+              200
+            ],
+            "expected_response": null,
+            "change_note": "Validación"
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-8051",
+          "title": "Usuario no crea CP",
+          "description": "Crear CP es del administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/stories/HU-99999/test-cases con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "cp",
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/stories/HU-99999/test-cases",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "CP de validación",
+            "description": "CP que no debe crearse.",
+            "priority": "medium",
+            "preconditions": [],
+            "steps": [
+              {
+                "action": "Enviar GET /health.",
+                "expected": "200."
+              }
+            ],
+            "expected_result": "200.",
+            "request_method": "GET",
+            "request_path": "/health",
+            "request_query": {},
+            "request_headers": {},
+            "request_body": null,
+            "expected_status_codes": [
+              200
+            ],
+            "expected_response": null
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-804",
+      "title": "Importar un programa en una épica",
+      "description": "Un programa se valida completo antes de cargar nada.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Épica inexistente: 404.",
+        "Formato inválido: 422."
+      ],
+      "labels": [
+        "epic-008",
+        "importacion"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-807",
+          "title": "Importar en una épica inexistente",
+          "description": "La épica no existe.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/EPIC-99999/import con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "importacion",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/EPIC-99999/import",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "format": "qalabspbvi-qa-program/v1",
+            "name": "Programa de validación",
+            "stories": [
+              {
+                "ref": "HU-VAL",
+                "title": "HU de validación",
+                "description": "No debe crearse.",
+                "acceptance_criteria": [
+                  "No se crea."
+                ],
+                "test_cases": [
+                  {
+                    "title": "CP de validación",
+                    "description": "CP que no debe crearse.",
+                    "priority": "medium",
+                    "preconditions": [],
+                    "steps": [
+                      {
+                        "action": "Enviar GET /health.",
+                        "expected": "200."
+                      }
+                    ],
+                    "expected_result": "200.",
+                    "request_method": "GET",
+                    "request_path": "/health",
+                    "request_query": {},
+                    "request_headers": {},
+                    "request_body": null,
+                    "expected_status_codes": [
+                      200
+                    ],
+                    "expected_response": null,
+                    "ref": "CP-VAL"
+                  }
+                ]
+              }
+            ],
+            "tasks": []
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-808",
+          "title": "Rechazar un formato desconocido",
+          "description": "format debe ser qalabspbvi-qa-program/v1.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/{{epic:key}}/import con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 sin cargar nada.",
+          "labels": [
+            "importacion",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/{{epic:key}}/import",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "format": "invalido",
+            "name": "Importación inválida"
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-805",
+      "title": "Validar el contenido de los programas",
+      "description": "Un programa se valida completo antes de cargar nada: referencias únicas, rutas locales y marcadores bien formados.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Referencias repetidas: 422.",
+        "Ruta absoluta hacia otro servidor: 422.",
+        "Marcadores mal formados ({{qr:…}}, {{key:new:…}}): 422; cubierto por las pruebas automáticas, porque un CP no puede llevar un marcador inválido.",
+        "Nada se carga si un CP es inválido."
+      ],
+      "labels": [
+        "epic-008",
+        "importacion"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-809",
+          "title": "Rechazar referencias repetidas",
+          "description": "Dos CP con la misma referencia en el programa.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/{{epic:key}}/import con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 con la referencia repetida; no se carga nada.",
+          "labels": [
+            "importacion",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/{{epic:key}}/import",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "format": "qalabspbvi-qa-program/v1",
+            "name": "Programa de validación",
+            "tasks": [],
+            "stories": [
+              {
+                "ref": "HU-VAL",
+                "title": "HU de validación",
+                "description": "No debe crearse.",
+                "acceptance_criteria": [
+                  "No se crea."
+                ],
+                "test_cases": [
+                  {
+                    "title": "CP de validación",
+                    "description": "CP que no debe crearse.",
+                    "priority": "medium",
+                    "preconditions": [],
+                    "steps": [
+                      {
+                        "action": "Enviar GET /health.",
+                        "expected": "200."
+                      }
+                    ],
+                    "expected_result": "200.",
+                    "request_method": "GET",
+                    "request_path": "/health",
+                    "request_query": {},
+                    "request_headers": {},
+                    "request_body": null,
+                    "expected_status_codes": [
+                      200
+                    ],
+                    "expected_response": null,
+                    "ref": "CP-VAL"
+                  },
+                  {
+                    "title": "CP de validación",
+                    "description": "CP que no debe crearse.",
+                    "priority": "medium",
+                    "preconditions": [],
+                    "steps": [
+                      {
+                        "action": "Enviar GET /health.",
+                        "expected": "200."
+                      }
+                    ],
+                    "expected_result": "200.",
+                    "request_method": "GET",
+                    "request_path": "/health",
+                    "request_query": {},
+                    "request_headers": {},
+                    "request_body": null,
+                    "expected_status_codes": [
+                      200
+                    ],
+                    "expected_response": null,
+                    "ref": "CP-VAL"
+                  }
+                ]
+              }
+            ]
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-810",
+          "title": "Rechazar un CP que apunta a otro servidor",
+          "description": "Los CP solo llaman a la API del laboratorio (ruta relativa).",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/{{epic:key}}/import con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422; no se carga nada.",
+          "labels": [
+            "importacion",
+            "seguridad"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/{{epic:key}}/import",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "format": "qalabspbvi-qa-program/v1",
+            "name": "Programa de validación",
+            "stories": [
+              {
+                "ref": "HU-VAL",
+                "title": "HU de validación",
+                "description": "No debe crearse.",
+                "acceptance_criteria": [
+                  "No se crea."
+                ],
+                "test_cases": [
+                  {
+                    "title": "CP de validación",
+                    "description": "CP que no debe crearse.",
+                    "priority": "medium",
+                    "preconditions": [],
+                    "steps": [
+                      {
+                        "action": "Enviar GET /health.",
+                        "expected": "200."
+                      }
+                    ],
+                    "expected_result": "200.",
+                    "request_method": "GET",
+                    "request_path": "//otro-servidor.example/health",
+                    "request_query": {},
+                    "request_headers": {},
+                    "request_body": null,
+                    "expected_status_codes": [
+                      200
+                    ],
+                    "expected_response": null,
+                    "ref": "CP-VAL-2"
+                  }
+                ]
+              }
+            ],
+            "tasks": []
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-806",
+      "title": "Contrato OpenAPI de los CP REST",
+      "description": "Cada ejecución valida la respuesta contra el JSON Schema del endpoint.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Se observa en cualquier ejecución: el resultado muestra la validación de contrato; una respuesta fuera de contrato hace fallar el CP."
+      ],
+      "labels": [
+        "epic-008",
+        "contrato"
+      ],
+      "story_points": 3,
+      "test_cases": []
+    },
+    {
+      "ref": "HU-807",
+      "title": "Registrar tareas de la épica",
+      "description": "Admin y administrador crean y asignan tareas; un usuario no.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Tarea sin título: 422.",
+        "Usuario: 403."
+      ],
+      "labels": [
+        "epic-008",
+        "tareas"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-811",
+          "title": "Rechazar una tarea sin título",
+          "description": "Validación del cuerpo.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/{{epic:key}}/tasks con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (422).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "422 sin crear la tarea.",
+          "labels": [
+            "tareas",
+            "validacion"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/{{epic:key}}/tasks",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "",
+            "description": ""
+          },
+          "expected_status_codes": [
+            422
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-8111",
+          "title": "Usuario no crea tareas",
+          "description": "Crear tareas es de admin y administrador.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/epics/{{epic:key}}/tasks con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "tareas",
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/epics/{{epic:key}}/tasks",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "Tarea",
+            "description": "Validación"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-808",
+      "title": "Gestionar bugs",
+      "description": "El usuario reporta bugs desde un CP; admin y administrador no los reportan.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Bug sobre un CP inexistente: 404.",
+        "Administrador: 403.",
+        "Transición de un bug inexistente: 404."
+      ],
+      "labels": [
+        "epic-008",
+        "bugs"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-812",
+          "title": "Reportar un bug sobre un CP inexistente",
+          "description": "El CP no existe.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/bugs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "bugs",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/bugs",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "case_key": "CP-99999",
+            "title": "Bug de validación",
+            "description": "No debe crearse.",
+            "severity": "minor"
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-8121",
+          "title": "Administrador no reporta bugs",
+          "description": "Reportar bugs es del usuario que ejecuta los CP.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/bugs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (403).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "403.",
+          "labels": [
+            "bugs",
+            "rbac"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/bugs",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "case_key": "CP-99999",
+            "title": "Bug de validación",
+            "description": "No debe crearse.",
+            "severity": "minor"
+          },
+          "expected_status_codes": [
+            403
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-813",
+          "title": "Transicionar un bug inexistente",
+          "description": "El bug no existe.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol admin o administrador.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/bugs/BUG-99999/transition con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "bugs",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/bugs/BUG-99999/transition",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "status": "assigned"
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-809",
+      "title": "Gestionar fixes",
+      "description": "El usuario registra el fix de un bug y lo pasa a retest.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "Fix de un bug inexistente: 404.",
+        "Transición de un fix inexistente: 404."
+      ],
+      "labels": [
+        "epic-008",
+        "fixes"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-814",
+          "title": "Registrar un fix de un bug inexistente",
+          "description": "El bug no existe.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/bugs/BUG-99999/fixes con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "fixes",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/bugs/BUG-99999/fixes",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "title": "Fix de validación",
+            "description": "No debe crearse."
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-815",
+          "title": "Pasar a retest un fix inexistente",
+          "description": "El bug y el fix no existen.",
+          "priority": "high",
+          "preconditions": [
+            "Ejecutar con rol usuario.",
+            "No crea elementos ni envía avisos."
+          ],
+          "steps": [
+            {
+              "action": "Enviar POST /qa/bugs/BUG-99999/fixes/FIX-99999/transition con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (404).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "404.",
+          "labels": [
+            "fixes",
+            "negativo"
+          ],
+          "request_method": "POST",
+          "request_path": "/qa/bugs/BUG-99999/fixes/FIX-99999/transition",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": {
+            "status": "ready_for_retest"
+          },
+          "expected_status_codes": [
+            404
+          ],
+          "expected_response": null
+        }
+      ]
+    },
+    {
+      "ref": "HU-810",
+      "title": "Consultar trabajo y evidencia",
+      "description": "Los integrantes consultan HU, CP, tareas y bugs de la épica.",
+      "priority": "high",
+      "acceptance_criteria": [
+        "GET de work-items y bugs de la épica: 200."
+      ],
+      "labels": [
+        "epic-008",
+        "consulta"
+      ],
+      "story_points": 3,
+      "test_cases": [
+        {
+          "ref": "TC-816",
+          "title": "Consultar los elementos de la épica",
+          "description": "HU, CP y tareas de la épica.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /qa/epics/{{epic:key}}/work-items con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "consulta"
+          ],
+          "request_method": "GET",
+          "request_path": "/qa/epics/{{epic:key}}/work-items",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        },
+        {
+          "ref": "TC-817",
+          "title": "Consultar los bugs de la épica",
+          "description": "Bugs y fixes de la épica.",
+          "priority": "high",
+          "preconditions": [],
+          "steps": [
+            {
+              "action": "Enviar GET /qa/epics/{{epic:key}}/bugs con el JSON del caso.",
+              "expected": "La API responde con JSON."
+            },
+            {
+              "action": "Validar el código HTTP (200).",
+              "expected": "El código coincide con lo esperado."
+            },
+            {
+              "action": "Comparar la respuesta con el JSON esperado.",
+              "expected": "Los campos esperados coinciden."
+            }
+          ],
+          "expected_result": "200.",
+          "labels": [
+            "consulta"
+          ],
+          "request_method": "GET",
+          "request_path": "/qa/epics/{{epic:key}}/bugs",
+          "request_query": {},
+          "request_headers": {},
+          "request_body": null,
+          "expected_status_codes": [
+            200
+          ],
+          "expected_response": null
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "ref": "TASK-00801",
+      "title": "Definir esquema de importación v1",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00802",
+      "title": "Validar versionado de CP",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00803",
+      "title": "Validar resolución de marcadores",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-00804",
+      "title": "Revisar contrato OpenAPI de CP",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00805",
+      "title": "Configurar evidencia de ejecuciones",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00806",
+      "title": "Validar flujo open-to-closed de bugs",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-00807",
+      "title": "Validar flujo de fixes",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00808",
+      "title": "Revisar control de acceso de plataforma QA",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 2
+    },
+    {
+      "ref": "TASK-00809",
+      "title": "Preparar datos de importación",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 4
+    },
+    {
+      "ref": "TASK-00810",
+      "title": "Auditar trazabilidad HU-CP-bug",
+      "description": "Tarea técnica no cubierta por una sola solicitud REST; registrar evidencia y resultado en la plataforma QA.",
+      "labels": [
+        "epic-008",
+        "task"
+      ],
+      "story_points": 2
+    }
+  ]
+}
