@@ -1,7 +1,7 @@
 # QALabSPBVI
 
 <p>
-  <a href="https://qalabspbvi.vercel.app"><img src="docs/demo-badge.svg" alt="Abrir la demo en vivo" height="32"></a>
+  <a href="https://qalabspbvi-prod.vercel.app"><img src="docs/demo-badge.svg" alt="Abrir la demo en vivo" height="32"></a>
   <a href="https://frontend-nine-topaz-99.vercel.app"><img src="https://portafolio-status.onrender.com/api/status/qalabspbvi/badge.svg" alt="Estado en vivo del proyecto" height="32"></a>
   <a href="https://d4i3vsgw7xwmh.cloudfront.net"><img src="https://portafolio-status.onrender.com/api/status/qalabspbvi/qa-badge.svg" alt="Fecha y resultado de la última prueba E2E" height="32"></a>
 </p>
@@ -28,15 +28,17 @@ Es un proyecto de portafolio: **no se conecta a ninguna infraestructura real de 
 
 - **Qué hace:** simula un ecosistema de pagos inmediatos con llaves. Registra llaves (celular, correo, documento, alfanumérica `@` y código de comercio) en el directorio de cada SPBVI (DIFE) y en el central (DICE). Procesa pagos entre cuentas del mismo SPBVI o de SPBVI distintos, con idempotencia, límite de 1.000 UVB y mensajes pacs.008 / pacs.002 de laboratorio.
 - **Para el equipo QA:** una plataforma tipo Jira (épica → HU → CP, tareas, bugs y fixes). Cada CP es una solicitud REST con JSON que se ejecuta con un clic. El resultado muestra método, URL, solicitud, respuesta y veredicto. El sistema genera las llaves de prueba según su tipo, y las transacciones las toman de la lista de llaves de la épica.
-- **Cómo probarlo:** entra a la [demo](https://qalabspbvi.vercel.app) con una cuenta creada por un administrador (acceso con contraseña y código por correo). La épica `EPIC-00001` ya trae el programa ISO 20022 cargado. Para correrlo en tu equipo, ve a [Instalación](#instalación) y [Puesta en marcha](#puesta-en-marcha).
+- **Cómo probarlo:** entra a la [demo](https://qalabspbvi-prod.vercel.app) y crea una cuenta desde "Crear cuenta" (acceso con contraseña y código por correo); un administrador la asocia a una épica. Las épicas `EPIC-00001` a `EPIC-00018` ya traen sus HU, CP y tareas. Para correrlo en tu equipo, ve a [Instalación](#instalación) y [Puesta en marcha](#puesta-en-marcha).
 
 ## Demo en vivo
 
-**Aplicación:** [qalabspbvi.vercel.app](https://qalabspbvi.vercel.app)
+**Aplicación:** [qalabspbvi-prod.vercel.app](https://qalabspbvi-prod.vercel.app)
+
+Se puede instalar como app desde el navegador (Android, iOS, Windows, macOS y Linux): en Chrome o Edge, menú → "Instalar app"; en iPhone o iPad, Safari → Compartir → "Agregar a inicio".
 
 **Documentación de la API:** `/api/docs` en la demo o `http://127.0.0.1:8000/docs` en local.
 
-No hay cuentas públicas ni contraseñas por defecto: el acceso lo da un administrador.
+No hay contraseñas por defecto. Una cuenta creada desde "Crear cuenta" tiene rol `usuario` y queda pendiente hasta que un administrador la asocie a una épica.
 
 ## Qué reúne este proyecto
 
