@@ -21,6 +21,7 @@ from app.core.config import get_settings
 from app.db.base import Base
 from app.db import models  # noqa: F401
 from app.db.session import engine, ensure_payment_type_column
+from app.db.wake import MAINTENANCE_DETAIL, quota_exhausted
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,12 @@ def create_app() -> FastAPI:
     async def sql_unavailable(_, error: DBAPIError) -> JSONResponse:
         # Las bases gratuitas se pausan sin uso; al reanudarse pueden rechazar conexiones.
         logger.error("Base relacional no disponible (%s).", type(error.orig).__name__)
+        if quota_exhausted(error):
+            return JSONResponse(
+                status_code=503,
+                content={"detail": MAINTENANCE_DETAIL},
+                headers={"Retry-After": "3600"},
+            )
         return JSONResponse(
             status_code=503,
             content={

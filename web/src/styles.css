@@ -519,6 +519,8 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 .audit-table code { overflow-wrap: anywhere; }
 .link-button { padding: 0; border: 0; color: var(--blue); background: none; font: inherit; text-align: left; text-decoration: underline; cursor: pointer; overflow-wrap: anywhere; }
 .alert--info { display: flex; align-items: center; gap: 8px; color: var(--blue); background: var(--blue-soft); border-color: var(--line); }
+.alert--maintenance { display: flex; align-items: flex-start; gap: 8px; color: var(--text); background: color-mix(in srgb, var(--gold) 12%, var(--surface)); border-color: color-mix(in srgb, var(--gold) 45%, transparent); border-left: 4px solid var(--gold); }
+.alert--maintenance svg { flex: none; margin-top: 3px; color: var(--gold); }
 .active-status--off { color: var(--muted); }
 .active-status--off span { background: var(--muted-2); box-shadow: none; }
 .muted-text { color: var(--muted); }

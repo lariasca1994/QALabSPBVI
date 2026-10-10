@@ -32,6 +32,7 @@ import {
   UserPlus,
   Users,
   WalletCards,
+  Wrench,
   X,
 } from "lucide-react";
 import { friendlyError, formatDate, Modal, PageHeading } from "./ui";
@@ -395,6 +396,7 @@ function App() {
   const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
   // null: sin consultar; false: alguna base se está reanudando (DIFE en Australia tarda ~1 min).
   const [databasesReady, setDatabasesReady] = useState<boolean | null>(null);
+  const [maintenance, setMaintenance] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedEpic, setSelectedEpic] = useState("");
@@ -461,6 +463,12 @@ function App() {
         try {
           const ready = await api.databasesReady();
           if (cancelled) return;
+          if (typeof ready === "string") {
+            // Sin cuota gratuita la base no vuelve en minutos: se avisa y se deja de consultar.
+            setMaintenance(ready);
+            setDatabasesReady(false);
+            return;
+          }
           setDatabasesReady(ready);
           if (ready) return;
         } catch {
@@ -678,7 +686,8 @@ function App() {
           {accountNotice && <div className="alert alert--success page-alert" role="status"><Check size={16} /><span>{accountNotice}</span><button className="icon-button" onClick={() => setAccountNotice("")} aria-label="Cerrar aviso" type="button"><X size={16} /></button></div>}
           {installHint && <div className="alert alert--info page-alert" role="status"><Download size={16} /><span>Para instalar en iPhone o iPad: toca Compartir y luego "Agregar a inicio".</span><button className="icon-button" onClick={() => setInstallHint(false)} aria-label="Cerrar aviso" type="button"><X size={16} /></button></div>}
           {changingPassword && <ChangePasswordModal onClose={(message) => { setChangingPassword(false); if (message) setAccountNotice(message); }} />}
-          {databasesReady === false && <div className="alert alert--info page-alert" role="status"><LoaderCircle className="spin" size={16} /><span>Activando las bases de datos. La de llaves está en otra región y tarda cerca de un minuto en reanudarse; las ejecuciones se habilitan cuando esté lista.</span></div>}
+          {maintenance && <div className="alert alert--maintenance page-alert" role="status"><Wrench size={16} aria-hidden="true" /><span><strong>Base de llaves en mantenimiento.</strong> {maintenance}</span></div>}
+          {databasesReady === false && !maintenance && <div className="alert alert--info page-alert" role="status"><LoaderCircle className="spin" size={16} /><span>Activando las bases de datos. La de llaves está en otra región y tarda cerca de un minuto en reanudarse; las ejecuciones se habilitan cuando esté lista.</span></div>}
           {loadError && <div className="alert alert--error page-alert" role="alert"><span>{loadError}</span><button className="icon-button" onClick={() => setLoadError("")} aria-label="Cerrar aviso"><X size={16} /></button></div>}
           {view === "overview" && (
             <Overview

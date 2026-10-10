@@ -29,6 +29,19 @@ _last_wake = 0.0
 _wake_lock = threading.Lock()
 
 
+# Azure SQL gratuita sin la cuota del mes: queda pausada hasta el día 1 y no se reanuda.
+QUOTA_MARKERS = ("free amount allowance",)
+MAINTENANCE_DETAIL = (
+    "La base de llaves alcanzó el límite gratuito del mes y está en mantenimiento hasta el "
+    "día 1 del próximo mes. Las consultas de llaves y los pagos vuelven solos en esa fecha."
+)
+
+
+def quota_exhausted(error: BaseException) -> bool:
+    message = str(error)
+    return any(marker in message for marker in QUOTA_MARKERS)
+
+
 def _is_transient(error: Exception) -> bool:
     message = str(error)
     return any(marker in message for marker in TRANSIENT_MARKERS)
@@ -110,6 +123,9 @@ def check_databases(timeout: float = READY_PROBE_SECONDS) -> dict[str, str]:
     for name, future in futures.items():
         if not future.done():
             status[name] = "activando"
+        elif future.exception() is not None and quota_exhausted(future.exception()):
+            logger.warning("%s sin cuota gratuita del mes: en mantenimiento.", name)
+            status[name] = "sin_cuota"
         elif future.exception() is not None:
             logger.info("%s todavía no responde (%s).", name, type(future.exception()).__name__)
             status[name] = "activando"

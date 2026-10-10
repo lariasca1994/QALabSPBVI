@@ -32,7 +32,7 @@ from app.api.schemas import (
 from app.core.security import require_roles
 from app.db.models import Account, KeyStatus, LedgerEntry, Payment, User, UserRole
 from app.db.session import get_db
-from app.db.wake import check_databases
+from app.db.wake import MAINTENANCE_DETAIL, check_databases
 from app.domains.keys.dife import resolve_key
 from app.domains.keys.key_types import (
     InvalidKeyError,
@@ -123,6 +123,13 @@ def databases_ready(
     body = DatabasesReadyResponse(ready=all(value == "lista" for value in databases.values()), databases=databases)
     if body.ready:
         return body
+    if "sin_cuota" in databases.values():
+        # Sin cuota gratuita no se reanuda en minutos: la interfaz deja de reintentar y avisa.
+        return JSONResponse(
+            status_code=503,
+            content={**body.model_dump(), "detail": MAINTENANCE_DETAIL},
+            headers={"Retry-After": "3600"},
+        )
     return JSONResponse(status_code=503, content=body.model_dump(), headers={"Retry-After": "10"})
 
 

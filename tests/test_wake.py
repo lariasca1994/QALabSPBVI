@@ -159,3 +159,61 @@ def test_executor_waits_once_for_waking_databases(monkeypatch) -> None:
     service._await_target_ready(client, None)
     # La segunda llamada no vuelve a esperar: el tope ya se consumió.
     assert calls == ["/health/databases"]
+
+
+CUOTA_AGOTADA = (
+    "This database has reached the monthly free amount allowance for the month of October 2026 "
+    "and is paused for the remainder of the month."
+)
+
+
+def test_exhausted_free_quota_is_maintenance_not_waking() -> None:
+    """Sin la cuota gratuita del mes la base no se reanuda: es mantenimiento, no "se está activando"."""
+    from fastapi import FastAPI
+
+    from app.main import create_app
+
+    application: FastAPI = create_app()
+
+    @application.get("/sin-cuota")
+    def broken():
+        raise OperationalError("SELECT 1", {}, Exception(CUOTA_AGOTADA))
+
+    response = TestClient(application, raise_server_exceptions=False).get("/sin-cuota")
+    assert response.status_code == 503
+    assert "mantenimiento" in response.json()["detail"]
+    assert response.headers["retry-after"] == "3600"
+
+
+def test_exhausted_quota_is_not_retried_as_transient() -> None:
+    dbapi = FlakyDbapi(failures=5, message=CUOTA_AGOTADA)
+    with pytest.raises(OperationalError):
+        engine_with(dbapi).connect()
+    assert dbapi.calls == 1
+
+
+def test_check_databases_reports_exhausted_quota(monkeypatch) -> None:
+    def falla():
+        raise OperationalError("SELECT 1", {}, Exception(CUOTA_AGOTADA))
+
+    monkeypatch.setattr("app.domains.keys.persistence.get_dife_engine", falla)
+    estado = wake.check_databases(timeout=5)
+    assert estado["dife"] == "sin_cuota"
+
+
+def test_databases_endpoint_reports_maintenance(monkeypatch) -> None:
+    from app.core.security import current_user
+    from app.db.models import User, UserRole
+    from app.main import app
+
+    app.dependency_overrides[current_user] = lambda: User(
+        id=1, email="qa@example.test", display_name="QA", password_hash="x", role=UserRole.USUARIO, is_active=True
+    )
+    try:
+        monkeypatch.setattr("app.api.routes.check_databases", lambda: {"pagos": "lista", "dife": "sin_cuota", "dice": "lista"})
+        respuesta = TestClient(app).get("/health/databases")
+        assert respuesta.status_code == 503 and respuesta.headers["retry-after"] == "3600"
+        assert respuesta.json()["databases"]["dife"] == "sin_cuota"
+        assert "mantenimiento" in respuesta.json()["detail"]
+    finally:
+        app.dependency_overrides.clear()

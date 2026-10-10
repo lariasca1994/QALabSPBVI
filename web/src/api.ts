@@ -384,13 +384,18 @@ export const api = {
       headers: { "X-CSRF-Token": token },
     });
   },
-  /** 200 cuando pagos, DIFE y DICE responden; 503 mientras alguna se reanuda. */
-  async databasesReady(): Promise<boolean> {
+  /**
+   * true cuando pagos, DIFE y DICE responden; false mientras alguna se reanuda. Si una base
+   * agotó su cuota gratuita del mes, devuelve el aviso de mantenimiento (no se reanuda en minutos).
+   */
+  async databasesReady(): Promise<boolean | string> {
     try {
       await request("/health/databases");
       return true;
     } catch (error) {
-      if (error instanceof ApiError && error.status === 503) return false;
+      if (error instanceof ApiError && error.status === 503) {
+        return error.message.includes("mantenimiento") ? error.message : false;
+      }
       throw error;
     }
   },
