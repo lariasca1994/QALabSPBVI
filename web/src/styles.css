@@ -91,16 +91,41 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
 .visual-content h1 em { color: #9ac9d8; font-style: normal; }
 .visual-content > p { max-width: 440px; margin-bottom: 0; color: rgba(222, 234, 239, .72); font-size: 15px; line-height: 1.8; }
 .visual-art { position: relative; width: min(420px, 78%); height: 222px; margin: 45px 0 0 4%; }
-.orbit { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 1px solid rgba(172, 207, 219, .2); border-radius: 50%; }
-.orbit--one { width: 220px; height: 220px; }
-.orbit--two { width: 320px; height: 164px; transform: translate(-50%, -50%) rotate(-24deg); }
-.orbit--three { width: 360px; height: 110px; transform: translate(-50%, -50%) rotate(28deg); }
-.orbit-core { position: absolute; top: 50%; left: 50%; display: grid; width: 62px; height: 62px; transform: translate(-50%, -50%); place-items: center; border: 1px solid rgba(206, 226, 234, .38); border-radius: 50%; color: #f2dfad; background: rgba(42, 91, 111, .8); box-shadow: 0 0 0 11px rgba(172,207,219,.035), 0 0 42px rgba(106,181,205,.24); }
-.orbit-node { position: absolute; display: grid; width: 33px; height: 33px; place-items: center; border: 1px solid rgba(211, 231, 237, .3); border-radius: 10px; color: #a8d4df; background: #214c60; }
+.orbit { --r: 0deg; --sway: 6deg; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(var(--r)); border: 1px solid rgba(172, 207, 219, .2); border-radius: 50%; animation: orbit-sway 14s ease-in-out infinite alternate; }
+.orbit--one { --a: 110px; --b: 110px; --t: 7s; width: 220px; height: 220px; border-top-color: rgba(172, 207, 219, .5); animation: orbit-spin 24s linear infinite; }
+.orbit--two { --r: -24deg; --a: 160px; --b: 82px; --t: 5.5s; width: 320px; height: 164px; }
+.orbit--three { --r: 28deg; --sway: -5deg; --a: 180px; --b: 55px; --t: 8s; width: 360px; height: 110px; animation-duration: 18s; animation-delay: -6s; }
+/* Destello que recorre la elipse: X e Y oscilan con un cuarto de ciclo de desfase. */
+.orbit-spark { position: absolute; top: 50%; left: 50%; animation: spark-x var(--t) cubic-bezier(.37, 0, .63, 1) infinite alternate; }
+.orbit-spark::before { content: ""; position: absolute; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: #a8d4df; box-shadow: 0 0 8px 2px rgba(154, 201, 216, .55); animation: spark-y var(--t) cubic-bezier(.37, 0, .63, 1) infinite alternate; animation-delay: calc(var(--t) / -2); }
+.orbit--two .orbit-spark::before { background: #f2dfad; box-shadow: 0 0 10px 2px rgba(242, 223, 173, .6); }
+.orbit--three .orbit-spark { animation-direction: alternate-reverse; }
+.orbit-core { position: absolute; z-index: 1; top: 50%; left: 50%; display: grid; width: 62px; height: 62px; transform: translate(-50%, -50%); place-items: center; border: 1px solid rgba(206, 226, 234, .38); border-radius: 50%; color: #f2dfad; background: rgba(42, 91, 111, .8); box-shadow: 0 0 0 11px rgba(172,207,219,.035), 0 0 42px rgba(106,181,205,.24); animation: core-glow 6s ease-in-out infinite; }
+.orbit-core::before, .orbit-core::after { content: ""; position: absolute; inset: -1px; border: 1px solid rgba(154, 201, 216, .5); border-radius: 50%; animation: core-ripple 3.6s cubic-bezier(.2, .6, .35, 1) infinite; pointer-events: none; }
+.orbit-core::after { animation-delay: 1.8s; }
+.orbit-core svg { animation: core-icon 6s ease-in-out infinite; }
+/* Flujo de un pago: el origen se ilumina, luego el núcleo y por último el destino (ciclo de 6 s). */
+.orbit-node { position: absolute; z-index: 1; display: grid; width: 33px; height: 33px; place-items: center; border: 1px solid rgba(211, 231, 237, .3); border-radius: 10px; color: #a8d4df; background: #214c60; animation: node-float 5s ease-in-out infinite alternate, node-ping 6s ease-in-out infinite; }
 .orbit-node--left { top: 26px; left: 56px; }
-.orbit-node--right { right: 42px; bottom: 25px; color: #ecd49b; }
-.orbit-caption { position: absolute; color: rgba(224, 237, 240, .56); font-size: 8px; font-weight: 700; letter-spacing: .16em; }
-.orbit-caption--left { top: 49px; left: 12px; }.orbit-caption--right { right: 0; bottom: 54px; }
+.orbit-node--right { right: 42px; bottom: 25px; color: #ecd49b; animation-delay: -2.5s, 3.6s; }
+.orbit-caption { position: absolute; color: rgba(224, 237, 240, .56); font-size: 8px; font-weight: 700; letter-spacing: .16em; animation: caption-ping 6s ease-in-out infinite; }
+.orbit-caption--left { top: 49px; left: 12px; }.orbit-caption--right { right: 0; bottom: 54px; animation-delay: 3.6s; }
+@keyframes orbit-sway { from { transform: translate(-50%, -50%) rotate(calc(var(--r) - var(--sway))); } to { transform: translate(-50%, -50%) rotate(calc(var(--r) + var(--sway))); } }
+@keyframes orbit-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes spark-x { from { transform: translateX(calc(var(--a) * -1)); } to { transform: translateX(var(--a)); } }
+@keyframes spark-y { from { transform: translateY(calc(var(--b) * -1)); } to { transform: translateY(var(--b)); } }
+@keyframes core-ripple { from { opacity: .75; transform: scale(1); } to { opacity: 0; transform: scale(2.4); } }
+@keyframes core-glow {
+  0%, 25%, 60%, 100% { box-shadow: 0 0 0 11px rgba(172,207,219,.035), 0 0 42px rgba(106,181,205,.24); }
+  40% { box-shadow: 0 0 0 11px rgba(172,207,219,.08), 0 0 64px rgba(242,223,173,.38); }
+}
+@keyframes core-icon { 0%, 28%, 56%, 100% { transform: scale(1); } 40% { transform: scale(1.12); filter: drop-shadow(0 0 6px rgba(242,223,173,.7)); } }
+@keyframes node-float { from { translate: 0 -3px; } to { translate: 0 3px; } }
+@keyframes node-ping {
+  0%, 30%, 100% { border-color: rgba(211, 231, 237, .3); box-shadow: 0 0 0 0 rgba(154, 201, 216, 0); }
+  12% { border-color: rgba(211, 231, 237, .7); box-shadow: 0 0 0 5px rgba(154, 201, 216, .12), 0 0 22px rgba(154, 201, 216, .45); }
+}
+@keyframes caption-ping { 0%, 30%, 100% { color: rgba(224, 237, 240, .56); } 12% { color: rgba(242, 223, 173, .95); } }
 .auth-visual-footer { color: rgba(226, 237, 240, .49); font-size: 8px; font-weight: 700; letter-spacing: .12em; }
 .auth-panel { display: flex; min-height: 100vh; flex-direction: column; padding: 30px clamp(28px, 5vw, 70px) 25px; background: var(--surface); }
 .auth-panel-tools { display: flex; align-items: center; justify-content: space-between; }
@@ -375,6 +400,7 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .orbit-spark { display: none; }
 }
 
 .resend-row {

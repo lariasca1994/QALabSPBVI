@@ -184,9 +184,9 @@ function AuthScreen({
             directorios de llaves y flujos de aseguramiento de calidad.
           </p>
           <div className="visual-art" aria-hidden="true">
-            <div className="orbit orbit--one" />
-            <div className="orbit orbit--two" />
-            <div className="orbit orbit--three" />
+            <div className="orbit orbit--one"><span className="orbit-spark" /></div>
+            <div className="orbit orbit--two"><span className="orbit-spark" /></div>
+            <div className="orbit orbit--three"><span className="orbit-spark" /></div>
             <div className="orbit-core"><ArrowLeftRight size={28} /></div>
             <div className="orbit-node orbit-node--left"><ArrowUpRight size={16} /></div>
             <div className="orbit-node orbit-node--right"><ArrowDownLeft size={16} /></div>
