@@ -887,6 +887,7 @@ function Overview({
           <div className="banner-ring banner-ring--outer" />
           <div className="banner-ring banner-ring--middle" />
           <div className="banner-ring banner-ring--inner" />
+          <div className="banner-orbit" />
           <div className="banner-center"><ArrowLeftRight size={26} /></div>
           <div className="banner-chip banner-chip--top"><ShieldCheck size={14} /> ATÓMICO</div>
           <div className="banner-chip banner-chip--bottom"><Activity size={14} /> TRAZABLE</div>

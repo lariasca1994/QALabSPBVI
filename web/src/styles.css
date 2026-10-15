@@ -226,6 +226,27 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
 .banner-center { position: absolute; top: 50%; left: 50%; display: grid; width: 53px; height: 53px; transform: translate(-50%,-50%); place-items: center; border: 1px solid rgba(239,220,166,.5); border-radius: 50%; color: #f0d99c; background: rgba(227,208,154,.11); }
 .banner-chip { position: absolute; display: flex; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid rgba(213,233,236,.2); border-radius: 5px; color: #d7e8e9; background: rgba(13,43,57,.66); font-size: 7px; font-weight: 700; letter-spacing: .1em; }
 .banner-chip--top { top: 29px; right: -12px; }.banner-chip--bottom { bottom: 33px; left: -22px; color: #e9d8a9; }
+/* Banner: la señal de un pago sale del núcleo y recorre los anillos hacia afuera; las etiquetas
+   se iluminan cuando llega. Mismo ciclo de 6 s y mismas animaciones base que el panel de órbitas del login. */
+.banner-ring { animation: ring-wave 6s ease-in-out infinite; }
+.banner-ring--middle { animation-delay: .35s; }.banner-ring--outer { animation-delay: .7s; }
+.banner-center { z-index: 1; animation: core-glow 6s ease-in-out infinite; }
+.banner-center::before, .banner-center::after { content: ""; position: absolute; inset: -1px; border: 1px solid rgba(239, 220, 166, .45); border-radius: 50%; animation: core-ripple 3.6s cubic-bezier(.2, .6, .35, 1) infinite; pointer-events: none; }
+.banner-center::after { animation-delay: 1.8s; }
+.banner-center svg { animation: banner-swap 6s ease-in-out infinite; }
+.banner-orbit { position: absolute; top: 50%; left: 50%; width: 151px; height: 151px; transform: translate(-50%, -50%); border-radius: 50%; animation: orbit-spin 16s linear infinite; pointer-events: none; }
+.banner-orbit::before { content: ""; position: absolute; top: -2.5px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: #f2dfad; box-shadow: 0 0 10px 2px rgba(242, 223, 173, .55); }
+.banner-chip { animation: node-float 5s ease-in-out infinite alternate, chip-ping 6s ease-in-out infinite; }
+.banner-chip--top { animation-delay: -2.5s, 1.1s; }.banner-chip--bottom { animation-delay: 0s, 1.6s; }
+@keyframes ring-wave {
+  0%, 35%, 100% { border-color: rgba(186, 220, 226, .26); box-shadow: 0 0 0 rgba(239, 220, 166, 0); }
+  15% { border-color: rgba(239, 220, 166, .55); box-shadow: 0 0 18px rgba(239, 220, 166, .12); }
+}
+@keyframes banner-swap { 0%, 30%, 56%, 100% { transform: none; } 38% { transform: translateX(2px) scale(1.08); } 47% { transform: translateX(-2px) scale(1.08); } }
+@keyframes chip-ping {
+  0%, 30%, 100% { border-color: rgba(213, 233, 236, .2); box-shadow: 0 0 0 rgba(239, 220, 166, 0); }
+  12% { border-color: rgba(239, 220, 166, .6); box-shadow: 0 0 16px rgba(239, 220, 166, .22); }
+}
 .banner-index { position: absolute; right: 25px; bottom: 18px; color: rgba(237,246,247,.44); font-size: 8px; letter-spacing: .13em; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; margin: 33px 0 14px; }
 .section-heading h2, .card-heading h2 { margin: 0 0 5px; color: var(--text-strong); font-size: 14px; font-weight: 700; }
@@ -365,6 +386,7 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
   .welcome-copy { max-width: 74%; }.welcome-copy h2 { font-size: 25px; }.welcome-copy p { font-size: 10px; }
   .banner-illustration { right: -31px; width: 174px; height: 174px; opacity: .48; }
   .banner-ring--outer { width: 166px; height: 166px; }.banner-ring--middle { width: 122px; height: 122px; }.banner-ring--inner { width: 74px; height: 74px; }
+  .banner-orbit { width: 122px; height: 122px; }
   .banner-index { right: 14px; bottom: 12px; }
   .metric-grid { gap: 9px; }.metric-card { min-height: 132px; padding: 12px; }.metric-card > strong { font-size: 14px; }
   .lower-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 10px; }
@@ -400,7 +422,7 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-  .orbit-spark { display: none; }
+  .orbit-spark, .banner-orbit { display: none; }
 }
 
 .resend-row {
