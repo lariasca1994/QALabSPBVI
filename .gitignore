@@ -23,3 +23,7 @@ web/playwright-report/
 .claude/
 .mcp.json
 skills-lock.json
+
+# Instrucciones locales para Claude Code: nunca se suben a GitHub
+CLAUDE.md
+CLAUDE.local.md
