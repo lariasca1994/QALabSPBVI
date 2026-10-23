@@ -228,9 +228,17 @@ jobs:
         env:
           RESOURCE_GROUP: ${{ vars.PROD_RESOURCE_GROUP }}
           CONTAINER_APP_NAME: ${{ vars.PROD_CONTAINER_APP_NAME }}
+          # Cuenta de prueba de qa-evidencia: su código MFA se lee con este token
+          # (ver app/domains/auth/automation.py). Vienen de los secretos del environment.
+          QA_AUTOMATION_TOKEN: ${{ secrets.QA_AUTOMATION_TOKEN }}
+          QA_AUTOMATION_EMAILS: ${{ secrets.QA_AUTOMATION_EMAILS }}
         run: |
           set -euo pipefail
-          az containerapp update --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_APP_NAME" --image "$IMAGE"
+          extra=()
+          if [ -n "$QA_AUTOMATION_TOKEN" ] && [ -n "$QA_AUTOMATION_EMAILS" ]; then
+            extra=(--set-env-vars "QA_AUTOMATION_TOKEN=$QA_AUTOMATION_TOKEN" "QA_AUTOMATION_EMAILS=$QA_AUTOMATION_EMAILS")
+          fi
+          az containerapp update --resource-group "$RESOURCE_GROUP" --name "$CONTAINER_APP_NAME" --image "$IMAGE" "${extra[@]}"
 
       - name: Iniciar sesion en AWS con OIDC
         uses: aws-actions/configure-aws-credentials@v4
