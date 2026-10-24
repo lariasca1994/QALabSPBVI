@@ -303,6 +303,8 @@ Comprobado en el código del proyecto (`app/core/security.py`, `app/domains/auth
   tiene credenciales propias y exige TLS. El despliegue usa OIDC, sin claves guardadas.
 - **Trazabilidad:** cada solicitud queda registrada con identificador de correlación, usuario y
   operación.
+- **Al día en seguridad:** el runtime, el sistema y las dependencias se mantienen con los últimos
+  parches y se revisan periódicamente.
 
 ## 6. Agradecimientos
 

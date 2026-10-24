@@ -573,7 +573,7 @@ Cada componente usa una base **nueva, vacía y dedicada**. Ninguna se comparte n
 
 ### Requisitos
 
-- Python 3.11 o superior y Node.js 20 o superior.
+- Python 3.13.17 o superior y Node.js 24.22.1 o superior (parches de seguridad de octubre de 2026).
 - Bases nuevas y dedicadas: PostgreSQL, SQL Server con ODBC Driver 18, Oracle (por ejemplo Oracle Free con `FREEPDB1`) y MongoDB.
 - Una cuenta de Brevo con remitente verificado, para enviar el código MFA y los avisos.
 
