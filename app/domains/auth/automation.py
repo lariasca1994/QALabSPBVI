@@ -72,8 +72,12 @@ def ensure_fixtures(db: Session, *, owner_email: str) -> None:
             if balance:
                 db.add(LedgerEntry(account_id=account_id, amount_cents=balance, entry_type="opening"))
             created = True
+    # Siempre se cierra la transacción: si quedara abierta mientras DIFE despierta, retendría una
+    # conexión de la base principal y los ingresos esperarían por ella.
     if created:
         db.commit()
+    else:
+        db.rollback()
 
     with get_dife_session_factory()() as dife_db, get_dice_session_factory()() as dice_db:
         key = dife_db.scalar(

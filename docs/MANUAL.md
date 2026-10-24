@@ -285,7 +285,8 @@ Comprobado en el código del proyecto (`app/core/security.py`, `app/domains/auth
 
 - **Contraseñas con Argon2id**, el algoritmo recomendado actualmente para guardar contraseñas.
 - **Segundo factor obligatorio:** código por correo de 6 dígitos que vence en 5 minutos, con
-  máximo 5 intentos.
+  máximo 5 intentos y hasta 3 códigos cada 15 minutos por cuenta (las cuentas de pruebas
+  automáticas, una lista cerrada protegida por token, admiten 20).
 - **Límites contra fuerza bruta:** 10 intentos fallidos por correo cada 15 minutos; 5 registros por
   conexión cada hora; recuperación con código de 10 minutos, 5 intentos y máximo 3 códigos cada 15
   minutos.

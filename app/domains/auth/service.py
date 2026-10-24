@@ -38,6 +38,7 @@ SESSION_ABSOLUTE_SECONDS = 8 * 60 * 60
 PENDING_LOGIN_SECONDS = 15 * 60
 RESEND_COOLDOWN_SECONDS = 60
 MAX_CODES_PER_WINDOW = 3
+MAX_CODES_PER_WINDOW_AUTOMATION = 20
 
 
 class LoginRateLimitError(Exception):
@@ -241,7 +242,12 @@ def _issue_code(db: Session, *, user: User, now: int, mailer: Mailer) -> None:
             EmailLoginChallenge.created_at_epoch > now - LOGIN_WINDOW_SECONDS,
         )
     )
-    if recent_challenges >= MAX_CODES_PER_WINDOW:
+    # Las cuentas de automatización E2E (lista cerrada, código protegido por token) ingresan
+    # varias veces por corrida: tienen un tope mayor. El resto mantiene 3 cada 15 minutos.
+    limit = (
+        MAX_CODES_PER_WINDOW_AUTOMATION if is_automation_account(user) else MAX_CODES_PER_WINDOW
+    )
+    if recent_challenges >= limit:
         raise LoginRateLimitError
 
     previous = db.scalars(
