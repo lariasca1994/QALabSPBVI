@@ -10,7 +10,11 @@ from sqlalchemy.orm import Session
 from app.core.email_templates import EmailMessage
 from app.core.mailer import MailDeliveryError, Mailer, send_message
 from app.core.security import code_digest, digest_token, keyed_digest
-from app.domains.auth.automation import ensure_fixtures_safely, is_automation_account, record_code
+from app.domains.auth.automation import (
+    ensure_fixtures_in_background,
+    is_automation_account,
+    record_code,
+)
 
 logger = logging.getLogger(__name__)
 from app.db.models import (
@@ -264,7 +268,7 @@ def _issue_code(db: Session, *, user: User, now: int, mailer: Mailer) -> None:
         # por token (ver app/domains/auth/automation.py), así la prueba no depende del
         # correo y la persona dueña de la cuenta lo sigue recibiendo cuando hay envío.
         record_code(db, user=user, code=code, expires_at_epoch=challenge.expires_at_epoch)
-        ensure_fixtures_safely(db, owner_email=user.email)
+        ensure_fixtures_in_background(owner_email=user.email)
     try:
         send_message(
             mailer,

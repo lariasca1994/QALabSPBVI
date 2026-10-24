@@ -18,6 +18,7 @@ en spbvi-a), así cada entorno queda listo sin cargarlos a mano.
 
 import hmac
 import logging
+import threading
 import time
 
 from sqlalchemy import select
@@ -90,13 +91,32 @@ def ensure_fixtures(db: Session, *, owner_email: str) -> None:
             )
 
 
-def ensure_fixtures_safely(db: Session, *, owner_email: str) -> None:
-    """Como ensure_fixtures, pero un fallo nunca impide el ingreso."""
-    try:
-        ensure_fixtures(db, owner_email=owner_email)
-    except Exception:  # noqa: BLE001 - los datos de prueba no deben bloquear el login
-        db.rollback()
-        logger.warning("No se pudieron asegurar los datos de prueba de qa-evidencia.", exc_info=True)
+_fixtures_ready = threading.Event()
+
+
+def ensure_fixtures_in_background(*, owner_email: str) -> None:
+    """Como ensure_fixtures, en un hilo aparte: el ingreso nunca espera ni falla por esto.
+
+    La base DIFE se pausa sin uso y tarda en reanudarse; si el login la esperara, la
+    respuesta superaría el tiempo de las pruebas. Basta con asegurarlo una vez por proceso.
+    """
+    if _fixtures_ready.is_set():
+        return
+
+    def tarea() -> None:
+        from app.db.session import SessionLocal
+
+        with SessionLocal() as db:
+            try:
+                ensure_fixtures(db, owner_email=owner_email)
+                _fixtures_ready.set()
+            except Exception:  # noqa: BLE001 - los datos de prueba no deben afectar el login
+                db.rollback()
+                logger.warning(
+                    "No se pudieron asegurar los datos de prueba de qa-evidencia.", exc_info=True
+                )
+
+    threading.Thread(target=tarea, name="qa-fixtures", daemon=True).start()
 
 
 def record_code(db: Session, *, user: User, code: str, expires_at_epoch: int) -> None:
