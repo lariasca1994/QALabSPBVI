@@ -64,7 +64,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | **Mensajería ISO 20022** | pacs.008 y pacs.002 (generados por un gateway aparte con respaldo local), pacs.004 (devoluciones), camt.056 y camt.029 (cancelación e investigación), camt.054 (notificaciones) y pain.002 (estado para el cliente), todos validados contra XSD propios de laboratorio. |
 | **Aseguramiento de calidad** | Plataforma tipo Jira con épicas, HU, CP, tareas, bugs y fixes. Cada CP es una solicitud REST/JSON que se ejecuta con un clic y muestra método, URL, solicitud y respuesta. Cada respuesta se valida además contra el contrato OpenAPI (JSON Schema) y el ejecutor reintenta los fallos de red. Incluye un programa ISO 20022 de 60 CP que pasa completo en la nube, con llaves generadas según su tipo, y un mock server de fallos de red para las pruebas de resiliencia. |
 | **Backend y datos** | Monolito modular en FastAPI con cinco motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle, MongoDB y MySQL (TiDB). Ninguno se comparte, y la coordinación entre DIFE y DICE, y entre cobros QR y pagos, es recuperable, sin transacciones distribuidas. |
-| **Seguridad** | Contraseñas Argon2id, MFA por correo con reenvío, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
+| **Seguridad** | Contraseñas Argon2id, MFA obligatorio con app autenticadora (TOTP) o código por correo, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
 | **Cloud y DevOps** | Ocho plataformas cloud con una función cada una (ver [Plataformas y su función](#4-plataformas-y-su-función)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
 | **Pruebas** | 210 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles, incluida la lectura de QR con cámara simulada y la app instalable. |
 | **Trazabilidad** | Registro de cada solicitud en una base propia, con identificador de correlación y `operation_id` para seguir todos los mensajes de un pago, pantalla de auditoría y exportación CSV. |
@@ -115,7 +115,8 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 
 **Acceso**
 - Registro abierto: cualquiera crea su cuenta desde **Crear cuenta**; queda con rol `usuario` y empieza a trabajar cuando la asocian a una épica. Tiene límite de registros por conexión.
-- Contraseña (Argon2id) y código MFA por correo, con reenvío sin volver a pedir la contraseña.
+- Contraseña (Argon2id) y segundo factor obligatorio a elección: app autenticadora (TOTP) o código
+  por correo con reenvío; desde **Seguridad** se agrega el otro método y se elige el preferido.
 - Credenciales inválidas informadas con un único mensaje, exista o no la cuenta.
 - Cambio de la propia contraseña (cierra las demás sesiones) y recuperación con un código de un solo uso por correo.
 - Activación y desactivación de cuentas desde Usuarios y roles; desactivar cierra las sesiones de la cuenta.
@@ -259,9 +260,14 @@ Cada plataforma cumple una función distinta; ninguna concentra todo el sistema.
 ### 5.2 Iniciar sesión con segundo factor
 
 1. Escribe **Correo electrónico** y **Contraseña** y continúa.
-2. Revisa tu correo: llega un **Código de acceso** de seis dígitos, de un solo uso, que vence en 5 minutos.
-3. Escríbelo en la pantalla **Revisa tu correo** para entrar.
-4. Si no llegó, pulsa **¿No te llegó el código?** para pedir otro sin volver a escribir la contraseña.
+2. Si tu cuenta usa el correo, llega un **Código de acceso** de seis dígitos, de un solo uso, que vence
+   en 5 minutos: escríbelo en **Revisa tu correo**. Si no llegó, pulsa **¿No te llegó el código?** para
+   pedir otro sin volver a escribir la contraseña.
+3. Si tu cuenta usa la app autenticadora, escribe el código de 6 dígitos que muestra la app. Con los
+   dos métodos activos, la pantalla ofrece **Usar un código por correo** o **Usar la app autenticadora**.
+4. La primera vez puedes elegir **Configurar app autenticadora** en lugar del código del correo:
+   escanea el QR (o escribe la clave) y confirma con el primer código. Desde **Seguridad** (ícono del
+   escudo, arriba) agregas el método que no elegiste y escoges cuál se pide por defecto.
 5. Si olvidaste la contraseña, pulsa **¿Olvidaste tu contraseña?**: recibirás un código por correo para definir una nueva.
 
 ### 5.3 Pantallas principales
@@ -381,6 +387,12 @@ Cualquier persona crea su cuenta desde **Crear cuenta**. El papel del `admin` y 
 1. `POST /auth/login` valida la contraseña y envía un código de seis dígitos. La respuesta es la misma exista o no la cuenta, y emite la cookie `HttpOnly` `qalab_pending_login` (15 minutos).
 2. `POST /auth/resend-code` usa esa cookie para emitir un código nuevo sin volver a pedir la contraseña; el anterior queda invalidado. Hay 60 segundos entre envíos y un máximo de 3 códigos cada 15 minutos.
 3. `POST /auth/verify-email-code` abre la sesión: vence a los 30 minutos sin actividad y a las 8 horas en total.
+4. Con la app autenticadora, `POST /auth/login` no envía correo (`method: "totp"`) y
+   `POST /auth/verify-totp` abre la sesión. En el primer ingreso, `POST /auth/mfa/totp/setup` entrega la
+   clave y el `otpauth://` para configurarla en lugar del correo. Con sesión, `GET /auth/mfa`,
+   `/auth/mfa/totp/start|activate`, `/auth/mfa/email/start|activate` y `/auth/mfa/preferred` agregan el
+   otro método y eligen el preferido. La clave de la app se guarda cifrada (AES-GCM), un código no se
+   acepta dos veces y 5 códigos errados la bloquean 15 minutos (tabla `user_mfa`).
 
 El código vence a los 5 minutos, admite 5 intentos y es de un solo uso. Toda operación que cambia estado exige el token CSRF (`GET /auth/csrf` y cabecera `X-CSRF-Token`).
 

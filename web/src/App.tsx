@@ -44,7 +44,8 @@ import { PaymentParties, SpbviField, useAccounts, useSpbvis } from "./LabDirecto
 import { QrCollect, QrPay, type QrResult } from "./QrPayments";
 import { useInstallPrompt } from "./pwa";
 import { ChangePasswordModal, PasswordReset, SignupForm } from "./PasswordForms";
-import { api, ApiError, type Epic, type KeyTypeInfo, type Payment, type User, type WorkItem } from "./api";
+import { SecurityModal, TotpSetupBlock } from "./TwoFactor";
+import { api, ApiError, type Epic, type KeyTypeInfo, type LoginStep, type Payment, type TotpSetup, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
 type View = "overview" | "keys" | "payments" | "qr" | "quality" | "bugs" | "audit" | "users";
@@ -97,6 +98,7 @@ function ThemeButton({ theme, onToggle }: { theme: Theme; onToggle: () => void }
 
 function AuthScreen({
   mode,
+  step,
   onLogin,
   onVerify,
   onResend,
@@ -107,8 +109,9 @@ function AuthScreen({
   onToggleTheme,
 }: {
   mode: "login" | "mfa";
+  step: LoginStep | null;
   onLogin: (email: string, password: string) => Promise<void>;
-  onVerify: (code: string) => Promise<void>;
+  onVerify: (code: string, method: "email" | "totp") => Promise<void>;
   onResend: () => Promise<void>;
   onBack: () => void;
   error: string;
@@ -125,13 +128,45 @@ function AuthScreen({
   const [resending, setResending] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [signingUp, setSigningUp] = useState(false);
+  // Método del segundo paso: el que pide la cuenta; se puede cambiar al otro si está activo.
+  const [method, setMethod] = useState<"email" | "totp">("email");
+  const [totpSetup, setTotpSetup] = useState<TotpSetup | null>(null);
+  const [setupError, setSetupError] = useState("");
 
   useEffect(() => {
     if (mode === "mfa") {
-      setResendWait(RESEND_COOLDOWN_SECONDS);
+      setMethod(step?.method ?? "email");
+      setTotpSetup(null);
+      setSetupError("");
+      setResendWait(step?.method === "totp" ? 0 : RESEND_COOLDOWN_SECONDS);
       setCode("");
     }
-  }, [mode]);
+  }, [mode, step]);
+
+  async function configureApp() {
+    setNotice("");
+    setSetupError("");
+    try {
+      setTotpSetup(await api.setupTotpAtLogin());
+      setMethod("totp");
+      setCode("");
+    } catch (error) {
+      setSetupError(friendlyError(error));
+    }
+  }
+
+  async function switchToEmail() {
+    setNotice("");
+    try {
+      await onResend();
+      setMethod("email");
+      setCode("");
+      setNotice("Te enviamos un código al correo.");
+      setResendWait(RESEND_COOLDOWN_SECONDS);
+    } catch {
+      // El mensaje de error lo muestra el contenedor.
+    }
+  }
 
   useEffect(() => {
     if (resendWait <= 0) return;
@@ -162,7 +197,7 @@ function AuthScreen({
         await onLogin(email, password);
         setNotice("Te enviamos un código de acceso al correo.");
       } else {
-        await onVerify(code);
+        await onVerify(code, method);
       }
     } catch {
       return;
@@ -208,7 +243,7 @@ function AuthScreen({
         <div className="auth-form-wrap">
           <div className="auth-icon"><ShieldCheck size={23} /></div>
           <span className="eyebrow eyebrow--muted">{signingUp ? "NUEVA CUENTA" : resetting ? "RECUPERAR ACCESO" : mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
-          <h2>{signingUp ? "Crea tu cuenta." : resetting ? "Restablece tu contraseña." : mode === "login" ? "Qué bueno verte." : "Revisa tu correo."}</h2>
+          <h2>{signingUp ? "Crea tu cuenta." : resetting ? "Restablece tu contraseña." : mode === "login" ? "Qué bueno verte." : method === "totp" ? "Abre tu app autenticadora." : "Revisa tu correo."}</h2>
           <p className="auth-description">
             {signingUp
               ? "Es una demo: tu cuenta se crea con rol usuario y queda pendiente de asignación a una épica."
@@ -216,6 +251,10 @@ function AuthScreen({
               ? "Te enviamos un código al correo de tu cuenta para definir una contraseña nueva."
               : mode === "login"
               ? "Ingresa a tu espacio de pruebas y operaciones."
+              : method === "totp"
+              ? totpSetup
+                ? "Configura tu app autenticadora: desde ahora se pedirá en cada ingreso."
+                : "Escribe el código de 6 dígitos que muestra tu app autenticadora."
               : "Te enviamos un código de un solo uso para confirmar tu identidad."}
           </p>
           {signingUp ? (
@@ -252,7 +291,8 @@ function AuthScreen({
               </>
             ) : (
               <>
-                <label className="field-label" htmlFor="mfa-code">Código de acceso</label>
+                {totpSetup && method === "totp" && <TotpSetupBlock setup={totpSetup} />}
+                <label className="field-label" htmlFor="mfa-code">{method === "totp" ? "Código de la app" : "Código de acceso"}</label>
                 <input
                   autoComplete="one-time-code"
                   className="text-input code-input"
@@ -265,7 +305,7 @@ function AuthScreen({
                   type="text"
                   value={code}
                 />
-                <p className="field-hint">El código es de un solo uso y vence en 5 minutos.</p>
+                <p className="field-hint">{method === "totp" ? "La app muestra un código nuevo cada 30 segundos." : "El código es de un solo uso y vence en 5 minutos."}</p>
               </>
             )}
             {notice && <div className="inline-notice"><Check size={16} />{notice}</div>}
@@ -275,7 +315,26 @@ function AuthScreen({
               {busy ? "Un momento…" : mode === "login" ? "Continuar" : "Verificar e ingresar"}
             </button>
           </form>
-          {mode === "mfa" && (
+          {mode === "mfa" && method === "email" && step && !step.methods.chosen && !totpSetup && (
+            <div className="resend-row">
+              <span>¿Prefieres una app autenticadora?</span>
+              <button className="text-button" disabled={busy} onClick={() => void configureApp()} type="button">
+                <ShieldCheck size={15} /> Configurar app autenticadora
+              </button>
+            </div>
+          )}
+          {setupError && <div className="alert alert--error" role="alert">{setupError}</div>}
+          {mode === "mfa" && method === "email" && step?.methods.totp && (
+            <button className="text-button back-button" onClick={() => { setMethod("totp"); setCode(""); setNotice(""); }} type="button">
+              <ShieldCheck size={15} /> Usar la app autenticadora
+            </button>
+          )}
+          {mode === "mfa" && method === "totp" && !totpSetup && step?.methods.email && (
+            <button className="text-button back-button" disabled={busy || resending} onClick={() => void switchToEmail()} type="button">
+              <RefreshCw size={15} /> Usar un código por correo
+            </button>
+          )}
+          {mode === "mfa" && method === "email" && (
             <div className="resend-row">
               <span>¿No te llegó el código?</span>
               <button
@@ -402,6 +461,8 @@ function App() {
   const [selectedEpic, setSelectedEpic] = useState("");
   const [bugDraft, setBugDraft] = useState<BugDraft | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [loginStep, setLoginStep] = useState<LoginStep | null>(null);
   const [accountNotice, setAccountNotice] = useState("");
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userNotice, setUserNotice] = useState("");
@@ -508,7 +569,7 @@ function App() {
     setAuthError("");
     setEmail(loginEmail);
     try {
-      await api.login(loginEmail, password);
+      setLoginStep(await api.login(loginEmail, password));
       setAuth("mfa");
     } catch (error) {
       setAuthError(friendlyError(error));
@@ -528,11 +589,12 @@ function App() {
     }
   }
 
-  async function handleVerify(code: string) {
+  async function handleVerify(code: string, method: "email" | "totp") {
     setBusy(true);
     setAuthError("");
     try {
-      await api.verifyCode(email, code);
+      if (method === "totp") await api.verifyTotp(code);
+      else await api.verifyCode(email, code);
       const currentUser = await api.me();
       setUser(currentUser);
       setAuth("app");
@@ -607,6 +669,7 @@ function App() {
         busy={busy}
         error={authError}
         mode={auth}
+        step={loginStep}
         onBack={() => { setAuth("login"); setAuthError(""); }}
         onLogin={handleLogin}
         onToggleTheme={() => setTheme((current) => current === "dark" ? "light" : "dark")}
@@ -651,6 +714,7 @@ function App() {
           <div className="sidebar-user">
             <div className="user-avatar">{user?.display_name.slice(0, 1).toUpperCase()}</div>
             <div className="sidebar-user-copy"><strong>{user?.display_name}</strong><small>{user?.role}</small></div>
+            <button className="icon-button icon-button--subtle" onClick={() => setSecurityOpen(true)} title="Seguridad" aria-label="Seguridad" type="button"><ShieldCheck size={17} /></button>
             <button className="icon-button icon-button--subtle" onClick={() => setChangingPassword(true)} title="Cambiar contraseña" aria-label="Cambiar contraseña" type="button"><KeyRound size={17} /></button>
             <button className="icon-button icon-button--subtle" onClick={() => void handleLogout()} title="Cerrar sesión" aria-label="Cerrar sesión" type="button"><LogOut size={17} /></button>
           </div>
@@ -666,6 +730,7 @@ function App() {
             <button className="icon-button" type="button" aria-label="Notificaciones" title="Notificaciones"><Bell size={18} /></button>
             <ThemeButton theme={theme} onToggle={() => setTheme((current) => current === "dark" ? "light" : "dark")} />
             {/* En móvil la barra lateral oculta su pie: la cuenta se gestiona desde aquí. */}
+            <button className="icon-button topbar-account" onClick={() => setSecurityOpen(true)} title="Seguridad" aria-label="Seguridad" type="button"><ShieldCheck size={18} /></button>
             <button className="icon-button topbar-account" onClick={() => setChangingPassword(true)} title="Cambiar contraseña" aria-label="Cambiar contraseña" type="button"><KeyRound size={18} /></button>
             <button className="icon-button topbar-account" onClick={() => void handleLogout()} title="Cerrar sesión" aria-label="Cerrar sesión" type="button"><LogOut size={18} /></button>
             {installPrompt.mode && (
@@ -685,7 +750,8 @@ function App() {
         <main className="content">
           {accountNotice && <div className="alert alert--success page-alert" role="status"><Check size={16} /><span>{accountNotice}</span><button className="icon-button" onClick={() => setAccountNotice("")} aria-label="Cerrar aviso" type="button"><X size={16} /></button></div>}
           {installHint && <div className="alert alert--info page-alert" role="status"><Download size={16} /><span>Para instalar en iPhone o iPad: toca Compartir y luego "Agregar a inicio".</span><button className="icon-button" onClick={() => setInstallHint(false)} aria-label="Cerrar aviso" type="button"><X size={16} /></button></div>}
-          {changingPassword && <ChangePasswordModal onClose={(message) => { setChangingPassword(false); if (message) setAccountNotice(message); }} />}
+          {securityOpen && <SecurityModal onClose={(message) => { setSecurityOpen(false); if (message) setAccountNotice(message); }} />}
+      {changingPassword && <ChangePasswordModal onClose={(message) => { setChangingPassword(false); if (message) setAccountNotice(message); }} />}
           {maintenance && <div className="alert alert--maintenance page-alert" role="status"><Wrench size={16} aria-hidden="true" /><span><strong>Base de llaves en mantenimiento.</strong> {maintenance}</span></div>}
           {databasesReady === false && !maintenance && <div className="alert alert--info page-alert" role="status"><LoaderCircle className="spin" size={16} /><span>Activando las bases de datos. La de llaves está en otra región y tarda cerca de un minuto en reanudarse; las ejecuciones se habilitan cuando esté lista.</span></div>}
           {loadError && <div className="alert alert--error page-alert" role="alert"><span>{loadError}</span><button className="icon-button" onClick={() => setLoadError("")} aria-label="Cerrar aviso"><X size={16} /></button></div>}

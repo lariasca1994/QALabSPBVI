@@ -129,10 +129,20 @@ cuenta. **¿Olvidaste tu contraseña?** envía un código de un solo uso para de
 
 | # | Campo | Qué escribir |
 |:-:|---|---|
-| 1 | Código de acceso | Los 6 dígitos que llegaron a tu correo. Vence a los **5 minutos** y sirve una sola vez |
+| 1 | Código de acceso | Los 6 dígitos que llegaron a tu correo (vencen a los **5 minutos** y sirven una sola vez) o los que muestra tu app autenticadora |
 | 2 | Verificar e ingresar | Entra a la plataforma |
 
 **¿No te llegó el código?** pide otro sin volver a escribir la contraseña.
+
+La verificación en dos pasos es obligatoria y eliges el método:
+
+| Método | Cómo funciona |
+|---|---|
+| **App autenticadora** | Pulsa **Configurar app autenticadora** la primera vez, escanea el QR con Google Authenticator, Microsoft Authenticator u otra app (o escribe la clave) y escribe el primer código. Desde entonces se pide la app y no se envía correo. |
+| **Código por correo** | Escribe el código que llegó a tu correo; queda como tu método. |
+
+En **Seguridad** (ícono del escudo, arriba) agregas el método que no elegiste y escoges cuál se pide
+por defecto; si tienes los dos, la pantalla del código ofrece usar el otro.
 
 ### 4.4 Resumen
 
@@ -272,6 +282,7 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 | Nombre y correo | Identificarte y enviarte códigos y avisos | PostgreSQL (Neon) | Visibles para los integrantes de tus épicas en los avisos |
 | Contraseña | Iniciar sesión | PostgreSQL, **solo su huella Argon2id** | No se puede leer ni recuperar |
 | Códigos MFA y de recuperación | Segundo factor | PostgreSQL, con vencimiento y límite de intentos | Un solo uso |
+| Clave de la app autenticadora | Segundo factor | PostgreSQL, **cifrada con AES-GCM** | Nadie desde la aplicación |
 | Llaves de pago | Simular el directorio | Azure SQL (DIFE) y Oracle ADB (DICE) | Datos de laboratorio |
 | Cuentas, pagos y ledger | Simular la liquidación | PostgreSQL (Neon) | Sin dinero real |
 | Cobros QR | Pagos con QR | MySQL (TiDB Cloud), con TLS | Hash HMAC-SHA256 en el QR |
@@ -284,9 +295,9 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 Comprobado en el código del proyecto (`app/core/security.py`, `app/domains/auth/`):
 
 - **Contraseñas con Argon2id**, el algoritmo recomendado actualmente para guardar contraseñas.
-- **Segundo factor obligatorio:** código por correo de 6 dígitos que vence en 5 minutos, con
-  máximo 5 intentos y hasta 3 códigos cada 15 minutos por cuenta (las cuentas de pruebas
-  automáticas, una lista cerrada protegida por token, admiten 20).
+- **Segundo factor obligatorio, a elección:** app autenticadora (TOTP: clave cifrada, un código no
+  se acepta dos veces y 5 errados la bloquean 15 minutos) o código por correo de 6 dígitos que vence
+  en 5 minutos, con máximo 5 intentos y hasta 3 códigos cada 15 minutos por cuenta.
 - **Límites contra fuerza bruta:** 10 intentos fallidos por correo cada 15 minutos; 5 registros por
   conexión cada hora; recuperación con código de 10 minutos, 5 intentos y máximo 3 códigos cada 15
   minutos.

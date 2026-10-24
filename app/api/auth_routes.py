@@ -11,6 +11,8 @@ from app.api.schemas import (
     AccountStatusRequest,
     CsrfResponse,
     LoginRequest,
+    MfaCodeRequest,
+    MfaMethodRequest,
     PasswordChangeRequest,
     PasswordResetConfirmRequest,
     PasswordResetRequest,
@@ -33,6 +35,7 @@ from app.core.security import (
 from app.db.models import User, UserRole
 from app.db.session import get_db
 from app.db.wake import wake_key_stores
+from app.domains.auth import two_factor
 from app.domains.auth.automation import code_for_pending_login
 from app.domains.auth.passwords import (
     AccountChangeForbiddenError,
@@ -55,7 +58,11 @@ from app.domains.auth.service import (
     PENDING_LOGIN_SECONDS,
     ResendCooldownError,
     complete_login,
+    complete_totp_login,
+    confirm_email_code,
     create_user,
+    issue_email_code,
+    pending_user,
     normalize_email,
     resend_code,
     revoke_session,
@@ -108,11 +115,11 @@ def login(
     credentials: LoginRequest,
     db: DbSession,
     mailer: MailerDependency,
-) -> dict[str, str]:
+) -> dict[str, object]:
     verify_csrf(request)
     pending_token = secrets.token_urlsafe(32)
     try:
-        start_login(
+        method = start_login(
             db,
             email=normalize_email(str(credentials.email)),
             password=credentials.password,
@@ -140,7 +147,14 @@ def login(
         ) from error
 
     _set_pending_login_cookie(response, pending_token)
-    return {"message": "Enviamos un codigo de acceso al correo de la cuenta."}
+    user = pending_user(db, pending_token)
+    state = two_factor.methods(db, user) if user is not None else {}
+    message = (
+        "Escribe el codigo de tu app autenticadora."
+        if method == two_factor.METHOD_TOTP
+        else "Enviamos un codigo de acceso al correo de la cuenta."
+    )
+    return {"message": message, "method": method, "methods": state}
 
 
 @router.post("/resend-code", status_code=status.HTTP_202_ACCEPTED)
@@ -221,7 +235,116 @@ def verify_email_code(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="El codigo no es valido o vencio.",
         ) from error
+    _set_session_cookies(response, raw_token, max_age)
+    return {"message": "Autenticacion completada.", "role": user.role.value}
 
+
+@router.post("/verify-totp")
+def verify_totp_code(
+    request: Request,
+    payload: MfaCodeRequest,
+    response: Response,
+    db: DbSession,
+) -> dict[str, str]:
+    """Segundo paso con la app autenticadora; la primera vez la deja activa."""
+    verify_csrf(request)
+    try:
+        user, raw_token, max_age = complete_totp_login(
+            db, pending_token=request.cookies.get(PENDING_LOGIN_COOKIE), code=payload.code
+        )
+    except two_factor.TotpLockedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="Demasiados codigos incorrectos. Espera 15 minutos e intenta de nuevo.",
+        ) from error
+    except InvalidChallengeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="El codigo no es valido o ya se uso.",
+        ) from error
+    _set_session_cookies(response, raw_token, max_age)
+    return {"message": "Autenticacion completada.", "role": user.role.value}
+
+
+@router.post("/mfa/totp/setup")
+def setup_totp_during_login(request: Request, db: DbSession) -> dict[str, str]:
+    """Primer ingreso: configura la app autenticadora en vez de usar el código del correo."""
+    verify_csrf(request)
+    user = pending_user(db, request.cookies.get(PENDING_LOGIN_COOKIE))
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El inicio de sesion vencio. Ingresa de nuevo.")
+    if two_factor.methods(db, user)["chosen"]:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Tu cuenta ya eligio su metodo; agrega la app desde Seguridad.")
+    secret, uri = two_factor.start_totp_setup(db, user)
+    return {"secret": secret, "uri": uri}
+
+
+@router.get("/mfa")
+def get_mfa_methods(user: AuthenticatedUser, db: DbSession) -> dict[str, object]:
+    return two_factor.methods(db, user)
+
+
+@router.post("/mfa/totp/start")
+def start_totp(request: Request, user: AuthenticatedUser, db: DbSession) -> dict[str, str]:
+    verify_csrf(request)
+    try:
+        secret, uri = two_factor.start_totp_setup(db, user)
+    except two_factor.TotpNotConfiguredError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    return {"secret": secret, "uri": uri}
+
+
+@router.post("/mfa/totp/activate")
+def activate_totp(
+    request: Request, payload: MfaCodeRequest, user: AuthenticatedUser, db: DbSession
+) -> dict[str, object]:
+    verify_csrf(request)
+    try:
+        valid = two_factor.verify_totp(db, user, payload.code)
+    except two_factor.TotpLockedError as error:
+        raise HTTPException(status.HTTP_423_LOCKED, "Demasiados codigos incorrectos. Espera 15 minutos.") from error
+    except two_factor.TotpNotConfiguredError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Primero genera el codigo QR.") from error
+    if not valid:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El codigo no es correcto. Revisa la hora de tu telefono.")
+    return two_factor.methods(db, user)
+
+
+@router.post("/mfa/email/start", status_code=status.HTTP_202_ACCEPTED)
+def start_email_method(
+    request: Request, user: AuthenticatedUser, db: DbSession, mailer: MailerDependency
+) -> dict[str, str]:
+    verify_csrf(request)
+    try:
+        issue_email_code(db, user=user, mailer=mailer)
+    except LoginRateLimitError as error:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Alcanzaste el maximo de codigos. Espera 15 minutos.") from error
+    except MailDeliveryError as error:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "No se pudo enviar el codigo.") from error
+    return {"message": "Enviamos un codigo al correo de tu cuenta. Vence en 5 minutos."}
+
+
+@router.post("/mfa/email/activate")
+def activate_email_method(
+    request: Request, payload: MfaCodeRequest, user: AuthenticatedUser, db: DbSession
+) -> dict[str, object]:
+    verify_csrf(request)
+    if not confirm_email_code(db, user=user, code=payload.code):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El codigo no es valido o vencio.")
+    return two_factor.methods(db, user)
+
+
+@router.post("/mfa/preferred")
+def set_preferred_method(
+    request: Request, payload: MfaMethodRequest, user: AuthenticatedUser, db: DbSession
+) -> dict[str, object]:
+    verify_csrf(request)
+    if not two_factor.set_preferred(db, user, payload.method):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ese metodo no esta activo en tu cuenta.")
+    return two_factor.methods(db, user)
+
+
+def _set_session_cookies(response: Response, raw_token: str, max_age: int) -> None:
     response.set_cookie(
         key=SESSION_COOKIE,
         value=raw_token,
@@ -241,7 +364,6 @@ def verify_email_code(
         samesite="strict",
         path="/",
     )
-    return {"message": "Autenticacion completada.", "role": user.role.value}
 
 
 @router.get("/me", response_model=UserResponse)

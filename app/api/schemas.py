@@ -24,6 +24,14 @@ class VerifyEmailCodeRequest(BaseModel):
     code: str = Field(pattern=r"^[0-9]{6}$")
 
 
+class MfaCodeRequest(BaseModel):
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+class MfaMethodRequest(BaseModel):
+    method: Literal["email", "totp"]
+
+
 class UserCreateRequest(BaseModel):
     email: EmailStr
     display_name: str = Field(min_length=1, max_length=120)

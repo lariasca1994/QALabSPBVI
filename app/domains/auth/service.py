@@ -15,6 +15,7 @@ from app.domains.auth.automation import (
     is_automation_account,
     record_code,
 )
+from app.domains.auth import two_factor
 
 logger = logging.getLogger(__name__)
 from app.db.models import (
@@ -184,8 +185,10 @@ def start_login(
     client_ip: str,
     mailer: Mailer,
     pending_token: str,
-) -> None:
-    """Valida la contraseña y envía el código MFA.
+) -> str:
+    """Valida la contraseña y pide el segundo factor; devuelve el método ("email" o "totp").
+
+    Con el correo se envía el código; con la app autenticadora no se envía nada.
 
     Con credenciales inválidas lanza InvalidCredentialsError, igual si el correo no
     existe o si la contraseña está mal: el mensaje y el tiempo de respuesta (se verifica
@@ -229,7 +232,17 @@ def start_login(
         )
     )
     db.commit()
+    if two_factor.login_method(db, user) == two_factor.METHOD_TOTP:
+        pending = db.scalar(
+            select(PendingLogin).where(PendingLogin.token_digest == digest_token(pending_token))
+        )
+        if pending is not None:
+            # Sin correo enviado, "usar un código por correo" no tiene que esperar.
+            pending.last_sent_epoch = now - RESEND_COOLDOWN_SECONDS
+            db.commit()
+        return two_factor.METHOD_TOTP
     _issue_code(db, user=user, now=now, mailer=mailer)
+    return two_factor.METHOD_EMAIL
 
 
 def _issue_code(db: Session, *, user: User, now: int, mailer: Mailer) -> None:
@@ -301,7 +314,7 @@ def resend_code(db: Session, *, pending_token: str | None, mailer: Mailer) -> No
     if pending is None or pending.expires_at_epoch <= now:
         return
     user = db.get(User, pending.user_id)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or not two_factor.methods(db, user)["email"]:
         return
     wait = pending.last_sent_epoch + RESEND_COOLDOWN_SECONDS - now
     if wait > 0:
@@ -319,7 +332,7 @@ def complete_login(
 ) -> tuple[User, str, int]:
     now = int(time.time())
     user = db.scalar(select(User).where(User.email == normalize_email(email)))
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or not two_factor.methods(db, user)["email"]:
         raise InvalidChallengeError
 
     challenge = db.scalar(
@@ -346,6 +359,76 @@ def complete_login(
         raise InvalidChallengeError
 
     challenge.used_at_epoch = now
+    db.commit()
+    two_factor.confirm_email_method(db, user)
+    return _open_session(db, user, now)
+
+
+def pending_user(db: Session, pending_token: str | None) -> User | None:
+    """Cuenta del inicio de sesión pendiente (contraseña ya validada), o None."""
+    if not pending_token:
+        return None
+    pending = db.scalar(
+        select(PendingLogin).where(PendingLogin.token_digest == digest_token(pending_token))
+    )
+    if pending is None or pending.expires_at_epoch <= int(time.time()):
+        return None
+    user = db.get(User, pending.user_id)
+    return user if user is not None and user.is_active else None
+
+
+def issue_email_code(db: Session, *, user: User, mailer: Mailer) -> None:
+    """Código por correo para activar ese método desde Seguridad (mismos topes del login)."""
+    _issue_code(db, user=user, now=int(time.time()), mailer=mailer)
+
+
+def confirm_email_code(db: Session, *, user: User, code: str) -> bool:
+    """Valida el último código enviado al correo y deja el correo como método activo."""
+    now = int(time.time())
+    challenge = db.scalar(
+        select(EmailLoginChallenge)
+        .where(
+            EmailLoginChallenge.user_id == user.id,
+            EmailLoginChallenge.used_at_epoch.is_(None),
+        )
+        .order_by(EmailLoginChallenge.id.desc())
+        .limit(1)
+    )
+    if (
+        challenge is None
+        or challenge.expires_at_epoch <= now
+        or challenge.attempts >= OTP_MAX_ATTEMPTS
+    ):
+        return False
+    if not secrets.compare_digest(challenge.code_digest, code_digest(code)):
+        challenge.attempts += 1
+        if challenge.attempts >= OTP_MAX_ATTEMPTS:
+            challenge.used_at_epoch = now
+        db.commit()
+        return False
+    challenge.used_at_epoch = now
+    db.commit()
+    two_factor.confirm_email_method(db, user)
+    return True
+
+
+def complete_totp_login(
+    db: Session, *, pending_token: str | None, code: str
+) -> tuple[User, str, int]:
+    """Segundo paso con la app autenticadora (o su primera configuración)."""
+    user = pending_user(db, pending_token)
+    if user is None:
+        raise InvalidChallengeError
+    try:
+        valid = two_factor.verify_totp(db, user, code)
+    except two_factor.TotpNotConfiguredError as error:
+        raise InvalidChallengeError from error
+    if not valid:
+        raise InvalidChallengeError
+    return _open_session(db, user, int(time.time()))
+
+
+def _open_session(db: Session, user: User, now: int) -> tuple[User, str, int]:
     for pending in db.scalars(select(PendingLogin).where(PendingLogin.user_id == user.id)):
         db.delete(pending)
     raw_token = secrets.token_urlsafe(48)

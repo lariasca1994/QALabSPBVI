@@ -347,6 +347,25 @@ async function mutate<T>(path: string, method: "POST" | "PUT", body: unknown): P
   });
 }
 
+/** Métodos de la verificación en dos pasos de la cuenta. */
+export interface MfaMethods {
+  chosen: boolean;
+  totp: boolean;
+  email: boolean;
+  preferred: "email" | "totp";
+}
+
+export interface LoginStep {
+  message: string;
+  method: "email" | "totp";
+  methods: MfaMethods;
+}
+
+export interface TotpSetup {
+  secret: string;
+  uri: string;
+}
+
 export const api = {
   keyTypes(): Promise<KeyTypeInfo[]> {
     return request<KeyTypeInfo[]>("/keys/types");
@@ -354,13 +373,38 @@ export const api = {
   async me(): Promise<User> {
     return request<User>("/auth/me");
   },
-  async login(email: string, password: string): Promise<void> {
+  async login(email: string, password: string): Promise<LoginStep> {
     const token = await csrfToken();
-    await request("/auth/login", {
+    return request<LoginStep>("/auth/login", {
       method: "POST",
       headers: { "X-CSRF-Token": token },
       body: JSON.stringify({ email, password }),
     });
+  },
+  /** Primer ingreso: configurar la app autenticadora en lugar del código por correo. */
+  async setupTotpAtLogin(): Promise<TotpSetup> {
+    return mutate("/auth/mfa/totp/setup", "POST", {});
+  },
+  async verifyTotp(code: string): Promise<void> {
+    await mutate("/auth/verify-totp", "POST", { code });
+  },
+  mfaMethods(): Promise<MfaMethods> {
+    return request<MfaMethods>("/auth/mfa");
+  },
+  async startTotp(): Promise<TotpSetup> {
+    return mutate("/auth/mfa/totp/start", "POST", {});
+  },
+  async activateTotp(code: string): Promise<MfaMethods> {
+    return mutate("/auth/mfa/totp/activate", "POST", { code });
+  },
+  async startEmailMethod(): Promise<{ message: string }> {
+    return mutate("/auth/mfa/email/start", "POST", {});
+  },
+  async activateEmailMethod(code: string): Promise<MfaMethods> {
+    return mutate("/auth/mfa/email/activate", "POST", { code });
+  },
+  async setPreferredMethod(method: "email" | "totp"): Promise<MfaMethods> {
+    return mutate("/auth/mfa/preferred", "POST", { method });
   },
   async verifyCode(email: string, code: string): Promise<void> {
     const token = await csrfToken();

@@ -601,3 +601,11 @@ textarea.text-input { padding-top: 10px; padding-bottom: 10px; resize: vertical;
 /* Las tarjetas de una grilla nunca imponen su ancho: con la letra del sistema agrandada
    (Android/iOS) un título largo se corta con "…" en vez de sacar la tarjeta de la pantalla. */
 .metric-grid > *, .lower-grid > *, .operation-grid > *, .form-columns > *, .surface-card { min-width: 0; }
+
+/* Verificación en dos pasos: app autenticadora y Seguridad */
+.totp-setup { display: grid; gap: 8px; justify-items: center; text-align: center; }
+.totp-qr { width: 200px; height: 200px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: #ffffff; }
+.totp-secret { font-size: 11px; letter-spacing: .08em; word-break: break-all; color: var(--text-strong); }
+.mfa-methods { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.mfa-methods li { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; font-size: 11px; color: var(--text); }
+.mfa-methods li span { margin-left: auto; color: var(--muted); }

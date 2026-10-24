@@ -167,6 +167,26 @@ class User(Base):
     )
 
 
+class UserMfa(Base):
+    """Métodos de la verificación en dos pasos de una cuenta (ver app/domains/auth/two_factor.py).
+
+    Tabla aparte de `users` para que create_all la cree en bases existentes sin migración.
+    """
+
+    __tablename__ = "user_mfa"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    email_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    totp_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Claves de la app cifradas con AES-GCM; la pendiente vale solo hasta confirmarse.
+    totp_secret: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    totp_pending: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    totp_last_step: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    preferred: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    locked_until_epoch: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+
+
 class EmailLoginChallenge(Base):
     __tablename__ = "email_login_challenges"
 
