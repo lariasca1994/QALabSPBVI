@@ -1,8 +1,13 @@
 # Gateway ISO 20022 (Render, plan gratuito). Contexto de build: la raíz del repositorio.
 FROM python:3.13.17-slim-bookworm
-# Almacén de certificados del sistema sin las raíces que firmaron los intermedios
-# comprometidos de eMudhra (octubre 2026): emSign y Comodo "AAA Certificate Services".
-RUN if command -v update-ca-certificates > /dev/null; then \
+# Seguridad en cada compilación: actualizaciones del sistema (Linux), pip al día (sus
+# CVE de octubre 2026) y almacén de certificados sin las raíces que firmaron los
+# intermedios comprometidos de eMudhra (emSign y Comodo "AAA Certificate Services").
+RUN if command -v apt-get > /dev/null; then \
+        apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*; \
+    fi \
+    && if command -v pip > /dev/null; then pip install --no-cache-dir --upgrade pip > /dev/null; fi \
+    && if command -v update-ca-certificates > /dev/null; then \
         rm -f /usr/share/ca-certificates/mozilla/emSign_* /usr/share/ca-certificates/mozilla/Comodo_AAA_Services_root.crt \
         && update-ca-certificates --fresh > /dev/null 2>&1; \
     fi
