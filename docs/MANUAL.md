@@ -31,7 +31,7 @@ historias de usuario (HU), casos de prueba (CP) ejecutables con un clic, tareas,
 ### Alcance: qué necesitas y qué esperar
 
 - Solo necesitas un navegador; también se instala como app (Chrome o Edge: menú → "Instalar app";
-  iPhone o iPad: Safari → Compartir → "Agregar a inicio").
+  iPhone o iPad: Safari → Compartir → "Agregar a inicio"). Al abrirla desde su ícono muestra una **animación de entrada** breve (1 a 1,6 s) con el logotipo; en el navegador no aparece, y si el equipo tiene activado "reducir movimiento" se muestra sin animar.
 - Necesitas acceso a tu correo: cada inicio de sesión pide un **código de 6 dígitos** que llega
   por correo.
 - Las bases se pausan sin uso. Mientras se activan, los botones de ejecutar quedan deshabilitados y

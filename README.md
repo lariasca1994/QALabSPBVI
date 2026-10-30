@@ -95,6 +95,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 
 **App instalable (PWA)**
 - Se instala desde el navegador en Android, iOS, Windows, macOS y Linux, con ícono propio y acceso directo a los pagos con QR.
+- Al abrirla desde su ícono muestra una animación de entrada breve (marco de escáner y lupa, 1 a 1,6 s); en el navegador no aparece y respeta "reducir movimiento".
 - Abre sin conexión con una página propia; nunca guarda respuestas de la API.
 - No trabaja en segundo plano: sin sincronización, notificaciones push ni consultas periódicas con la app oculta.
 
