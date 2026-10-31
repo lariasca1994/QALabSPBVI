@@ -280,12 +280,12 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 | Dato | Para qué se usa | Dónde se guarda | Cómo se protege |
 |---|---|---|---|
 | Nombre y correo | Identificarte y enviarte códigos y avisos | PostgreSQL (Neon) | Visibles para los integrantes de tus épicas en los avisos |
-| Contraseña | Iniciar sesión | PostgreSQL, **solo su huella Argon2id** | No se puede leer ni recuperar |
+| Contraseña | Iniciar sesión | PostgreSQL, **solo su huella** | No se puede leer ni recuperar |
 | Códigos MFA y de recuperación | Segundo factor | PostgreSQL, con vencimiento y límite de intentos | Un solo uso |
-| Clave de la app autenticadora | Segundo factor | PostgreSQL, **cifrada con AES-GCM** | Nadie desde la aplicación |
+| Clave de la app autenticadora | Segundo factor | PostgreSQL, **cifrada** | Nadie desde la aplicación |
 | Llaves de pago | Simular el directorio | Azure SQL (DIFE) y Oracle ADB (DICE) | Datos de laboratorio |
 | Cuentas, pagos y ledger | Simular la liquidación | PostgreSQL (Neon) | Sin dinero real |
-| Cobros QR | Pagos con QR | MySQL (TiDB Cloud), con TLS | Hash HMAC-SHA256 en el QR |
+| Cobros QR | Pagos con QR | MySQL (TiDB Cloud), con TLS | Firma de seguridad en el QR |
 | Épicas, HU, CP, ejecuciones, bugs | Trabajo QA | MongoDB Atlas | Visibles para los integrantes de la épica |
 | Registro de solicitudes | Auditoría | PostgreSQL aparte | Solo `admin` y `administrador` |
 | Sesión | Mantenerte conectado | Cookies `SameSite=Strict` | Vencen por inactividad y por tiempo absoluto |
@@ -294,7 +294,7 @@ Tu confianza es lo primero: la plataforma solo pide los datos necesarios para fu
 
 Comprobado en el código del proyecto (`app/core/security.py`, `app/domains/auth/`):
 
-- **Contraseñas con Argon2id**, el algoritmo recomendado actualmente para guardar contraseñas.
+- **Contraseñas protegidas** con un algoritmo moderno; solo se guarda su huella.
 - **Segundo factor obligatorio, a elección:** app autenticadora (TOTP: clave cifrada, un código no
   se acepta dos veces y los errados la bloquean temporalmente) o código por correo de 6 dígitos que
   vence en pocos minutos, con intentos y envíos limitados.

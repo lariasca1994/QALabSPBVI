@@ -64,7 +64,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 | **Mensajería ISO 20022** | pacs.008 y pacs.002 (generados por un gateway aparte con respaldo local), pacs.004 (devoluciones), camt.056 y camt.029 (cancelación e investigación), camt.054 (notificaciones) y pain.002 (estado para el cliente), todos validados contra XSD propios de laboratorio. |
 | **Aseguramiento de calidad** | Plataforma tipo Jira con épicas, HU, CP, tareas, bugs y fixes. Cada CP es una solicitud REST/JSON que se ejecuta con un clic y muestra método, URL, solicitud y respuesta. Cada respuesta se valida además contra el contrato OpenAPI (JSON Schema) y el ejecutor reintenta los fallos de red. Incluye un programa ISO 20022 de 60 CP que pasa completo en la nube, con llaves generadas según su tipo, y un mock server de fallos de red para las pruebas de resiliencia. |
 | **Backend y datos** | Monolito modular en FastAPI con cinco motores de base distintos, uno por dominio: PostgreSQL, SQL Server, Oracle, MongoDB y MySQL (TiDB). Ninguno se comparte, y la coordinación entre DIFE y DICE, y entre cobros QR y pagos, es recuperable, sin transacciones distribuidas. |
-| **Seguridad** | Contraseñas Argon2id, MFA obligatorio con app autenticadora (TOTP) o código por correo, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
+| **Seguridad** | Contraseñas protegidas, MFA obligatorio con app autenticadora (TOTP) o código por correo, roles validados en el servidor, sesiones con vencimiento, CSRF y secretos solo en gestores de secretos. |
 | **Cloud y DevOps** | Ocho plataformas cloud con una función cada una (ver [Plataformas y su función](#4-plataformas-y-su-función)). CI/CD con GitHub Actions por OIDC, sin claves guardadas, y bases que se pausan solas sin uso. |
 | **Pruebas** | 210 pruebas automáticas de backend (aceptación, integración y programa completo) y recorridos E2E con Playwright en anchos móviles, incluida la lectura de QR con cámara simulada y la app instalable. |
 | **Trazabilidad** | Registro de cada solicitud en una base propia, con identificador de correlación y `operation_id` para seguir todos los mensajes de un pago, pantalla de auditoría y exportación CSV. |
@@ -116,7 +116,7 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 
 **Acceso**
 - Registro abierto: cualquiera crea su cuenta desde **Crear cuenta**; queda con rol `usuario` y empieza a trabajar cuando la asocian a una épica. Tiene límite de registros por conexión.
-- Contraseña (Argon2id) y segundo factor obligatorio a elección: app autenticadora (TOTP) o código
+- Contraseña protegida y segundo factor obligatorio a elección: app autenticadora (TOTP) o código
   por correo con reenvío; desde **Seguridad** se agrega el otro método y se elige el preferido.
 - Credenciales inválidas informadas con un único mensaje, exista o no la cuenta.
 - Cambio de la propia contraseña (cierra las demás sesiones) y recuperación con un código de un solo uso por correo.
@@ -150,7 +150,7 @@ Supuestos del laboratorio, que se ajustan si cambian las reglas:
 - Formatos de llave.
 - Valor de la UVB.
 - Mapeo de pain.001, pacs.028 y camt.052/053 a los endpoints.
-- Perfil del QR: identificadores propios, hash HMAC-SHA256 y vencimiento fuera del QR.
+- Perfil del QR: identificadores propios, firma de seguridad y vencimiento fuera del QR.
 
 ---
 
@@ -392,10 +392,10 @@ Cualquier persona crea su cuenta desde **Crear cuenta**. El papel del `admin` y 
    `POST /auth/verify-totp` abre la sesión. En el primer ingreso, `POST /auth/mfa/totp/setup` entrega la
    clave y el `otpauth://` para configurarla en lugar del correo. Con sesión, `GET /auth/mfa`,
    `/auth/mfa/totp/start|activate`, `/auth/mfa/email/start|activate` y `/auth/mfa/preferred` agregan el
-   otro método y eligen el preferido. La clave de la app se guarda cifrada (AES-GCM), un código no se
-   acepta dos veces y 5 códigos errados la bloquean 15 minutos (tabla `user_mfa`).
+   otro método y eligen el preferido. La clave de la app se guarda cifrada, un código no se
+   acepta dos veces y los errados la bloquean temporalmente.
 
-El código vence a los 5 minutos, admite 5 intentos y es de un solo uso. Toda operación que cambia estado exige el token CSRF (`GET /auth/csrf` y cabecera `X-CSRF-Token`).
+El código vence en pocos minutos, tiene intentos limitados y es de un solo uso. Toda operación que cambia estado exige el token CSRF (`GET /auth/csrf` y cabecera `X-CSRF-Token`).
 
 #### Llaves
 
@@ -456,7 +456,7 @@ Reglas de los pagos con QR:
 - **Titular:** un `usuario` solo cobra con llaves de las que es titular; `admin` y `administrador`, con cualquiera.
 - **Marcadores de CP:** `{{qr:static}}`, `{{qr:charge}}` y `{{qr:charge-id}}` reutilizan el último QR generado por un CP de la épica.
 
-El formato toma los campos del estándar EMVCo de las entidades administradoras de pagos colombianas. **Supuesto del laboratorio:** usa identificadores propios (`CO.COM.LAB.*`) en lugar de los de las redes reales, el hash de seguridad es un HMAC-SHA256 y el vencimiento vive en la base de cobros. No prueba conformidad con ningún esquema real.
+El formato toma los campos del estándar EMVCo de las entidades administradoras de pagos colombianas. **Supuesto del laboratorio:** usa identificadores propios (`CO.COM.LAB.*`) en lugar de los de las redes reales, el QR lleva una firma de seguridad y el vencimiento vive en la base de cobros. No prueba conformidad con ningún esquema real.
 
 #### Casos de prueba
 
