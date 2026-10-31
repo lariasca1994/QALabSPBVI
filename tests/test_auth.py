@@ -245,7 +245,7 @@ def test_password_failures_are_rate_limited(
     client, mailer, _ = auth_environment
     prepare_csrf(client)
 
-    for _ in range(10):
+    for _ in range(5):
         response = client.post(
             "/auth/login",
             json={"email": "admin@example.com", "password": "incorrect password"},

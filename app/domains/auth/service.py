@@ -4,7 +4,7 @@ import time
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.email_templates import EmailMessage
@@ -32,7 +32,12 @@ DUMMY_PASSWORD_HASH = PASSWORD_HASHER.hash("dummy-password-used-only-for-timing"
 OTP_TTL_SECONDS = 5 * 60
 OTP_MAX_ATTEMPTS = 5
 LOGIN_WINDOW_SECONDS = 15 * 60
-LOGIN_MAX_FAILURES = 10
+# Mismo criterio en todo el portafolio: 5 contraseñas erradas por cuenta bloquean un tiempo;
+# por conexión se admite más, porque varias personas pueden compartir la misma red.
+LOGIN_MAX_FAILURES = 5
+LOGIN_MAX_FAILURES_IP = 10
+# Los intentos de ingreso (eventos de seguridad) se depuran a los 15 días.
+LOGIN_ATTEMPTS_RETENTION_SECONDS = 15 * 24 * 3600
 SESSION_IDLE_SECONDS = 30 * 60
 SESSION_ABSOLUTE_SECONDS = 8 * 60 * 60
 # Reenvío del código: ventana del inicio pendiente, espera entre envíos y tope de códigos.
@@ -173,7 +178,7 @@ def _check_rate_limit(
             LoginAttempt.occurred_at_epoch > window_start,
         )
     )
-    if email_failures >= LOGIN_MAX_FAILURES or ip_failures >= LOGIN_MAX_FAILURES:
+    if email_failures >= LOGIN_MAX_FAILURES or ip_failures >= LOGIN_MAX_FAILURES_IP:
         raise LoginRateLimitError
 
 
@@ -209,6 +214,9 @@ def start_login(
     password_valid = verify_password(hash_to_verify, password)
     succeeded = user is not None and user.is_active and password_valid
 
+    db.execute(delete(LoginAttempt).where(
+        LoginAttempt.occurred_at_epoch < now - LOGIN_ATTEMPTS_RETENTION_SECONDS
+    ))
     db.add(
         LoginAttempt(
             email_digest=email_hash,

@@ -12,11 +12,11 @@ import logging
 import queue
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, Float, Integer, String, create_engine, select
+from sqlalchemy import BigInteger, DateTime, Float, Integer, String, create_engine, delete, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.pool import NullPool
@@ -28,6 +28,9 @@ SKIPPED_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
 BATCH_SIZE = 50
 FLUSH_SECONDS = 2.0
 MAX_QUEUE = 5000
+# Los logs se depuran a los 15 días; la limpieza corre como mucho una vez por hora.
+RETENTION = timedelta(days=15)
+PURGE_EVERY_SECONDS = 3600
 
 
 class LogsBase(DeclarativeBase):
@@ -70,6 +73,7 @@ class LogWriter:
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self._schema_ready = False
+        self._last_purge = 0.0
 
     def submit(self, entry: dict[str, Any]) -> None:
         if logs_engine() is None:
@@ -114,6 +118,9 @@ class LogWriter:
                 self._schema_ready = True
             with Session(engine) as session:
                 session.add_all(ApiLog(**entry) for entry in batch)
+                if time.monotonic() - self._last_purge > PURGE_EVERY_SECONDS:
+                    session.execute(delete(ApiLog).where(ApiLog.created_at < datetime.now(UTC) - RETENTION))
+                    self._last_purge = time.monotonic()
                 session.commit()
         except Exception as error:  # noqa: BLE001 - los logs nunca rompen la API
             logger.warning("No se pudo escribir un lote de %s logs (%s).", len(batch), type(error).__name__)

@@ -298,7 +298,10 @@ Comprobado en el código del proyecto (`app/core/security.py`, `app/domains/auth
 - **Segundo factor obligatorio, a elección:** app autenticadora (TOTP: clave cifrada, un código no
   se acepta dos veces y los errados la bloquean temporalmente) o código por correo de 6 dígitos que
   vence en pocos minutos, con intentos y envíos limitados.
-- **Límites contra fuerza bruta** en el ingreso, el registro y la recuperación de cuenta.
+- **Bloqueo temporal** ante intentos fallidos repetidos de contraseña o de código, y límites en el
+  registro y la recuperación de cuenta.
+- **Registro de eventos de seguridad:** ingresos, intentos fallidos, bloqueos y cambios de
+  contraseña quedan registrados (nunca contraseñas ni códigos) y se depuran solos.
 - **Mensaje único** ante credenciales inválidas, exista o no la cuenta.
 - **Sesiones con doble vencimiento:** por inactividad y por tiempo máximo. Cambiar la
   contraseña cierra las demás sesiones; desactivar una cuenta cierra todas las suyas.
