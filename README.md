@@ -198,7 +198,7 @@ docs/                 Diagrama e insignias del README
 - El código MFA no usa la cola: sale directo por Brevo, para no sumarle demora al inicio de sesión.
 - Los mensajes pacs.008 / pacs.002 los genera un **gateway ISO 20022 en Render**, un servicio sin estado. La API vuelve a validar el XML que recibe. Si el gateway no responde, lo genera en proceso, así un pago ya liquidado siempre tiene su mensaje. La respuesta indica quién lo generó en `iso_gateway`.
 - El núcleo del dominio no depende del formato de mensaje: el adaptador ISO 20022 recibe datos neutrales del pago. Todos los montos son enteros en centavos.
-- Los secretos viven en **Key Vault** y la API los lee con identidad administrada. Cada base tiene credenciales propias y exige TLS.
+- Los secretos viven en un gestor de secretos, nunca en el código. Cada base tiene credenciales propias y exige conexión cifrada.
 
 ### Correos
 
@@ -385,9 +385,9 @@ Cualquier persona crea su cuenta desde **Crear cuenta**. El papel del `admin` y 
 
 #### Acceso y reenvío del código
 
-1. `POST /auth/login` valida la contraseña y envía un código de seis dígitos. La respuesta es la misma exista o no la cuenta, y emite la cookie `HttpOnly` `qalab_pending_login` (15 minutos).
-2. `POST /auth/resend-code` usa esa cookie para emitir un código nuevo sin volver a pedir la contraseña; el anterior queda invalidado. Hay 60 segundos entre envíos y un máximo de 3 códigos cada 15 minutos.
-3. `POST /auth/verify-email-code` abre la sesión: vence a los 30 minutos sin actividad y a las 8 horas en total.
+1. `POST /auth/login` valida la contraseña y envía un código de seis dígitos. La respuesta es la misma exista o no la cuenta, y emite una cookie temporal que JavaScript no puede leer.
+2. `POST /auth/resend-code` usa esa cookie para emitir un código nuevo sin volver a pedir la contraseña; el anterior queda invalidado. Los reenvíos están limitados.
+3. `POST /auth/verify-email-code` abre la sesión, que vence por inactividad y por tiempo máximo.
 4. Con la app autenticadora, `POST /auth/login` no envía correo (`method: "totp"`) y
    `POST /auth/verify-totp` abre la sesión. En el primer ingreso, `POST /auth/mfa/totp/setup` entrega la
    clave y el `otpauth://` para configurarla en lugar del correo. Con sesión, `GET /auth/mfa`,

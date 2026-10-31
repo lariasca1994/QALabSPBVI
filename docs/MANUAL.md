@@ -296,23 +296,20 @@ Comprobado en el código del proyecto (`app/core/security.py`, `app/domains/auth
 
 - **Contraseñas con Argon2id**, el algoritmo recomendado actualmente para guardar contraseñas.
 - **Segundo factor obligatorio, a elección:** app autenticadora (TOTP: clave cifrada, un código no
-  se acepta dos veces y 5 errados la bloquean 15 minutos) o código por correo de 6 dígitos que vence
-  en 5 minutos, con máximo 5 intentos y hasta 3 códigos cada 15 minutos por cuenta.
-- **Límites contra fuerza bruta:** 10 intentos fallidos por correo cada 15 minutos; 5 registros por
-  conexión cada hora; recuperación con código de 10 minutos, 5 intentos y máximo 3 códigos cada 15
-  minutos.
+  se acepta dos veces y los errados la bloquean temporalmente) o código por correo de 6 dígitos que
+  vence en pocos minutos, con intentos y envíos limitados.
+- **Límites contra fuerza bruta** en el ingreso, el registro y la recuperación de cuenta.
 - **Mensaje único** ante credenciales inválidas, exista o no la cuenta.
-- **Sesiones con doble vencimiento:** 30 minutos de inactividad y 8 horas como máximo. Cambiar la
+- **Sesiones con doble vencimiento:** por inactividad y por tiempo máximo. Cambiar la
   contraseña cierra las demás sesiones; desactivar una cuenta cierra todas las suyas.
-- **Protección CSRF** (cookie más encabezado `x-csrf-token`) y cookies `SameSite=Strict`: la web
-  y la API se ven como un solo dominio.
+- **Protección CSRF** y cookies restringidas al propio sitio.
 - **Roles validados en el servidor:** la interfaz solo oculta lo que el backend igual rechazaría.
 - **Pagos consistentes:** idempotencia por identificador, límite por operación, ledger que siempre
   suma cero y QR firmados que se rechazan si se alteran.
 - **Correos sin datos sensibles:** nunca incluyen credenciales, tokens ni datos de pagos (salvo el
   propio código MFA, con su aviso de no compartirlo).
-- **Secretos en gestores:** Azure Key Vault (leído con identidad administrada) y AWS SSM; cada base
-  tiene credenciales propias y exige TLS. El despliegue usa OIDC, sin claves guardadas.
+- **Secretos en gestores de secretos**, nunca en el código; cada base tiene credenciales propias y
+  exige conexión cifrada. El despliegue no guarda claves en el repositorio.
 - **Trazabilidad:** cada solicitud queda registrada con identificador de correlación, usuario y
   operación.
 - **Al día en seguridad:** el runtime, el sistema y las dependencias se mantienen con los últimos
