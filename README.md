@@ -178,7 +178,7 @@ qa_programs/
 └── plantillas/                   Plantillas de épica, programa, HU, CP, tarea, bug y fix
 tests/                Pruebas del backend y servidor aislado para E2E
 web/                  Interfaz React/TypeScript y pruebas Playwright (web/e2e)
-infra/azure/          Bicep del laboratorio
+infra/azure/          Bicep de la infraestructura en Azure
 infra/aws/            CloudFormation de la cola, la DLQ, la Lambda y sus permisos
 docs/                 Diagrama e insignias del README
 ```
@@ -684,10 +684,9 @@ El despliegue es continuo:
 2. Si pasan, se construyen las imágenes de la API y del gateway ISO 20022, etiquetadas con el commit, y se publican en GHCR.
    - El build falla si al driver ODBC le falta alguna librería.
    - Antes de seguir se comprueba que la imagen se descarga sin credenciales.
-3. Se crea una revisión nueva de la Container App, se publica el código de la Lambda y se despliega el gateway en Render.
-4. Vercel publica la interfaz por su integración con el repositorio.
+3. Se crea una revisión nueva de la Container App de **producción** (el único entorno), se publica el código de la Lambda de avisos y se despliega el gateway en Render.
+4. La interfaz se publica en Vercel desde una rama propia que solo escribe este paso, con el proxy hacia la API de producción.
 5. Al final se comprueba que la API responde por la URL pública y que el sitio publicado es la compilación.
-6. Con el laboratorio desplegado, la misma imagen pasa a **producción**, un entorno separado con sus propias bases, cola de avisos y registro de solicitudes. Se publica automáticamente solo desde `main` y solo si el laboratorio se desplegó bien; la interfaz de producción se publica desde una rama propia que solo escribe ese paso.
 
 GitHub entra a Azure y AWS por OIDC con permisos mínimos, sin contraseñas guardadas en el repositorio. En AWS, el rol de GitHub solo puede actualizar el código de la Lambda.
 
