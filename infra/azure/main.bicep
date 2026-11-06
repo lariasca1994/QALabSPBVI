@@ -20,21 +20,15 @@ param sqlAdministratorLogin string
 @description('Contraseña temporal del administrador SQL. Ingresarla por un canal seguro al desplegar, nunca en el archivo de parámetros.')
 param sqlAdministratorPassword string
 
-@description('Object ID del principal que realiza el despliegue; recibe permisos de secretos limitados a este Key Vault.')
-param deploymentPrincipalObjectId string
-
-@allowed([
-  'User'
-  'ServicePrincipal'
-  'Group'
-])
-param deploymentPrincipalType string = 'User'
-
 @description('Imagen pública de la API en GHCR. El primer despliegue usa una imagen de ejemplo; el CD la reemplaza por la etiqueta del commit.')
 param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
-@description('Activar solo después de cargar en Key Vault los secretos de runtime (ver README). Si faltan, la revisión no arranca.')
+@description('Activar solo pasando appSecretValues con todos los secretos de runtime (ver README). Si faltan, la revisión no arranca.')
 param enableAppSecrets bool = false
+
+@secure()
+@description('Valores de los secretos de runtime: { "database-url": "...", ... }. Se pasan al desplegar desde el .env local, nunca en Git. Quedan como secretos de la Container App (sin Key Vault ni costo).')
+param appSecretValues object = {}
 
 @description('Base MongoDB nueva y dedicada a QA en este entorno.')
 param mongoDatabaseName string = 'qalabspbvi_qa_${environmentName}'
@@ -59,20 +53,14 @@ param enableQrDatabase bool = false
 
 var resourceToken = '${uniqueString(subscription().id, resourceGroup().id, location, environmentName)}1'
 var logAnalyticsName = 'azla${resourceToken}'
-var identityName = 'azid${resourceToken}'
-var keyVaultName = toLower('azkv${resourceToken}')
 var managedEnvironmentName = 'azcae${resourceToken}'
 var containerAppName = 'azca${resourceToken}'
 // Servidor dedicado a DIFE en la región donde se pudo crear la oferta gratuita.
 // El lab conserva su nombre original; otros entornos llevan el suyo (los nombres SQL son globales).
 var sqlServerName = environmentName == 'lab' ? toLower('azsqlqalab${take(sqlLocation, 6)}1') : toLower('azsqlqalab${environmentName}${take(sqlLocation, 6)}1')
 var sqlDatabaseName = environmentName == 'lab' ? 'qalabdife' : 'qalabdife${environmentName}'
-var keyVaultSecretsOfficerRoleDefinitionId = subscriptionResourceId(
-  'Microsoft.Authorization/roleDefinitions',
-  'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
-)
-// Secretos de runtime: nombre en Key Vault -> variable de entorno de la API.
-// Los valores se cargan por CLI (az keyvault secret set), nunca en este archivo ni en Git.
+// Secretos de runtime: nombre del secreto de la Container App -> variable de entorno de la API.
+// Los valores llegan en appSecretValues al desplegar, nunca en este archivo ni en Git.
 var appSecretMap = concat(
   [
     { name: 'database-url', env: 'DATABASE_URL' }
@@ -105,8 +93,7 @@ var appSecretMap = concat(
 var appSecrets = [
   for s in appSecretMap: {
     name: s.name
-    keyVaultUrl: 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/${s.name}'
-    identity: identity.id
+    value: appSecretValues[s.name]
   }
 ]
 var appSecretEnv = [
@@ -146,53 +133,6 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
     }
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
-  }
-}
-
-resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: identityName
-  location: location
-}
-
-resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: keyVaultName
-  location: location
-  properties: {
-    tenantId: subscription().tenantId
-    sku: {
-      family: 'A'
-      name: 'standard'
-    }
-    enableRbacAuthorization: true
-    enableSoftDelete: true
-    softDeleteRetentionInDays: 90
-    publicNetworkAccess: 'Enabled'
-    networkAcls: {
-      bypass: 'AzureServices'
-      defaultAction: 'Allow'
-      ipRules: []
-      virtualNetworkRules: []
-    }
-  }
-}
-
-resource keyVaultSecretsOfficerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, identity.id, keyVaultSecretsOfficerRoleDefinitionId)
-  scope: keyVault
-  properties: {
-    roleDefinitionId: keyVaultSecretsOfficerRoleDefinitionId
-    principalId: identity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource deploymentSecretsOfficerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, deploymentPrincipalObjectId, keyVaultSecretsOfficerRoleDefinitionId)
-  scope: keyVault
-  properties: {
-    roleDefinitionId: keyVaultSecretsOfficerRoleDefinitionId
-    principalId: deploymentPrincipalObjectId
-    principalType: deploymentPrincipalType
   }
 }
 
@@ -237,32 +177,6 @@ resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-08-01-prev
   }
 }
 
-resource sqlAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'azpwd${resourceToken}'
-  properties: {
-    value: sqlAdministratorPassword
-    contentType: 'Credential for the dedicated DIFE Azure SQL server'
-  }
-  dependsOn: [
-    keyVaultSecretsOfficerRoleAssignment
-    deploymentSecretsOfficerRoleAssignment
-  ]
-}
-
-resource sqlAdminLoginSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'azusr${resourceToken}'
-  properties: {
-    value: sqlAdministratorLogin
-    contentType: 'Credential for the dedicated DIFE Azure SQL server'
-  }
-  dependsOn: [
-    keyVaultSecretsOfficerRoleAssignment
-    deploymentSecretsOfficerRoleAssignment
-  ]
-}
-
 resource managedEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: managedEnvironmentName
   location: location
@@ -280,12 +194,6 @@ resource managedEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: containerAppName
   location: location
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${identity.id}': {}
-    }
-  }
   properties: {
     managedEnvironmentId: managedEnvironment.id
     configuration: {
@@ -317,9 +225,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
-  dependsOn: [
-    keyVaultSecretsOfficerRoleAssignment
-  ]
 }
 
 output environmentName string = environmentName
@@ -328,4 +233,3 @@ output containerAppName string = containerApp.name
 output containerAppUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
 output sqlServerFullyQualifiedDomainName string = sqlServer.properties.fullyQualifiedDomainName
 output sqlDatabaseName string = sqlDatabase.name
-output keyVaultName string = keyVault.name
