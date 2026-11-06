@@ -7,7 +7,7 @@ test("la app es instalable (manifiesto, íconos y service worker) y abre sin con
   const manifestHref = await page.locator('link[rel="manifest"]').getAttribute("href");
   expect(manifestHref).toBe("/manifest.webmanifest");
   const manifest = await (await page.request.get(manifestHref ?? "")).json();
-  expect(manifest).toMatchObject({ name: "QALabSPBVI · Laboratorio de pagos", short_name: "QALabSPBVI", start_url: "/", display: "standalone", lang: "es" });
+  expect(manifest).toMatchObject({ name: "Laboratorio de pagos inmediatos", short_name: "Pagos inmediatos", start_url: "/", display: "standalone", lang: "es" });
   const sizes = manifest.icons.map((icon: { sizes: string; purpose: string }) => `${icon.sizes}:${icon.purpose}`);
   expect(sizes).toEqual(expect.arrayContaining(["192x192:any", "512x512:any", "512x512:maskable"]));
   for (const icon of [...manifest.icons, { src: "/icons/apple-touch-icon.png" }]) {
