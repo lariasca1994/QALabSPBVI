@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "QALabSPBVI · Laboratorio de pagos",
-  "short_name": "QALabSPBVI",
+  "name": "Laboratorio de pagos inmediatos",
+  "short_name": "Pagos inmediatos",
   "description": "Laboratorio de pagos inmediatos Bre-B con QR y aseguramiento de calidad.",
   "lang": "es",
   "dir": "ltr",

@@ -231,7 +231,7 @@ function AuthScreen({
         </div>
         <div className="auth-visual-footer">
           <span>INSPIRADO EN EL ECOSISTEMA DE PAGOS DE BAJO VALOR</span>
-          <span>QALABSPBVI · 2026</span>
+          <span>LABORATORIO DE PAGOS INMEDIATOS · 2026</span>
         </div>
       </section>
 
@@ -686,7 +686,7 @@ function App() {
         <div className="sidebar-brand"><Brand /></div>
         <div className="workspace-select">
           <div className="workspace-avatar">QA</div>
-          <div className="workspace-copy"><strong>Laboratorio de pagos</strong><small>QALabSPBVI</small></div>
+          <div className="workspace-copy"><strong>Laboratorio de pagos</strong><small>Pagos inmediatos</small></div>
           <ChevronDown size={15} />
         </div>
         <span className="nav-section-label">ESPACIO DE TRABAJO</span>
@@ -723,7 +723,7 @@ function App() {
 
       <div className="main-column">
         <header className="topbar">
-          <div className="breadcrumb"><span>QALabSPBVI</span><span>/</span><strong>{visibleNav.find((item) => item.id === view)?.label}</strong></div>
+          <div className="breadcrumb"><span>Pagos inmediatos</span><span>/</span><strong>{visibleNav.find((item) => item.id === view)?.label}</strong></div>
           <div className="topbar-actions">
             <div className="local-badge"><span /> {environmentLabel().replace(/^ENTORNO (DE )?/, "")}</div>
             <button className="icon-button" type="button" aria-label="Buscar" title="Buscar" onClick={() => setView("quality")}><Search size={18} /></button>
@@ -804,7 +804,7 @@ function App() {
           )}
         </main>
         <footer className="app-footer">
-          <span>QALabSPBVI <b>·</b> Laboratorio de aseguramiento de calidad</span>
+          <span>Laboratorio de pagos inmediatos <b>·</b> Aseguramiento de calidad</span>
           <span><ShieldCheck size={14} /> Entorno aislado · No procesa pagos reales</span>
         </footer>
       </div>
