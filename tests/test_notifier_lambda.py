@@ -44,7 +44,7 @@ def test_delivers_each_message_and_reports_only_failures(monkeypatch) -> None:
     )
     assert result == {"batchItemFailures": [{"itemIdentifier": "2"}]}
     assert sent[0][0] == "clave"
-    assert sent[0][1]["sender"] == {"email": "lab@example.com", "name": "QALabSPBVI"}
+    assert sent[0][1]["sender"] == {"email": "lab@example.com", "name": "Laboratorio de pagos inmediatos"}
     assert sent[0][1]["htmlContent"] == "<p>x</p>"
 
 

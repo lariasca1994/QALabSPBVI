@@ -106,7 +106,7 @@ var appPlainEnv = [
   { name: 'APP_ENV', value: environmentName }
   { name: 'MONGODB_DATABASE', value: mongoDatabaseName }
   { name: 'BREVO_SENDER_EMAIL', value: brevoSenderEmail }
-  { name: 'BREVO_SENDER_NAME', value: 'QALabSPBVI' }
+  { name: 'BREVO_SENDER_NAME', value: 'Laboratorio de pagos inmediatos' }
   // El ejecutor QA llama a la API por su propio dominio: Front Door reenvía con ese Host,
   // y la sesión del usuario solo se reenvía cuando el host destino coincide con el entrante.
   { name: 'QA_TARGET_BASE_URL', value: 'https://${containerAppName}.${managedEnvironment.properties.defaultDomain}' }

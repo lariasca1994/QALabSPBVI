@@ -3,10 +3,12 @@
 import time
 
 from fastapi.testclient import TestClient
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+from app.db.models import MfaRecoveryChallenge
 from app.domains.auth import two_factor
-from tests.test_auth import FakeMailer, auth_environment, prepare_csrf, sign_in  # noqa: F401
+from tests.test_auth import FakeMailer, auth_environment, extract_code, prepare_csrf, sign_in  # noqa: F401
 
 EMAIL = "admin@example.com"
 PASSWORD = "correct horse battery staple"
@@ -107,3 +109,100 @@ def test_login_without_password_cannot_set_up_the_app(
     prepare_csrf(client)
     assert client.post("/auth/mfa/totp/setup").status_code == 401
     assert client.post("/auth/verify-totp", json={"code": "123456"}).status_code == 401
+
+
+def _enable_app_only(client: TestClient) -> str:
+    """Cuenta con solo la app autenticadora (el correo nunca se activó)."""
+    _login(client)
+    secret = client.post("/auth/mfa/totp/setup").json()["secret"]
+    assert client.post("/auth/verify-totp", json={"code": _code(secret)}).status_code == 200
+    client.headers["x-csrf-token"] = client.cookies.get("qalab_csrf")
+    client.post("/auth/logout")
+    return secret
+
+
+def test_lost_authenticator_sends_a_code_by_email_and_forces_a_new_app(
+    auth_environment: tuple[TestClient, FakeMailer, Session],  # noqa: F811
+) -> None:
+    client, mailer, _ = auth_environment
+    old_secret = _enable_app_only(client)
+    second = _login(client)
+    assert second["method"] == "totp" and second["methods"]["email"] is False
+
+    sent = len(mailer.messages)
+    started = client.post("/auth/mfa/recovery/start")
+    assert started.status_code == 202
+    assert len(mailer.messages) == sent + 1
+    recipient, subject, body = mailer.messages[-1]
+    assert recipient == EMAIL
+    assert subject == "Código para recuperar el acceso · Laboratorio de pagos inmediatos"
+    assert "Vence en 15 minutos" in body
+    code = extract_code(body)
+    # Otro envío inmediato espera el minuto entre códigos.
+    assert client.post("/auth/mfa/recovery/start").status_code == 429
+
+    wrong = "000000" if code != "000000" else "111111"
+    assert client.post("/auth/mfa/recovery/verify", json={"code": wrong}).status_code == 401
+    # Sin código verificado no se puede saltar a activar una app.
+    assert client.post("/auth/mfa/recovery/activate", json={"code": _code(old_secret, 1)}).status_code == 401
+    verified = client.post("/auth/mfa/recovery/verify", json={"code": code})
+    assert verified.status_code == 200
+    new_secret = verified.json()["secret"]
+    assert new_secret != old_secret
+    assert "issuer=Laboratorio%20de%20pagos%20inmediatos" in verified.json()["uri"]
+    # Todavía no hay sesión: hay que configurar la app nueva.
+    assert client.get("/auth/me").status_code == 401
+    assert client.post("/auth/mfa/recovery/activate", json={"code": "123456" if _code(new_secret) != "123456" else "654321"}).status_code == 401
+    activated = client.post("/auth/mfa/recovery/activate", json={"code": _code(new_secret)})
+    assert activated.status_code == 200
+    assert client.get("/auth/me").status_code == 200
+    client.headers["x-csrf-token"] = client.cookies.get("qalab_csrf")
+    assert client.get("/auth/mfa").json() == {"chosen": True, "totp": True, "email": False, "preferred": "totp"}
+
+    # La app anterior ya no sirve; la nueva sí. El código de recuperación no se reutiliza.
+    client.post("/auth/logout")
+    _login(client)
+    assert client.post("/auth/verify-totp", json={"code": _code(old_secret, 1)}).status_code == 401
+    assert client.post("/auth/mfa/recovery/verify", json={"code": code}).status_code == 401
+    assert client.post("/auth/verify-totp", json={"code": _code(new_secret, 1)}).status_code == 200
+
+
+def test_lost_authenticator_requires_a_password_first_and_limits_codes(
+    auth_environment: tuple[TestClient, FakeMailer, Session],  # noqa: F811
+) -> None:
+    client, mailer, db = auth_environment
+    prepare_csrf(client)
+    assert client.post("/auth/mfa/recovery/start").status_code == 401
+    assert client.post("/auth/mfa/recovery/verify", json={"code": "123456"}).status_code == 401
+
+    _enable_app_only(client)
+    _login(client)
+    assert client.post("/auth/mfa/recovery/start").status_code == 202
+    code = extract_code(mailer.messages[-1][2])
+    wrong = "000000" if code != "000000" else "111111"
+    for _ in range(5):
+        assert client.post("/auth/mfa/recovery/verify", json={"code": wrong}).status_code == 401
+    # Tras 5 intentos el código queda anulado.
+    assert client.post("/auth/mfa/recovery/verify", json={"code": code}).status_code == 401
+
+    # Máximo 3 envíos cada 15 minutos (se simula el paso del minuto entre envíos).
+    for _ in range(2):
+        db.execute(update(MfaRecoveryChallenge).values(created_at_epoch=MfaRecoveryChallenge.created_at_epoch - 61))
+        db.commit()
+        assert client.post("/auth/mfa/recovery/start").status_code == 202
+    db.execute(update(MfaRecoveryChallenge).values(created_at_epoch=MfaRecoveryChallenge.created_at_epoch - 61))
+    db.commit()
+    assert client.post("/auth/mfa/recovery/start").status_code == 429
+
+
+def test_recovery_code_expires_after_fifteen_minutes(
+    auth_environment: tuple[TestClient, FakeMailer, Session],  # noqa: F811
+) -> None:
+    client, mailer, db = auth_environment
+    _enable_app_only(client)
+    _login(client)
+    client.post("/auth/mfa/recovery/start")
+    code = extract_code(mailer.messages[-1][2])
+    db.execute(update(MfaRecoveryChallenge).values(expires_at_epoch=int(time.time()) - 1))
+    db.commit()
+    assert client.post("/auth/mfa/recovery/verify", json={"code": code}).status_code == 401

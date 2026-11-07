@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Check, LoaderCircle, Mail, ShieldCheck, Smartphone } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowLeftRight, Check, LoaderCircle, Mail, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { api, type MfaMethods, type TotpSetup } from "./api";
 import { friendlyError, Modal } from "./ui";
 
@@ -27,10 +27,10 @@ export function TotpSetupBlock({ setup }: { setup: TotpSetup }) {
   );
 }
 
-function CodeField({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
+function CodeField({ id, value, onChange, label = "Código" }: { id: string; value: string; onChange: (value: string) => void; label?: string }) {
   return (
     <>
-      <label className="field-label" htmlFor={id}>Código</label>
+      <label className="field-label" htmlFor={id}>{label}</label>
       <input
         autoComplete="one-time-code"
         className="text-input code-input"
@@ -137,5 +137,109 @@ export function SecurityModal({ onClose }: { onClose: (message?: string) => void
         {error && !adding && <div className="alert alert--error" role="alert">{error}</div>}
       </div>
     </Modal>
+  );
+}
+
+const RECOVERY_RESEND_SECONDS = 60;
+
+/**
+ * "Perdí mi autenticador": envía un código al correo de la cuenta (aunque el método correo no
+ * esté activo), lo verifica y obliga a configurar una app autenticadora nueva antes de entrar.
+ */
+export function LostAuthenticator({ onDone, onCancel }: { onDone: () => Promise<void>; onCancel: () => void }) {
+  const [step, setStep] = useState<"sending" | "code" | "setup">("sending");
+  const [setup, setSetup] = useState<TotpSetup | null>(null);
+  const [code, setCode] = useState("");
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [wait, setWait] = useState(0);
+
+  async function send() {
+    setError("");
+    setNotice("");
+    setBusy(true);
+    try {
+      setNotice((await api.startMfaRecovery()).message);
+      setWait(RECOVERY_RESEND_SECONDS);
+    } catch (sendError) {
+      setError(friendlyError(sendError));
+    } finally {
+      setBusy(false);
+      setStep("code");
+    }
+  }
+
+  // Una sola vez aunque React monte dos veces en desarrollo (StrictMode).
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void send();
+  }, []);
+
+  useEffect(() => {
+    if (wait <= 0) return;
+    const timer = window.setTimeout(() => setWait((current) => current - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [wait]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      if (step === "code") {
+        setSetup(await api.verifyMfaRecovery(code));
+        setNotice("");
+        setStep("setup");
+      } else {
+        await api.activateMfaRecovery(code);
+        await onDone();
+      }
+      setCode("");
+    } catch (submitError) {
+      setError(friendlyError(submitError));
+      setCode("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (step === "sending") {
+    return <p className="field-hint"><LoaderCircle className="spin" size={15} /> Enviando el código a tu correo…</p>;
+  }
+  return (
+    <>
+      <form className="form-stack" onSubmit={submit}>
+        {step === "setup" && setup && <TotpSetupBlock setup={setup} />}
+        <CodeField
+          id="recovery-code"
+          label={step === "code" ? "Código de recuperación" : "Código de la app nueva"}
+          onChange={setCode}
+          value={code}
+        />
+        <p className="field-hint">
+          {step === "code"
+            ? "El código llegó al correo de tu cuenta, vence en 15 minutos y sirve una sola vez."
+            : "La app anterior deja de funcionar cuando actives la nueva."}
+        </p>
+        {notice && <div className="inline-notice" role="status"><Check size={16} />{notice}</div>}
+        {error && <div className="alert alert--error" role="alert">{error}</div>}
+        <button className="button button--primary button--wide" disabled={busy || code.length !== 6} type="submit">
+          {busy ? <LoaderCircle className="spin" size={17} /> : <ShieldCheck size={16} />}
+          {step === "code" ? "Verificar código" : "Activar app nueva e ingresar"}
+        </button>
+      </form>
+      {step === "code" && (
+        <div className="resend-row">
+          <span>¿No te llegó el código?</span>
+          <button className="text-button" disabled={wait > 0 || busy} onClick={() => void send()} type="button">
+            <RefreshCw size={15} /> {wait > 0 ? `Reenviar en ${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, "0")}` : "Reenviar código"}
+          </button>
+        </div>
+      )}
+      <button className="text-button back-button" onClick={onCancel} type="button"><ArrowLeftRight size={15} /> Volver al inicio de sesión</button>
+    </>
   );
 }

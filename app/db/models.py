@@ -204,7 +204,11 @@ class EmailLoginChallenge(Base):
 
 
 class PasswordResetChallenge(Base):
-    """Código de un solo uso para definir una contraseña nueva ("olvidé mi contraseña")."""
+    """Enlace de un solo uso para definir una contraseña nueva ("olvidé mi contraseña").
+
+    `code_digest` guarda el SHA-256 del token aleatorio del enlace (nunca el token); el nombre
+    de la columna se conserva para no migrar las bases existentes.
+    """
 
     __tablename__ = "password_reset_challenges"
 
@@ -218,6 +222,40 @@ class PasswordResetChallenge(Base):
     created_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
     expires_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    used_at_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class PasswordResetFailure(Base):
+    """Enlace de recuperación inválido o vencido presentado desde una conexión (bloqueo por IP)."""
+
+    __tablename__ = "password_reset_failures"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ip_digest: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    occurred_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class MfaRecoveryChallenge(Base):
+    """Código por correo para entrar cuando se perdió la app autenticadora.
+
+    Se envía al correo de la cuenta aunque el método correo no esté activo. Verificado el
+    código (`verified_at_epoch`), el inicio pendiente solo se completa configurando una app
+    autenticadora nueva.
+    """
+
+    __tablename__ = "mfa_recovery_challenges"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    code_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+    expires_at_epoch: Mapped[int] = mapped_column(Integer, nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    verified_at_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
     used_at_epoch: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 

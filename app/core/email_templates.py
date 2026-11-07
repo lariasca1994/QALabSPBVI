@@ -3,7 +3,8 @@
 Reglas (CLAUDE.md, "Experiencia visual"): CSS inline, una sola columna adaptable,
 sin JavaScript, hojas externas, fuentes remotas ni imágenes; siempre con alternativa
 en texto plano. Todo valor dinámico se escapa. Nunca incluir credenciales, tokens de
-sesión ni datos sensibles de pagos; la única excepción es el código MFA de un uso.
+sesión ni datos sensibles de pagos; las únicas excepciones son el código MFA de un uso y
+el enlace de un solo uso para restablecer la contraseña.
 
 Los colores siguen la paleta de la interfaz (web/src/styles.css), inspirada en Banrep
 como referencia; no se afirma que sean los colores oficiales de la marca.
@@ -23,6 +24,8 @@ _LINE = "#e4eaed"
 _BLUE = "#17658a"
 _BLUE_SOFT = "#eaf3f7"
 _GOLD = "#b58a3b"
+# Nombre descriptivo que ven las personas (asunto, encabezado y pie de todos los correos).
+PORTAL_NAME = "Laboratorio de pagos inmediatos"
 _FONT = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 _MONO = "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace"
 
@@ -47,6 +50,10 @@ class EmailMessage:
     code: str | None = None
     code_caption: str | None = None
     notice: str | None = None
+    # Botón con enlace (p. ej. restablecer la contraseña); en texto plano va la URL completa.
+    action_label: str | None = None
+    action_url: str | None = None
+    action_caption: str | None = None
 
 
 def _text_version(message: EmailMessage) -> str:
@@ -57,6 +64,11 @@ def _text_version(message: EmailMessage) -> str:
         if message.code_caption:
             lines.append(message.code_caption)
         lines.append("")
+    if message.action_url:
+        lines.append(f"{message.action_label or 'Enlace'}: {message.action_url}")
+        if message.action_caption:
+            lines.append(message.action_caption)
+        lines.append("")
     for label, value in message.details:
         lines.append(f"{label}: {value}")
     if message.details:
@@ -64,8 +76,7 @@ def _text_version(message: EmailMessage) -> str:
     if message.notice:
         lines.extend([message.notice, ""])
     lines.append(
-        "QALabSPBVI · Laboratorio simulado de pagos inmediatos. "
-        "No conecta con infraestructura real de pagos."
+        f"{PORTAL_NAME} · Entorno simulado: no conecta con infraestructura real de pagos."
     )
     return "\n".join(lines).strip() + "\n"
 
@@ -92,6 +103,26 @@ def _html_version(message: EmailMessage) -> str:
             f'<div class="qa-code" style="font-family:{_MONO};font-size:30px;font-weight:700;'
             f'letter-spacing:8px;color:{_TEXT_STRONG};">{escape(message.code)}</div>'
             f"{caption}</td></tr></table>"
+        )
+    action_block = ""
+    if message.action_url:
+        url = escape(message.action_url, quote=True)
+        action_caption = (
+            f'<p style="margin:10px 0 0;font-size:13px;line-height:1.5;color:{_MUTED};">'
+            f"{escape(message.action_caption)}</p>"
+            if message.action_caption
+            else ""
+        )
+        action_block = (
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'style="margin:4px 0 20px;border-collapse:separate;">'
+            '<tr><td align="center" style="padding:4px 0;">'
+            f'<a href="{url}" style="display:inline-block;padding:12px 22px;border-radius:8px;'
+            f'background:{_BLUE};color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">'
+            f"{escape(message.action_label or 'Abrir enlace')}</a>"
+            f'<p style="margin:12px 0 0;font-size:12px;line-height:1.5;color:{_MUTED};word-break:break-all;">'
+            f"Si el botón no funciona, copia este enlace en el navegador:<br>{url}</p>"
+            f"{action_caption}</td></tr></table>"
         )
     details = ""
     if message.details:
@@ -138,16 +169,16 @@ def _html_version(message: EmailMessage) -> str:
 <tr><td align="center" style="padding:28px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:{_FONT};">
 <tr><td style="padding:0 4px 14px;font-size:14px;font-weight:700;color:{_TEXT_STRONG};">
-<span style="display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:3px;background:{_BLUE};"></span>QALabSPBVI
+<span style="display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:3px;background:{_BLUE};"></span>{PORTAL_NAME}
 </td></tr>
 <tr><td class="qa-card" style="background:{_SURFACE};border:1px solid {_LINE};border-top:3px solid {_BLUE};border-radius:12px;padding:28px 24px;">
 <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:{_BLUE};">{escape(message.eyebrow)}</p>
 <h1 style="margin:0 0 18px;font-size:22px;line-height:1.3;color:{_TEXT_STRONG};">{escape(message.heading)}</h1>
 <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:{_TEXT};">{escape(message.greeting)}</p>
-{paragraphs}{code_block}{details}{notice}
+{paragraphs}{code_block}{action_block}{details}{notice}
 </td></tr>
 <tr><td style="padding:16px 8px 0;font-size:12px;line-height:1.5;color:{_MUTED};text-align:center;">
-Laboratorio simulado de pagos inmediatos. No conecta con infraestructura real de pagos.<br>
+{PORTAL_NAME} · Entorno simulado: no conecta con infraestructura real de pagos.<br>
 Este es un mensaje automático; no respondas a este correo.
 </td></tr>
 </table>
@@ -157,9 +188,16 @@ Este es un mensaje automático; no respondas a este correo.
 </html>"""
 
 
+def subject_with_portal(subject: str) -> str:
+    """Todo asunto lleva el nombre del portal (una sola vez)."""
+    if PORTAL_NAME.casefold() in subject.casefold():
+        return subject
+    return f"{subject} · {PORTAL_NAME}"
+
+
 def render_email(message: EmailMessage) -> EmailContent:
     return EmailContent(
-        subject=message.subject,
+        subject=subject_with_portal(message.subject),
         text=_text_version(message),
         html=_html_version(message),
     )

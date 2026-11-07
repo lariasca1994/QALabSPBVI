@@ -45,6 +45,7 @@ from app.domains.qa.mongo import (  # noqa: E402
 from app.main import app  # noqa: E402
 
 mfa_code_path = data_dir / "mfa-code.txt"
+reset_link_path = data_dir / "reset-link.txt"
 credentials_path = data_dir / "credentials.json"
 test_accounts: dict[str, dict[str, str]] = {}
 
@@ -59,6 +60,12 @@ class E2EMailer:
             temporary_path = mfa_code_path.with_suffix(".tmp")
             temporary_path.write_text(match.group(1), encoding="utf-8")
             temporary_path.replace(mfa_code_path)
+        # Enlace de recuperación de contraseña: se guarda la ruta con el fragmento del token.
+        link = re.search(r"https?://[^\s/]+(/#restablecer=[A-Za-z0-9_-]+)", body)
+        if link:
+            temporary_path = reset_link_path.with_suffix(".tmp")
+            temporary_path.write_text(link.group(1), encoding="utf-8")
+            temporary_path.replace(reset_link_path)
 
 
 mailer = E2EMailer()
@@ -75,11 +82,12 @@ async def e2e_lifespan(application: FastAPI):
         DiceBase.metadata.create_all(bind=get_dice_engine())
         with SessionLocal() as db:
             # "bugs" es un integrante con rol usuario: reporta bugs, registra fixes y hace retest.
-            # "reset" y "temporal" son usuarios para los recorridos de contraseña y activación.
-            for account_name in ("auth", "keys", "intra", "inter", "qr", "pwa", "bugs", "reset", "temporal"):
+            # "reset", "temporal" y "recovery" son usuarios para los recorridos de contraseña,
+            # activación y "Perdí mi autenticador".
+            for account_name in ("auth", "keys", "intra", "inter", "qr", "pwa", "bugs", "reset", "temporal", "recovery"):
                 email = f"qa-e2e-{account_name}@example.com"
                 password = secrets.token_urlsafe(24)
-                role = UserRole.USUARIO if account_name in {"bugs", "reset", "temporal"} else UserRole.ADMIN
+                role = UserRole.USUARIO if account_name in {"bugs", "reset", "temporal", "recovery"} else UserRole.ADMIN
                 user = create_user(
                     db,
                     email=email,

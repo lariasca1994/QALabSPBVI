@@ -22,6 +22,7 @@ from app.db.models import (
     AuthSession,
     EmailLoginChallenge,
     LoginAttempt,
+    MfaRecoveryChallenge,
     PendingLogin,
     User,
     UserRole,
@@ -45,6 +46,11 @@ PENDING_LOGIN_SECONDS = 15 * 60
 RESEND_COOLDOWN_SECONDS = 60
 MAX_CODES_PER_WINDOW = 3
 MAX_CODES_PER_WINDOW_AUTOMATION = 20
+# "Perdí mi autenticador": código por correo de 15 minutos, 3 envíos cada 15 minutos con 60 s
+# entre envíos y 5 intentos por código (estándar del portafolio).
+RECOVERY_TTL_SECONDS = 15 * 60
+RECOVERY_MAX_PER_WINDOW = 3
+RECOVERY_MAX_ATTEMPTS = 5
 
 
 class LoginRateLimitError(Exception):
@@ -103,15 +109,15 @@ def create_user(
 
 def mfa_code_message(display_name: str, code: str) -> EmailMessage:
     return EmailMessage(
-        subject="Código de acceso a QALabSPBVI",
+        subject="Tu código de acceso",
         eyebrow="Acceso seguro",
         heading="Tu código de acceso",
         greeting=f"Hola {display_name},",
-        paragraphs=["Usa este código para completar el inicio de sesión en QALabSPBVI."],
+        paragraphs=["Usa este código para completar el inicio de sesión en el Laboratorio de pagos inmediatos."],
         code=code,
         code_caption=f"Vence en {OTP_TTL_SECONDS // 60} minutos y sirve una sola vez.",
         notice=(
-            "No compartas este código con nadie: el equipo de QALabSPBVI nunca te lo va a "
+            "No compartas este código con nadie: el equipo del laboratorio nunca te lo va a "
             "pedir. Si no intentaste iniciar sesión, ignora este correo."
         ),
     )
@@ -127,12 +133,12 @@ ROLE_LABELS = {
 def welcome_message(user: User, created_by: User) -> EmailMessage:
     # Nunca incluir la contraseña: quien creó la cuenta la entrega por un canal seguro.
     return EmailMessage(
-        subject="Te damos la bienvenida a QALabSPBVI",
+        subject="Te damos la bienvenida",
         eyebrow="Nueva cuenta",
         heading="Tu cuenta está lista",
         greeting=f"Hola {user.display_name},",
         paragraphs=[
-            "Se creó tu cuenta en QALabSPBVI, el laboratorio de pruebas de pagos inmediatos.",
+            "Se creó tu cuenta en el Laboratorio de pagos inmediatos, el entorno de pruebas de pagos.",
             "Para ingresar usa tu correo y la contraseña que te compartió quien creó la cuenta. "
             "En cada inicio de sesión te enviaremos un código de un solo uso a este correo.",
         ],
@@ -142,7 +148,7 @@ def welcome_message(user: User, created_by: User) -> EmailMessage:
             ("Creada por", created_by.email),
         ],
         notice=(
-            "Si no esperabas esta cuenta, avísale al administrador de QALabSPBVI. "
+            "Si no esperabas esta cuenta, avísale al administrador del laboratorio. "
             "Nunca te pediremos tu contraseña por correo."
         ),
     )
@@ -462,3 +468,143 @@ def revoke_session(db: Session, raw_token: str) -> None:
     if session is not None:
         session.revoked_at_epoch = int(time.time())
         db.commit()
+
+
+def recovery_code_message(display_name: str, code: str) -> EmailMessage:
+    return EmailMessage(
+        subject="Código para recuperar el acceso",
+        eyebrow="Recuperación de acceso",
+        heading="Entra sin tu app autenticadora",
+        greeting=f"Hola {display_name},",
+        paragraphs=[
+            "Usa este código para entrar sin tu app autenticadora. Después de verificarlo "
+            "tendrás que configurar una app autenticadora nueva."
+        ],
+        code=code,
+        code_caption=f"Vence en {RECOVERY_TTL_SECONDS // 60} minutos y sirve una sola vez.",
+        notice=(
+            "No compartas este código con nadie. Si no fuiste tú, cambia tu contraseña: "
+            "alguien más la conoce."
+        ),
+    )
+
+
+def _pending_with_user(db: Session, pending_token: str | None) -> tuple[PendingLogin, User]:
+    """Inicio pendiente vigente (contraseña ya validada) y su cuenta, o InvalidChallengeError."""
+    if not pending_token:
+        raise InvalidChallengeError
+    pending = db.scalar(
+        select(PendingLogin).where(PendingLogin.token_digest == digest_token(pending_token))
+    )
+    if pending is None or pending.expires_at_epoch <= int(time.time()):
+        raise InvalidChallengeError
+    user = db.get(User, pending.user_id)
+    if user is None or not user.is_active:
+        raise InvalidChallengeError
+    return pending, user
+
+
+def start_mfa_recovery(db: Session, *, pending_token: str | None, mailer: Mailer) -> None:
+    """"Perdí mi autenticador": código al correo de la cuenta aunque el método correo no esté activo.
+
+    Exige un inicio pendiente y extiende su vigencia para completar la recuperación.
+    """
+    pending, user = _pending_with_user(db, pending_token)
+    now = int(time.time())
+    recent = db.scalars(
+        select(MfaRecoveryChallenge)
+        .where(
+            MfaRecoveryChallenge.user_id == user.id,
+            MfaRecoveryChallenge.created_at_epoch > now - LOGIN_WINDOW_SECONDS,
+        )
+        .order_by(MfaRecoveryChallenge.id.desc())
+    ).all()
+    if recent and recent[0].created_at_epoch + RESEND_COOLDOWN_SECONDS > now:
+        raise ResendCooldownError(recent[0].created_at_epoch + RESEND_COOLDOWN_SECONDS - now)
+    if len(recent) >= RECOVERY_MAX_PER_WINDOW:
+        raise LoginRateLimitError
+    for previous in db.scalars(
+        select(MfaRecoveryChallenge).where(
+            MfaRecoveryChallenge.user_id == user.id,
+            MfaRecoveryChallenge.used_at_epoch.is_(None),
+        )
+    ):
+        previous.used_at_epoch = now
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    challenge = MfaRecoveryChallenge(
+        user_id=user.id,
+        code_digest=code_digest(code),
+        created_at_epoch=now,
+        expires_at_epoch=now + RECOVERY_TTL_SECONDS,
+    )
+    db.add(challenge)
+    pending.expires_at_epoch = now + PENDING_LOGIN_SECONDS
+    db.commit()
+    try:
+        send_message(mailer, recipient=user.email, message=recovery_code_message(user.display_name, code))
+    except MailDeliveryError:
+        challenge.used_at_epoch = now
+        db.commit()
+        raise
+    logger.info("Recuperación del segundo factor: código enviado (cuenta %s).", user.id)
+
+
+def verify_mfa_recovery(db: Session, *, pending_token: str | None, code: str) -> tuple[str, str]:
+    """Valida el código de recuperación; devuelve (clave, otpauth://) de la app nueva a configurar."""
+    _, user = _pending_with_user(db, pending_token)
+    now = int(time.time())
+    challenge = db.scalar(
+        select(MfaRecoveryChallenge)
+        .where(
+            MfaRecoveryChallenge.user_id == user.id,
+            MfaRecoveryChallenge.used_at_epoch.is_(None),
+        )
+        .order_by(MfaRecoveryChallenge.id.desc())
+        .limit(1)
+    )
+    if (
+        challenge is None
+        or challenge.expires_at_epoch <= now
+        or challenge.attempts >= RECOVERY_MAX_ATTEMPTS
+    ):
+        raise InvalidChallengeError
+    if not secrets.compare_digest(challenge.code_digest, code_digest(code)):
+        challenge.attempts += 1
+        if challenge.attempts >= RECOVERY_MAX_ATTEMPTS:
+            challenge.used_at_epoch = now
+        db.commit()
+        logger.info("Recuperación del segundo factor: código incorrecto (cuenta %s).", user.id)
+        raise InvalidChallengeError
+    if challenge.verified_at_epoch is None:
+        challenge.verified_at_epoch = now
+        db.commit()
+        logger.info("Recuperación del segundo factor: código verificado (cuenta %s).", user.id)
+    return two_factor.start_replacement_setup(db, user)
+
+
+def complete_mfa_recovery(
+    db: Session, *, pending_token: str | None, code: str
+) -> tuple[User, str, int]:
+    """Confirma la app autenticadora nueva (tras un código de recuperación válido) y abre la sesión."""
+    _, user = _pending_with_user(db, pending_token)
+    now = int(time.time())
+    challenge = db.scalar(
+        select(MfaRecoveryChallenge).where(
+            MfaRecoveryChallenge.user_id == user.id,
+            MfaRecoveryChallenge.used_at_epoch.is_(None),
+            MfaRecoveryChallenge.verified_at_epoch.is_not(None),
+            MfaRecoveryChallenge.expires_at_epoch > now,
+        )
+    )
+    if challenge is None:
+        raise InvalidChallengeError
+    try:
+        valid = two_factor.activate_replacement(db, user, code)
+    except two_factor.TotpNotConfiguredError as error:
+        raise InvalidChallengeError from error
+    if not valid:
+        raise InvalidChallengeError
+    challenge.used_at_epoch = now
+    db.commit()
+    logger.info("Recuperación del segundo factor: app autenticadora nueva activa (cuenta %s).", user.id)
+    return _open_session(db, user, now)

@@ -1,11 +1,17 @@
 """Cambio y recuperación de contraseña, y activación de cuentas. Sin correos reales: FakeMailer."""
 
-from fastapi.testclient import TestClient
+import re
+import time
 
-from app.db.models import UserRole
+from fastapi.testclient import TestClient
+from sqlalchemy import select, update
+
+from app.core.mailer import MailDeliveryError
+
+from app.db.models import PasswordResetChallenge, UserRole
 from app.domains.auth.service import create_user
 from app.main import app
-from tests.test_auth import FakeMailer, auth_environment, extract_code, prepare_csrf, sign_in  # noqa: F401
+from tests.test_auth import FakeMailer, auth_environment, prepare_csrf, sign_in  # noqa: F401
 
 NEW_PASSWORD = "otra clave larga y segura 2026"
 
@@ -42,36 +48,65 @@ def test_change_password_requires_current_and_closes_other_sessions(auth_environ
     sign_in(client, mailer, password=NEW_PASSWORD)
 
 
-def test_password_reset_with_emailed_code(auth_environment) -> None:
-    client, mailer, _ = auth_environment
+def extract_reset_token(body: str) -> str:
+    match = re.search(r"/#restablecer=([A-Za-z0-9_-]+)", body)
+    assert match, "El correo de recuperación no contiene el enlace"
+    return match.group(1)
+
+
+def test_password_reset_with_single_use_link(auth_environment) -> None:
+    client, mailer, db = auth_environment
     sign_in(client, mailer)
+    # La verificación en dos pasos elegida antes del cambio sigue igual después.
+    assert client.get("/auth/mfa").json()["email"] is True
     prepare_csrf(client)
 
-    requested = client.post("/auth/password-reset/request", json={"email": "admin@example.com"})
+    requested = client.post(
+        "/auth/password-reset/request",
+        json={"email": "admin@example.com"},
+        headers={"Origin": "https://qalabspbvi-prod.vercel.app"},
+    )
     assert requested.status_code == 202
-    assert mailer.messages[-1][1] == "Código para restablecer tu contraseña de QALabSPBVI"
-    code = extract_code(mailer.messages[-1][2])
+    recipient, subject, body = mailer.messages[-1]
+    assert recipient == "admin@example.com"
+    assert subject == "Restablece tu contraseña · Laboratorio de pagos inmediatos"
+    assert "https://qalabspbvi-prod.vercel.app/#restablecer=" in body
+    assert "vence en 30 minutos" in body
+    token = extract_reset_token(body)
+    # En la base solo queda el hash del token.
+    stored = db.scalars(select(PasswordResetChallenge)).all()
+    assert all(token not in challenge.code_digest for challenge in stored)
 
-    bad = client.post(
-        "/auth/password-reset/confirm",
-        json={"email": "admin@example.com", "code": "000000" if code != "000000" else "111111", "new_password": NEW_PASSWORD},
-    )
-    assert bad.status_code == 400 and bad.json()["detail"] == "El código no es válido o ya venció."
-    ok = client.post(
-        "/auth/password-reset/confirm", json={"email": "admin@example.com", "code": code, "new_password": NEW_PASSWORD}
-    )
+    assert client.post("/auth/password-reset/check", json={"token": token}).status_code == 200
+    bad = client.post("/auth/password-reset/confirm", json={"token": "x" * 43, "new_password": NEW_PASSWORD})
+    assert bad.status_code == 400 and "no es válido" in bad.json()["detail"]
+    short = client.post("/auth/password-reset/confirm", json={"token": token, "new_password": "corta"})
+    assert short.status_code == 422
+    ok = client.post("/auth/password-reset/confirm", json={"token": token, "new_password": NEW_PASSWORD})
     assert ok.status_code == 200
-    # Todas las sesiones se cierran y el código no se reutiliza.
+    # Todas las sesiones se cierran y el enlace no se reutiliza.
     assert client.get("/auth/me").status_code == 401
     prepare_csrf(client)
-    again = client.post(
-        "/auth/password-reset/confirm", json={"email": "admin@example.com", "code": code, "new_password": "una tercera clave segura"}
-    )
+    again = client.post("/auth/password-reset/confirm", json={"token": token, "new_password": "una tercera clave segura"})
     assert again.status_code == 400
+    assert client.post("/auth/password-reset/check", json={"token": token}).status_code == 400
     sign_in(client, mailer, password=NEW_PASSWORD)
+    assert client.get("/auth/mfa").json()["email"] is True
 
 
-def test_password_reset_reveals_nothing_and_is_rate_limited(auth_environment) -> None:
+def test_reset_link_only_points_to_allowed_interfaces(auth_environment) -> None:
+    client, mailer, _ = auth_environment
+    prepare_csrf(client)
+    client.post(
+        "/auth/password-reset/request",
+        json={"email": "admin@example.com"},
+        headers={"Origin": "https://sitio-ajeno.example"},
+    )
+    assert "sitio-ajeno" not in mailer.messages[-1][2]
+    assert "https://qalabspbvi-prod.vercel.app/#restablecer=" in mailer.messages[-1][2]
+
+
+def test_password_reset_reveals_nothing_and_caps_the_links(auth_environment) -> None:
     client, mailer, _ = auth_environment
     prepare_csrf(client)
     unknown = client.post("/auth/password-reset/request", json={"email": "nadie@example.com"})
@@ -82,26 +117,50 @@ def test_password_reset_reveals_nothing_and_is_rate_limited(auth_environment) ->
 
     for _ in range(2):
         assert client.post("/auth/password-reset/request", json={"email": "admin@example.com"}).status_code == 202
-    assert client.post("/auth/password-reset/request", json={"email": "admin@example.com"}).status_code == 429
-    # Solo el último código sirve.
-    first, last = extract_code(mailer.messages[0][2]), extract_code(mailer.messages[-1][2])
-    if first != last:
-        stale = client.post(
-            "/auth/password-reset/confirm", json={"email": "admin@example.com", "code": first, "new_password": NEW_PASSWORD}
-        )
-        assert stale.status_code == 400
+    # Pasado el tope no se envía nada más, pero la respuesta es la misma.
+    capped = client.post("/auth/password-reset/request", json={"email": "admin@example.com"})
+    assert capped.status_code == 202 and capped.json() == known.json()
+    assert len(mailer.messages) == 3
+    # Solo el último enlace sirve.
+    first, last = extract_reset_token(mailer.messages[0][2]), extract_reset_token(mailer.messages[-1][2])
+    assert client.post("/auth/password-reset/confirm", json={"token": first, "new_password": NEW_PASSWORD}).status_code == 400
+    assert client.post("/auth/password-reset/check", json={"token": last}).status_code == 200
 
 
-def test_reset_code_locks_after_five_wrong_attempts(auth_environment) -> None:
+def test_mail_outage_on_reset_keeps_the_neutral_answer(auth_environment) -> None:
+    client, mailer, _ = auth_environment
+    prepare_csrf(client)
+
+    def broken(**_: object) -> None:
+        raise MailDeliveryError("caído")
+
+    mailer.send = broken  # type: ignore[method-assign]
+    answer = client.post("/auth/password-reset/request", json={"email": "admin@example.com"})
+    assert answer.status_code == 202
+    assert "Si el correo pertenece" in answer.json()["message"]
+
+
+def test_five_invalid_links_lock_the_connection_for_fifteen_minutes(auth_environment) -> None:
     client, mailer, _ = auth_environment
     prepare_csrf(client)
     client.post("/auth/password-reset/request", json={"email": "admin@example.com"})
-    code = extract_code(mailer.messages[-1][2])
-    wrong = "123456" if code != "123456" else "654321"
-    for _ in range(5):
-        client.post("/auth/password-reset/confirm", json={"email": "admin@example.com", "code": wrong, "new_password": NEW_PASSWORD})
-    locked = client.post("/auth/password-reset/confirm", json={"email": "admin@example.com", "code": code, "new_password": NEW_PASSWORD})
-    assert locked.status_code == 400
+    token = extract_reset_token(mailer.messages[-1][2])
+    for attempt in range(5):
+        wrong = client.post("/auth/password-reset/confirm", json={"token": f"invalido{attempt}" + "x" * 30, "new_password": NEW_PASSWORD})
+        assert wrong.status_code == 400
+    locked = client.post("/auth/password-reset/confirm", json={"token": token, "new_password": NEW_PASSWORD})
+    assert locked.status_code == 429
+    assert client.post("/auth/password-reset/check", json={"token": token}).status_code == 429
+
+
+def test_expired_link_is_rejected(auth_environment) -> None:
+    client, mailer, db = auth_environment
+    prepare_csrf(client)
+    client.post("/auth/password-reset/request", json={"email": "admin@example.com"})
+    token = extract_reset_token(mailer.messages[-1][2])
+    db.execute(update(PasswordResetChallenge).values(expires_at_epoch=int(time.time()) - 1))
+    db.commit()
+    assert client.post("/auth/password-reset/confirm", json={"token": token, "new_password": NEW_PASSWORD}).status_code == 400
 
 
 def test_account_activation_rules(auth_environment) -> None:

@@ -509,9 +509,13 @@ class PasswordResetRequest(BaseModel):
     email: EmailStr
 
 
-class PasswordResetConfirmRequest(BaseModel):
-    email: EmailStr
-    code: str = Field(pattern=r"^[0-9]{6}$")
+class PasswordResetCheckRequest(BaseModel):
+    """Token del enlace de recuperación (aleatorio, URL-safe)."""
+
+    token: str = Field(min_length=20, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class PasswordResetConfirmRequest(PasswordResetCheckRequest):
     new_password: str = Field(min_length=12, max_length=128)
 
 

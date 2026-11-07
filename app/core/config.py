@@ -25,9 +25,13 @@ class Settings(BaseSettings):
     # (mínimo 32 caracteres) o la lista de correos. Ver app/domains/auth/automation.py.
     qa_automation_token: str = ""
     qa_automation_emails: str = ""
+    # Interfaces web a las que puede apuntar el enlace de recuperación de contraseña. Se usa el
+    # Origin de la solicitud solo si está en esta lista (evita enlaces hacia sitios ajenos);
+    # si no, la primera. En local también se aceptan http://localhost y http://127.0.0.1.
+    web_origins: str = "https://qalabspbvi-prod.vercel.app,https://qalabspbvi.vercel.app"
     brevo_api_key: str = ""
     brevo_sender_email: str = ""
-    brevo_sender_name: str = "QALabSPBVI"
+    brevo_sender_name: str = "Laboratorio de pagos inmediatos"
     # Avisos QA por AWS SQS + Lambda (vacío: se envían directo por Brevo).
     notifications_queue_url: str = ""
     aws_region: str = "us-east-1"

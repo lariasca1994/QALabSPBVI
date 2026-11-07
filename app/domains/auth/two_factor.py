@@ -26,7 +26,8 @@ from app.db.models import User, UserMfa
 
 METHOD_EMAIL = "email"
 METHOD_TOTP = "totp"
-ISSUER = "QALabSPBVI"
+# Nombre que muestra la app autenticadora. Cambiarlo no invalida apps ya configuradas.
+ISSUER = "Laboratorio de pagos inmediatos"
 TOTP_PERIOD = 30
 TOTP_MAX_FAILURES = 5
 TOTP_LOCK_SECONDS = 15 * 60
@@ -64,7 +65,7 @@ def new_secret() -> str:
 
 def provisioning_uri(secret: str, email: str) -> str:
     label = quote(f"{ISSUER}:{email}")
-    return f"otpauth://totp/{label}?secret={secret}&issuer={ISSUER}&digits=6&period={TOTP_PERIOD}"
+    return f"otpauth://totp/{label}?secret={secret}&issuer={quote(ISSUER)}&digits=6&period={TOTP_PERIOD}"
 
 
 def totp_code(secret: str, step: int) -> str:
@@ -166,6 +167,39 @@ def verify_totp(db: Session, user: User, code: str) -> bool:
         row.totp_active = True
         if first_method or row.preferred is None:
             row.preferred = METHOD_TOTP
+    db.commit()
+    return True
+
+
+def start_replacement_setup(db: Session, user: User) -> tuple[str, str]:
+    """Clave pendiente para reemplazar la app (recuperación); la anterior sigue hasta confirmar."""
+    row = _ensure_row(db, user)
+    secret = new_secret()
+    row.totp_pending = encrypt_secret(secret)
+    db.commit()
+    return secret, provisioning_uri(secret, user.email)
+
+
+def activate_replacement(db: Session, user: User, code: str) -> bool:
+    """Confirma la app nueva con un código de la clave pendiente y reemplaza la anterior."""
+    now = int(time.time())
+    row = mfa_row(db, user)
+    if row is None or not row.totp_pending:
+        raise TotpNotConfiguredError
+    _check_lock(row, now)
+    step = matching_step(decrypt_secret(row.totp_pending), code, 0, now)
+    if step is None:
+        _register_failure(db, row, now)
+        return False
+    first_method = not row.email_active
+    row.totp_secret = row.totp_pending
+    row.totp_pending = None
+    row.totp_active = True
+    row.totp_last_step = step
+    row.failures = 0
+    row.locked_until_epoch = 0
+    if first_method or row.preferred is None:
+        row.preferred = METHOD_TOTP
     db.commit()
     return True
 

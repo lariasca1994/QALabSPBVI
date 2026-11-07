@@ -43,7 +43,7 @@ def send_email(message: dict, api_key: str, opener=urllib.request.urlopen) -> No
     payload = {
         "sender": {
             "email": os.environ["BREVO_SENDER_EMAIL"],
-            "name": os.environ.get("BREVO_SENDER_NAME", "QALabSPBVI"),
+            "name": os.environ.get("BREVO_SENDER_NAME", "Laboratorio de pagos inmediatos"),
         },
         "to": [{"email": message["recipient"]}],
         "subject": message["subject"],

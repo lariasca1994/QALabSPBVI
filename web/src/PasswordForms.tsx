@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { ArrowLeftRight, KeyRound, LoaderCircle, UserPlus } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { ArrowLeftRight, KeyRound, LoaderCircle, Mail, UserPlus } from "lucide-react";
 import { api } from "./api";
 import { friendlyError, Modal } from "./ui";
 
@@ -11,13 +11,9 @@ function passwordProblem(password: string, confirmation: string, isNew = true): 
   return "";
 }
 
-/** "¿Olvidaste tu contraseña?": pide el código por correo y define una contraseña nueva. */
-export function PasswordReset({ onDone, onCancel }: { onDone: (message: string) => void; onCancel: () => void }) {
-  const [step, setStep] = useState<"request" | "confirm">("request");
+/** "¿Olvidaste tu contraseña?" paso 1: solo el correo; la respuesta es siempre la misma. */
+export function PasswordReset({ onCancel }: { onCancel: () => void }) {
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -25,23 +21,9 @@ export function PasswordReset({ onDone, onCancel }: { onDone: (message: string) 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    if (step === "confirm") {
-      const problem = passwordProblem(password, confirmation);
-      if (problem) {
-        setError(problem);
-        return;
-      }
-    }
     setBusy(true);
     try {
-      if (step === "request") {
-        const result = await api.requestPasswordReset(email);
-        setNotice(result.message);
-        setStep("confirm");
-      } else {
-        const result = await api.confirmPasswordReset(email, code, password);
-        onDone(result.message);
-      }
+      setNotice((await api.requestPasswordReset(email)).message);
     } catch (requestError) {
       setError(friendlyError(requestError));
     } finally {
@@ -53,23 +35,80 @@ export function PasswordReset({ onDone, onCancel }: { onDone: (message: string) 
     <>
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label" htmlFor="reset-email">Correo electrónico</label>
-        <input autoComplete="username" className="text-input" disabled={step === "confirm"} id="reset-email" onChange={(event) => setEmail(event.target.value)} placeholder="nombre@organizacion.com" required type="email" value={email} />
-        {step === "confirm" && (
-          <>
-            <label className="field-label" htmlFor="reset-code">Código de recuperación</label>
-            <input autoComplete="one-time-code" className="text-input code-input" id="reset-code" inputMode="numeric" maxLength={6} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="· · · · · ·" required value={code} />
-            <p className="field-hint">El código vence en 10 minutos y sirve una sola vez.</p>
-            <label className="field-label" htmlFor="reset-password">Contraseña nueva</label>
-            <input autoComplete="new-password" className="text-input" id="reset-password" minLength={MIN_PASSWORD} maxLength={128} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
-            <label className="field-label" htmlFor="reset-confirmation">Repite la contraseña nueva</label>
-            <input autoComplete="new-password" className="text-input" id="reset-confirmation" maxLength={128} onChange={(event) => setConfirmation(event.target.value)} required type="password" value={confirmation} />
-          </>
-        )}
+        <input autoComplete="username" className="text-input" id="reset-email" onChange={(event) => setEmail(event.target.value)} placeholder="nombre@organizacion.com" required type="email" value={email} />
+        <p className="field-hint">Te enviaremos un enlace de un solo uso que vence en 30 minutos.</p>
         {notice && <div className="inline-notice" role="status">{notice}</div>}
         {error && <div className="alert alert--error" role="alert">{error}</div>}
         <button className="button button--primary button--wide" disabled={busy} type="submit">
-          {busy ? <LoaderCircle className="spin" size={17} /> : <KeyRound size={16} />}
-          {step === "request" ? "Enviar código" : "Restablecer contraseña"}
+          {busy ? <LoaderCircle className="spin" size={17} /> : <Mail size={16} />}
+          {notice ? "Enviar otro enlace" : "Enviar enlace"}
+        </button>
+      </form>
+      <button className="text-button back-button" onClick={onCancel} type="button"><ArrowLeftRight size={15} /> Volver al inicio de sesión</button>
+    </>
+  );
+}
+
+/** Paso 2, al abrir el enlace del correo: solo la contraseña nueva y su confirmación. */
+export function PasswordResetFromLink({ token, onDone, onCancel }: { token: string; onDone: (message: string) => void; onCancel: () => void }) {
+  const [state, setState] = useState<"checking" | "valid" | "invalid">("checking");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    api.checkPasswordReset(token)
+      .then(() => { if (active) setState("valid"); })
+      .catch((checkError: unknown) => {
+        if (!active) return;
+        setState("invalid");
+        setError(friendlyError(checkError));
+      });
+    return () => { active = false; };
+  }, [token]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const problem = passwordProblem(password, confirmation);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setError("");
+    setBusy(true);
+    try {
+      onDone((await api.confirmPasswordReset(token, password)).message);
+    } catch (confirmError) {
+      setError(friendlyError(confirmError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (state === "checking") {
+    return <p className="field-hint"><LoaderCircle className="spin" size={15} /> Comprobando el enlace…</p>;
+  }
+  if (state === "invalid") {
+    return (
+      <>
+        <div className="alert alert--error" role="alert">{error}</div>
+        <button className="text-button back-button" onClick={onCancel} type="button"><ArrowLeftRight size={15} /> Volver al inicio de sesión</button>
+      </>
+    );
+  }
+  return (
+    <>
+      <form className="form-stack" onSubmit={submit}>
+        <label className="field-label" htmlFor="reset-password">Contraseña nueva</label>
+        <input autoComplete="new-password" className="text-input" id="reset-password" minLength={MIN_PASSWORD} maxLength={128} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
+        <label className="field-label" htmlFor="reset-confirmation">Repite la contraseña nueva</label>
+        <input autoComplete="new-password" className="text-input" id="reset-confirmation" maxLength={128} onChange={(event) => setConfirmation(event.target.value)} required type="password" value={confirmation} />
+        <p className="field-hint">Mínimo {MIN_PASSWORD} caracteres. Se cerrarán tus sesiones abiertas; la verificación en dos pasos sigue igual.</p>
+        {error && <div className="alert alert--error" role="alert">{error}</div>}
+        <button className="button button--primary button--wide" disabled={busy} type="submit">
+          {busy ? <LoaderCircle className="spin" size={17} /> : <KeyRound size={16} />} Guardar contraseña nueva
         </button>
       </form>
       <button className="text-button back-button" onClick={onCancel} type="button"><ArrowLeftRight size={15} /> Volver al inicio de sesión</button>

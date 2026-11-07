@@ -230,7 +230,7 @@ def qa_notification_message(notification: dict[str, Any]) -> EmailMessage:
             ("Elemento", notification["item_key"]),
             (verb, actor),
         ],
-        notice="Ingresa a QALabSPBVI para ver el detalle completo.",
+        notice="Ingresa al Laboratorio de pagos inmediatos para ver el detalle completo.",
     )
 
 

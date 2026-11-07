@@ -455,8 +455,24 @@ export const api = {
   async requestPasswordReset(email: string): Promise<{ message: string }> {
     return mutate("/auth/password-reset/request", "POST", { email });
   },
-  async confirmPasswordReset(email: string, code: string, newPassword: string): Promise<{ message: string }> {
-    return mutate("/auth/password-reset/confirm", "POST", { email, code, new_password: newPassword });
+  /** Comprueba el enlace de recuperación al abrirlo (no lo consume). */
+  async checkPasswordReset(token: string): Promise<{ message: string }> {
+    return mutate("/auth/password-reset/check", "POST", { token });
+  },
+  async confirmPasswordReset(token: string, newPassword: string): Promise<{ message: string }> {
+    return mutate("/auth/password-reset/confirm", "POST", { token, new_password: newPassword });
+  },
+  /** "Perdí mi autenticador": código al correo de la cuenta del inicio pendiente. */
+  async startMfaRecovery(): Promise<{ message: string }> {
+    return mutate("/auth/mfa/recovery/start", "POST", {});
+  },
+  /** Valida el código de recuperación y devuelve el QR de la app autenticadora nueva. */
+  async verifyMfaRecovery(code: string): Promise<TotpSetup> {
+    return mutate("/auth/mfa/recovery/verify", "POST", { code });
+  },
+  /** Confirma la app autenticadora nueva y abre la sesión. */
+  async activateMfaRecovery(code: string): Promise<void> {
+    await mutate("/auth/mfa/recovery/activate", "POST", { code });
   },
   async setUserActive(userId: number, isActive: boolean): Promise<User> {
     const token = await csrfToken();

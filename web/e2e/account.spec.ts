@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { rmSync } from "node:fs";
+import { createHmac } from "node:crypto";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { e2eAdminEmail, expectNoHorizontalOverflow, readMfaCode, signInAsAdmin } from "./support";
+import { credentialsPassword, e2eAdminEmail, expectNoHorizontalOverflow, readMfaCode, signInAsAdmin } from "./support";
 
 function codeFile(): string {
   return join(process.env.QALAB_E2E_DATA_DIR ?? "", "mfa-code.txt");
@@ -12,7 +13,29 @@ async function freshCode(): Promise<string> {
   return readMfaCode();
 }
 
-test("recupera la contraseña desde el login y la cambia con sesión iniciada", async ({ page }) => {
+function resetLinkFile(): string {
+  return join(process.env.QALAB_E2E_DATA_DIR ?? "", "reset-link.txt");
+}
+
+async function freshResetLink(): Promise<string> {
+  await expect.poll(() => existsSync(resetLinkFile()) ? readFileSync(resetLinkFile(), "utf8").trim() : "").toMatch(/^\/#restablecer=/);
+  return readFileSync(resetLinkFile(), "utf8").trim();
+}
+
+/** Código TOTP (RFC 6238, SHA-1, 30 s) de una clave base32, como lo calcula la app autenticadora. */
+function totp(secret: string, offset = 0): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const char of secret.replace(/\s|=/g, "").toUpperCase()) bits += alphabet.indexOf(char).toString(2).padStart(5, "0");
+  const key = Buffer.from(bits.match(/.{8}/g)!.map((byte) => parseInt(byte, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000) + offset));
+  const digest = createHmac("sha1", key).update(counter).digest();
+  const start = digest[digest.length - 1] & 0x0f;
+  return String((digest.readUInt32BE(start) & 0x7fffffff) % 1_000_000).padStart(6, "0");
+}
+
+test("recupera la contraseña con un enlace de un solo uso y la cambia con sesión iniciada", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   const email = e2eAdminEmail("reset");
   const recovered = "clave recuperada para e2e 2026";
@@ -20,16 +43,38 @@ test("recupera la contraseña desde el login y la cambia con sesión iniciada", 
 
   await page.goto("/");
   await page.getByRole("button", { name: "¿Olvidaste tu contraseña?" }).click();
+  // Paso 1: solo el correo; la respuesta es la misma exista o no la cuenta.
+  await expect(page.getByLabel("Código de recuperación")).toHaveCount(0);
+  await page.getByLabel("Correo electrónico").fill("nadie@example.com");
+  rmSync(resetLinkFile(), { force: true });
+  await page.getByRole("button", { name: "Enviar enlace" }).click();
+  await expect(page.getByRole("status")).toContainText("te enviamos un enlace");
+  const neutral = await page.getByRole("status").innerText();
+  expect(existsSync(resetLinkFile())).toBe(false);
   await page.getByLabel("Correo electrónico").fill(email);
-  rmSync(codeFile(), { force: true });
-  await page.getByRole("button", { name: "Enviar código" }).click();
-  await expect(page.getByRole("status")).toContainText("te enviamos un código");
-  await page.getByLabel("Código de recuperación").fill(await freshCode());
+  await page.getByRole("button", { name: "Enviar otro enlace" }).click();
+  await expect(page.getByRole("status")).toHaveText(neutral);
+  const link = await freshResetLink();
+  await expectNoHorizontalOverflow(page);
+
+  // Paso 2: al abrir el enlace, solo la contraseña nueva y su confirmación.
+  await page.goto(link);
+  await expect(page.getByRole("heading", { name: "Define tu contraseña nueva." })).toBeVisible();
+  await expect(page).not.toHaveURL(/restablecer/);
+  await expect(page.getByLabel("Correo electrónico")).toHaveCount(0);
   await page.getByLabel("Contraseña nueva", { exact: true }).fill(recovered);
+  await page.getByLabel("Repite la contraseña nueva").fill("no coincide con la nueva");
+  await page.getByRole("button", { name: "Guardar contraseña nueva" }).click();
+  await expect(page.getByRole("alert")).toContainText("no coinciden");
   await page.getByLabel("Repite la contraseña nueva").fill(recovered);
-  await page.getByRole("button", { name: "Restablecer contraseña" }).click();
+  await page.getByRole("button", { name: "Guardar contraseña nueva" }).click();
   await expect(page.getByText("Contraseña restablecida")).toBeVisible();
   await expectNoHorizontalOverflow(page);
+
+  // El enlace ya no sirve una segunda vez.
+  await page.goto(link);
+  await expect(page.getByRole("alert")).toContainText("no es válido o ya venció");
+  await page.getByRole("button", { name: "Volver al inicio de sesión" }).click();
 
   // Inicia sesión con la contraseña recuperada.
   await page.getByLabel("Correo electrónico").fill(email);
@@ -52,6 +97,49 @@ test("recupera la contraseña desde el login y la cambia con sesión iniciada", 
   await expect(page.getByText("Contraseña actualizada.")).toBeVisible();
   await expectNoHorizontalOverflow(page);
   // Deja el archivo de códigos limpio para las pruebas siguientes.
+  rmSync(codeFile(), { force: true });
+});
+
+test("perdí mi autenticador: entra con un código por correo y configura una app nueva", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const email = e2eAdminEmail("recovery");
+  const password = credentialsPassword("recovery");
+
+  await page.goto("/");
+  await page.getByLabel("Correo electrónico").fill(email);
+  await page.getByLabel("Contraseña").fill(password);
+  rmSync(codeFile(), { force: true });
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await expect(page.getByRole("heading", { name: "Revisa tu correo." })).toBeVisible();
+  await expect.poll(readMfaCode).toMatch(/^\d{6}$/);
+
+  // El enlace está siempre en la pantalla del segundo factor.
+  rmSync(codeFile(), { force: true });
+  await page.getByRole("button", { name: "Perdí mi autenticador" }).click();
+  await expect(page.getByRole("heading", { name: "Recupera tu acceso." })).toBeVisible();
+  const recoveryCode = await freshCode();
+  await page.getByLabel("Código de recuperación").fill(recoveryCode === "000000" ? "111111" : "000000");
+  await page.getByRole("button", { name: "Verificar código" }).click();
+  await expect(page.getByRole("alert")).toContainText("no es valido");
+  await page.getByLabel("Código de recuperación").fill(recoveryCode);
+  await page.getByRole("button", { name: "Verificar código" }).click();
+
+  // Obliga a configurar la app nueva (QR y clave) antes de entrar.
+  await expect(page.getByRole("img", { name: "Código QR para la app autenticadora" })).toBeVisible();
+  const secret = (await page.locator(".totp-secret").innerText()).replace(/\s/g, "");
+  await expectNoHorizontalOverflow(page);
+  await page.getByLabel("Código de la app nueva").fill(totp(secret));
+  await page.getByRole("button", { name: "Activar app nueva e ingresar" }).click();
+  await expect(page.getByRole("heading", { name: /Buen día/ })).toBeVisible();
+
+  // Siguiente ingreso: se pide la app nueva y el enlace de recuperación sigue a mano.
+  await page.context().clearCookies();
+  await page.goto("/");
+  await page.getByLabel("Correo electrónico").fill(email);
+  await page.getByLabel("Contraseña").fill(password);
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await expect(page.getByRole("heading", { name: "Abre tu app autenticadora." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Perdí mi autenticador" })).toBeVisible();
   rmSync(codeFile(), { force: true });
 });
 

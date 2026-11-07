@@ -109,7 +109,18 @@ Qué servicio de nube, base de datos o API usa el proyecto y para qué sirve cad
 | 3 | Continuar | Valida la contraseña y envía el código a tu correo |
 
 Si los datos no coinciden, el mensaje es siempre «Correo o contraseña incorrectos», exista o no la
-cuenta. **¿Olvidaste tu contraseña?** envía un código de un solo uso para definir una nueva.
+cuenta.
+
+#### ¿Olvidaste tu contraseña?
+
+1. Pulsa **¿Olvidaste tu contraseña?**, escribe solo tu **Correo electrónico** y pulsa **Enviar enlace**.
+   La respuesta es siempre la misma, exista o no la cuenta.
+2. Abre el enlace del correo **Restablece tu contraseña · Laboratorio de pagos inmediatos**. Sirve una
+   sola vez y vence a los **30 minutos**; si venció, pide otro.
+3. En **Define tu contraseña nueva.** escribe la **Contraseña nueva** (mínimo 12 caracteres), repítela
+   y pulsa **Guardar contraseña nueva**.
+4. Se cierran todas tus sesiones abiertas. Ingresa con la contraseña nueva: tu verificación en dos
+   pasos sigue igual.
 
 ### 4.2 Crear una cuenta
 
@@ -133,6 +144,19 @@ cuenta. **¿Olvidaste tu contraseña?** envía un código de un solo uso para de
 | 2 | Verificar e ingresar | Entra a la plataforma |
 
 **¿No te llegó el código?** pide otro sin volver a escribir la contraseña.
+
+#### Perdí mi autenticador
+
+En la pantalla del segundo factor siempre está **Perdí mi autenticador**:
+
+1. Púlsalo: llega un **Código de recuperación** de 6 dígitos al correo de tu cuenta, aunque no uses el
+   código por correo como método. Vence a los **15 minutos** y sirve una sola vez; los envíos están
+   limitados.
+2. Escríbelo y pulsa **Verificar código**.
+3. Configura tu app autenticadora nueva: escanea el QR (o escribe la clave), escribe el **Código de la
+   app nueva** y pulsa **Activar app nueva e ingresar**. La app anterior deja de funcionar.
+
+La plataforma no tiene códigos de respaldo: la recuperación es siempre por el correo de la cuenta.
 
 La verificación en dos pasos es obligatoria y eliges el método:
 
@@ -304,7 +328,12 @@ Comprobado en el código del proyecto (`app/core/security.py`, `app/domains/auth
   contraseña quedan registrados (nunca contraseñas ni códigos) y se depuran solos.
 - **Mensaje único** ante credenciales inválidas, exista o no la cuenta.
 - **Sesiones con doble vencimiento:** por inactividad y por tiempo máximo. Cambiar la
-  contraseña cierra las demás sesiones; desactivar una cuenta cierra todas las suyas.
+  contraseña cierra las demás sesiones; restablecerla con el enlace o desactivar una cuenta
+  cierra todas las suyas.
+- **Recuperación segura:** el enlace para restablecer la contraseña es aleatorio, de un solo uso,
+  vence pronto y solo se guarda su huella; los enlaces inválidos repetidos bloquean temporalmente.
+  Perder la app autenticadora exige un código enviado al correo de la cuenta y configurar una app
+  nueva antes de entrar.
 - **Protección CSRF** y cookies restringidas al propio sitio.
 - **Roles validados en el servidor:** la interfaz solo oculta lo que el backend igual rechazaría.
 - **Pagos consistentes:** idempotencia por identificador, límite por operación, ledger que siempre

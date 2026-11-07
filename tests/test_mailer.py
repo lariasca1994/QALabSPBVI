@@ -136,3 +136,32 @@ def test_brevo_mailer_sends_html_and_text_alternative(
 
     assert captured["json"]["textContent"] == "Texto plano"
     assert captured["json"]["htmlContent"].startswith("<p style=")
+
+
+def test_every_email_carries_the_descriptive_portal_name() -> None:
+    from app.core.email_templates import PORTAL_NAME, EmailMessage, render_email
+    from app.domains.auth.passwords import reset_link_message
+    from app.domains.auth.service import mfa_code_message, recovery_code_message
+
+    messages = [
+        mfa_code_message("Ana", "123456"),
+        recovery_code_message("Ana", "123456"),
+        reset_link_message("Ana", "https://ejemplo.test/#restablecer=abc"),
+        EmailMessage(subject="[EPIC-1] Aviso", eyebrow="QA", heading="Aviso", greeting="Hola"),
+    ]
+    for message in messages:
+        content = render_email(message)
+        assert content.subject.endswith(f" · {PORTAL_NAME}")
+        assert content.subject.count(PORTAL_NAME) == 1
+        assert PORTAL_NAME in content.text and PORTAL_NAME in content.html
+        assert "QALabSPBVI" not in content.subject + content.text + content.html
+
+
+def test_reset_email_has_a_button_and_the_plain_link() -> None:
+    from app.core.email_templates import render_email
+    from app.domains.auth.passwords import reset_link_message
+
+    content = render_email(reset_link_message("Ana", "https://ejemplo.test/#restablecer=abc"))
+    assert 'href="https://ejemplo.test/#restablecer=abc"' in content.html
+    assert "https://ejemplo.test/#restablecer=abc" in content.text
+    assert "30 minutos" in content.text

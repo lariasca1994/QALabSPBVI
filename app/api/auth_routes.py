@@ -2,6 +2,8 @@ import logging
 import secrets
 from typing import Annotated
 
+from urllib.parse import urlsplit
+
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
@@ -14,6 +16,7 @@ from app.api.schemas import (
     MfaCodeRequest,
     MfaMethodRequest,
     PasswordChangeRequest,
+    PasswordResetCheckRequest,
     PasswordResetConfirmRequest,
     PasswordResetRequest,
     SignupRequest,
@@ -46,6 +49,7 @@ from app.domains.auth.passwords import (
     SamePasswordError,
     SignupRateLimitError,
     change_password,
+    check_password_reset,
     confirm_password_reset,
     register_user,
     request_password_reset,
@@ -58,6 +62,7 @@ from app.domains.auth.service import (
     PENDING_LOGIN_SECONDS,
     ResendCooldownError,
     complete_login,
+    complete_mfa_recovery,
     complete_totp_login,
     confirm_email_code,
     create_user,
@@ -67,6 +72,8 @@ from app.domains.auth.service import (
     resend_code,
     revoke_session,
     start_login,
+    start_mfa_recovery,
+    verify_mfa_recovery,
     welcome_message,
 )
 
@@ -277,6 +284,68 @@ def setup_totp_during_login(request: Request, db: DbSession) -> dict[str, str]:
         raise HTTPException(status.HTTP_409_CONFLICT, "Tu cuenta ya eligio su metodo; agrega la app desde Seguridad.")
     secret, uri = two_factor.start_totp_setup(db, user)
     return {"secret": secret, "uri": uri}
+
+
+@router.post("/mfa/recovery/start", status_code=status.HTTP_202_ACCEPTED)
+def start_lost_authenticator(
+    request: Request, response: Response, db: DbSession, mailer: MailerDependency
+) -> dict[str, str]:
+    """"Perdí mi autenticador": código al correo de la cuenta del inicio pendiente."""
+    verify_csrf(request)
+    pending_token = request.cookies.get(PENDING_LOGIN_COOKIE)
+    try:
+        start_mfa_recovery(db, pending_token=pending_token, mailer=mailer)
+    except InvalidChallengeError as error:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El inicio de sesion vencio. Ingresa de nuevo.") from error
+    except ResendCooldownError as error:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"Espera {error.retry_after} segundos antes de pedir otro codigo.",
+            headers={"Retry-After": str(error.retry_after)},
+        ) from error
+    except LoginRateLimitError as error:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Alcanzaste el maximo de codigos. Espera 15 minutos e intenta de nuevo.",
+            headers={"Retry-After": "900"},
+        ) from error
+    except MailDeliveryError as error:
+        logger.exception("No se pudo enviar el codigo de recuperacion del segundo factor.")
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "No se pudo enviar el codigo. Intenta nuevamente mas tarde.") from error
+    # El inicio pendiente se extendió: la cookie también.
+    _set_pending_login_cookie(response, pending_token or "")
+    return {"message": "Enviamos un codigo al correo de tu cuenta. Vence en 15 minutos."}
+
+
+@router.post("/mfa/recovery/verify")
+def verify_lost_authenticator(request: Request, payload: MfaCodeRequest, db: DbSession) -> dict[str, str]:
+    """Valida el código de recuperación y entrega el QR de la app autenticadora nueva."""
+    verify_csrf(request)
+    try:
+        secret, uri = verify_mfa_recovery(
+            db, pending_token=request.cookies.get(PENDING_LOGIN_COOKIE), code=payload.code
+        )
+    except InvalidChallengeError as error:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El codigo no es valido o vencio.") from error
+    return {"secret": secret, "uri": uri}
+
+
+@router.post("/mfa/recovery/activate")
+def activate_new_authenticator(
+    request: Request, payload: MfaCodeRequest, response: Response, db: DbSession
+) -> dict[str, str]:
+    """Confirma la app autenticadora nueva y completa el inicio de sesión."""
+    verify_csrf(request)
+    try:
+        user, raw_token, max_age = complete_mfa_recovery(
+            db, pending_token=request.cookies.get(PENDING_LOGIN_COOKIE), code=payload.code
+        )
+    except two_factor.TotpLockedError as error:
+        raise HTTPException(status.HTTP_423_LOCKED, "Demasiados codigos incorrectos. Espera 15 minutos e intenta de nuevo.") from error
+    except InvalidChallengeError as error:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El codigo no es correcto. Revisa la hora de tu telefono.") from error
+    _set_session_cookies(response, raw_token, max_age)
+    return {"message": "Autenticacion completada.", "role": user.role.value}
 
 
 @router.get("/mfa")
@@ -523,6 +592,29 @@ def post_change_password(
     return {"message": "Contraseña actualizada.", "closed_sessions": closed}
 
 
+RESET_NEUTRAL_MESSAGE = (
+    "Si el correo pertenece a una cuenta activa, te enviamos un enlace para restablecer la "
+    "contraseña. Revisa tu bandeja de entrada."
+)
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _reset_base_url(request: Request) -> str:
+    """Interfaz a la que apunta el enlace: el Origin de la solicitud solo si está permitido."""
+    allowed = [origin.strip().rstrip("/") for origin in get_settings().web_origins.split(",") if origin.strip()]
+    origin = (request.headers.get("origin") or "").rstrip("/")
+    if origin and origin in allowed:
+        return origin
+    if not _secure_cookie() and origin:
+        parts = urlsplit(origin)
+        if parts.scheme == "http" and parts.hostname in {"localhost", "127.0.0.1"}:
+            return origin
+    return allowed[0] if allowed else "http://127.0.0.1:5173"
+
+
 @router.post("/password-reset/request", status_code=status.HTTP_202_ACCEPTED)
 def post_password_reset_request(
     request: Request,
@@ -530,23 +622,42 @@ def post_password_reset_request(
     db: DbSession,
     mailer: MailerDependency,
 ) -> dict[str, str]:
-    """Envía un código de recuperación. Responde igual exista o no la cuenta."""
+    """Envía un enlace de un solo uso. Responde siempre igual, exista o no la cuenta."""
     verify_csrf(request)
     try:
-        request_password_reset(db, email=str(payload.email), mailer=mailer)
-    except ResetRateLimitError as error:
-        raise HTTPException(
+        request_password_reset(
+            db, email=str(payload.email), mailer=mailer, base_url=_reset_base_url(request)
+        )
+    except MailDeliveryError:
+        # Un error distinto revelaría que la cuenta existe: se registra y se responde igual.
+        logger.exception("No se pudo entregar el enlace de recuperacion.")
+    return {"message": RESET_NEUTRAL_MESSAGE}
+
+
+def _reset_error(error: Exception) -> HTTPException:
+    if isinstance(error, ResetRateLimitError):
+        return HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
-            "Ya pediste varios códigos. Espera unos minutos antes de volver a probar.",
+            "Demasiados intentos con enlaces no válidos. Espera 15 minutos.",
             headers={"Retry-After": "900"},
-        ) from error
-    except MailDeliveryError as error:
-        logger.exception("No se pudo entregar el codigo de recuperacion.")
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "No se pudo enviar el codigo. Intenta nuevamente mas tarde.",
-        ) from error
-    return {"message": "Si el correo pertenece a una cuenta activa, te enviamos un código para restablecer la contraseña."}
+        )
+    return HTTPException(
+        status.HTTP_400_BAD_REQUEST,
+        "El enlace no es válido o ya venció. Pide uno nuevo desde «¿Olvidaste tu contraseña?».",
+    )
+
+
+@router.post("/password-reset/check")
+def post_password_reset_check(
+    request: Request, payload: PasswordResetCheckRequest, db: DbSession
+) -> dict[str, str]:
+    """Comprueba el enlace al abrirlo, sin usarlo."""
+    verify_csrf(request)
+    try:
+        check_password_reset(db, token=payload.token, client_ip=_client_ip(request))
+    except (InvalidResetCodeError, ResetRateLimitError) as error:
+        raise _reset_error(error) from error
+    return {"message": "Enlace válido."}
 
 
 @router.post("/password-reset/confirm")
@@ -558,11 +669,16 @@ def post_password_reset_confirm(
     verify_csrf(request)
     try:
         confirm_password_reset(
-            db, email=str(payload.email), code=payload.code, new_password=payload.new_password
+            db, token=payload.token, new_password=payload.new_password, client_ip=_client_ip(request)
         )
-    except InvalidResetCodeError as error:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El código no es válido o ya venció.") from error
-    return {"message": "Contraseña restablecida. Ya puedes iniciar sesión con la nueva."}
+    except (InvalidResetCodeError, ResetRateLimitError) as error:
+        raise _reset_error(error) from error
+    return {
+        "message": (
+            "Contraseña restablecida. Cerramos tus sesiones abiertas; ingresa con la contraseña "
+            "nueva y tu verificación en dos pasos de siempre."
+        )
+    }
 
 
 @router.patch("/users/{user_id}", response_model=UserResponse)

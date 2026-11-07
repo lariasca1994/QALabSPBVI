@@ -85,7 +85,7 @@ Resources:
       Environment:
         Variables:
           BREVO_SENDER_EMAIL: !Ref BrevoSenderEmail
-          BREVO_SENDER_NAME: QALabSPBVI
+          BREVO_SENDER_NAME: Laboratorio de pagos inmediatos
           BREVO_API_KEY_PARAMETER: !Ref BrevoApiKeyParameterName
       # Código inicial mínimo: deploy.sh y la CD lo reemplazan por services/notifier/handler.py.
       Code:

@@ -27,6 +27,7 @@ import {
   ScrollText,
   Search,
   ShieldCheck,
+  Smartphone,
   Sun,
   Trash2,
   UserPlus,
@@ -43,8 +44,8 @@ import { AuditPage } from "./AuditPage";
 import { PaymentParties, SpbviField, useAccounts, useSpbvis } from "./LabDirectory";
 import { QrCollect, QrPay, type QrResult } from "./QrPayments";
 import { useInstallPrompt } from "./pwa";
-import { ChangePasswordModal, PasswordReset, SignupForm } from "./PasswordForms";
-import { SecurityModal, TotpSetupBlock } from "./TwoFactor";
+import { ChangePasswordModal, PasswordReset, PasswordResetFromLink, SignupForm } from "./PasswordForms";
+import { LostAuthenticator, SecurityModal, TotpSetupBlock } from "./TwoFactor";
 import { api, ApiError, type Epic, type KeyTypeInfo, type LoginStep, type Payment, type TotpSetup, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
@@ -73,7 +74,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
       </div>
       {!compact && (
         <div className="brand-copy">
-          <strong>qalab<span>spbvi</span></strong>
+          <strong>pagos <span>inmediatos</span></strong>
           <small>LABORATORIO DE PAGOS</small>
         </div>
       )}
@@ -103,12 +104,18 @@ function AuthScreen({
   onVerify,
   onResend,
   onBack,
+  onRecovered,
+  resetToken,
+  onResetFinished,
   error,
   busy,
   theme,
   onToggleTheme,
 }: {
   mode: "login" | "mfa";
+  onRecovered: () => Promise<void>;
+  resetToken: string | null;
+  onResetFinished: (message?: string) => void;
   step: LoginStep | null;
   onLogin: (email: string, password: string) => Promise<void>;
   onVerify: (code: string, method: "email" | "totp") => Promise<void>;
@@ -132,12 +139,15 @@ function AuthScreen({
   const [method, setMethod] = useState<"email" | "totp">("email");
   const [totpSetup, setTotpSetup] = useState<TotpSetup | null>(null);
   const [setupError, setSetupError] = useState("");
+  // "Perdí mi autenticador": recuperación del segundo factor por correo.
+  const [recovering, setRecovering] = useState(false);
 
   useEffect(() => {
     if (mode === "mfa") {
       setMethod(step?.method ?? "email");
       setTotpSetup(null);
       setSetupError("");
+      setRecovering(false);
       setResendWait(step?.method === "totp" ? 0 : RESEND_COOLDOWN_SECONDS);
       setCode("");
     }
@@ -242,13 +252,17 @@ function AuthScreen({
         </div>
         <div className="auth-form-wrap">
           <div className="auth-icon"><ShieldCheck size={23} /></div>
-          <span className="eyebrow eyebrow--muted">{signingUp ? "NUEVA CUENTA" : resetting ? "RECUPERAR ACCESO" : mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
-          <h2>{signingUp ? "Crea tu cuenta." : resetting ? "Restablece tu contraseña." : mode === "login" ? "Qué bueno verte." : method === "totp" ? "Abre tu app autenticadora." : "Revisa tu correo."}</h2>
+          <span className="eyebrow eyebrow--muted">{signingUp ? "NUEVA CUENTA" : resetToken || resetting || (mode === "mfa" && recovering) ? "RECUPERAR ACCESO" : mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
+          <h2>{signingUp ? "Crea tu cuenta." : resetToken ? "Define tu contraseña nueva." : resetting ? "Restablece tu contraseña." : mode === "mfa" && recovering ? "Recupera tu acceso." : mode === "login" ? "Qué bueno verte." : method === "totp" ? "Abre tu app autenticadora." : "Revisa tu correo."}</h2>
           <p className="auth-description">
             {signingUp
               ? "Es una demo: tu cuenta se crea con rol usuario y queda pendiente de asignación a una épica."
+              : resetToken
+              ? "Escribe tu contraseña nueva dos veces. El enlace sirve una sola vez."
               : resetting
-              ? "Te enviamos un código al correo de tu cuenta para definir una contraseña nueva."
+              ? "Escribe el correo de tu cuenta y te enviaremos un enlace para definir una contraseña nueva."
+              : mode === "mfa" && recovering
+              ? "Te enviamos un código al correo de tu cuenta. Después configurarás tu app autenticadora nueva."
               : mode === "login"
               ? "Ingresa a tu espacio de pruebas y operaciones."
               : method === "totp"
@@ -259,8 +273,12 @@ function AuthScreen({
           </p>
           {signingUp ? (
             <SignupForm onCancel={() => setSigningUp(false)} onDone={(message) => { setSigningUp(false); setNotice(message); }} />
+          ) : resetToken ? (
+            <PasswordResetFromLink onCancel={() => { setResetting(false); onResetFinished(); }} onDone={(message) => { setResetting(false); setNotice(message); onResetFinished(message); }} token={resetToken} />
           ) : resetting ? (
-            <PasswordReset onCancel={() => setResetting(false)} onDone={(message) => { setResetting(false); setNotice(message); }} />
+            <PasswordReset onCancel={() => setResetting(false)} />
+          ) : mode === "mfa" && recovering ? (
+            <LostAuthenticator onCancel={() => { setRecovering(false); onBack(); }} onDone={onRecovered} />
           ) : (
           <>
           <form className="form-stack" onSubmit={submit}>
@@ -347,6 +365,11 @@ function AuthScreen({
                 {resendWait > 0 ? `Reenviar en ${formatWait(resendWait)}` : "Reenviar código"}
               </button>
             </div>
+          )}
+          {mode === "mfa" && (
+            <button className="text-button back-button" disabled={busy} onClick={() => { setNotice(""); setRecovering(true); }} type="button">
+              <Smartphone size={15} /> Perdí mi autenticador
+            </button>
           )}
           {mode === "mfa" && (
             <button className="text-button back-button" onClick={onBack} type="button">
@@ -437,8 +460,28 @@ function KeyTypeFields({ idPrefix, typeName, valueName, typeLabel, valueLabel, v
   );
 }
 
+/** Token del enlace de recuperación (/#restablecer=...); se quita de la barra de direcciones. */
+function readResetToken(): string | null {
+  return window.location.hash.match(/^#restablecer=([A-Za-z0-9_-]{20,128})$/)?.[1] ?? null;
+}
+
 function App() {
   const [theme, setTheme] = useState<Theme>(readTheme);
+  const [resetToken, setResetToken] = useState<string | null>(readResetToken);
+  useEffect(() => {
+    // El token no queda en la barra de direcciones ni en el historial. Si el enlace se abre en
+    // una pestaña donde la app ya estaba cargada, solo cambia el fragmento (hashchange).
+    function takeToken() {
+      const token = readResetToken();
+      if (token) setResetToken(token);
+      if (window.location.hash.startsWith("#restablecer=")) {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    }
+    takeToken();
+    window.addEventListener("hashchange", takeToken);
+    return () => window.removeEventListener("hashchange", takeToken);
+  }, []);
   const [auth, setAuth] = useState<AuthState>("checking");
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
@@ -606,6 +649,12 @@ function App() {
     }
   }
 
+  async function handleRecovered() {
+    const currentUser = await api.me();
+    setUser(currentUser);
+    setAuth("app");
+  }
+
   async function handleLogout() {
     try {
       await api.logout();
@@ -663,12 +712,19 @@ function App() {
   if (auth === "checking") {
     return <main className="loading-screen"><Brand /><LoaderCircle className="spin" size={22} /><span>Conectando con tu espacio…</span></main>;
   }
-  if (auth === "login" || auth === "mfa") {
+  if (auth === "login" || auth === "mfa" || (resetToken && auth === "app")) {
     return (
       <AuthScreen
         busy={busy}
         error={authError}
-        mode={auth}
+        mode={auth === "mfa" ? "mfa" : "login"}
+        resetToken={resetToken}
+        onResetFinished={(message) => {
+          setResetToken(null);
+          // Restablecer la contraseña cierra todas las sesiones.
+          if (message) { setUser(null); setAuth("login"); }
+        }}
+        onRecovered={handleRecovered}
         step={loginStep}
         onBack={() => { setAuth("login"); setAuthError(""); }}
         onLogin={handleLogin}

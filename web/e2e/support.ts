@@ -51,6 +51,10 @@ export function e2eAdminEmail(accountName: string): string {
   return credentials(accountName).email;
 }
 
+export function credentialsPassword(accountName: string): string {
+  return credentials(accountName).password;
+}
+
 /** Borra el último código escrito por el emisor de correo falso del servidor E2E. */
 export function clearMfaCode(): void {
   rmSync(e2eFile("mfa-code.txt"), { force: true });

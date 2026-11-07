@@ -119,7 +119,9 @@ QALabSPBVI es el proyecto destacado del portafolio: integra en un solo sistema l
 - Contraseña protegida y segundo factor obligatorio a elección: app autenticadora (TOTP) o código
   por correo con reenvío; desde **Seguridad** se agrega el otro método y se elige el preferido.
 - Credenciales inválidas informadas con un único mensaje, exista o no la cuenta.
-- Cambio de la propia contraseña (cierra las demás sesiones) y recuperación con un código de un solo uso por correo.
+- Cambio de la propia contraseña (cierra las demás sesiones) y recuperación con un enlace de un solo uso por correo (cierra todas las sesiones; la verificación en dos pasos sigue igual).
+- **Perdí mi autenticador**: código por correo a la cuenta, aunque el método correo no esté activo, y configuración obligatoria de una app autenticadora nueva antes de entrar.
+- Los correos y la app autenticadora muestran el nombre **Laboratorio de pagos inmediatos**.
 - Activación y desactivación de cuentas desde Usuarios y roles; desactivar cierra las sesiones de la cuenta.
 - Roles `admin`, `administrador` y `usuario`; sesiones con vencimiento por inactividad y absoluto, y protección CSRF.
 
@@ -269,7 +271,8 @@ Cada plataforma cumple una función distinta; ninguna concentra todo el sistema.
 4. La primera vez puedes elegir **Configurar app autenticadora** en lugar del código del correo:
    escanea el QR (o escribe la clave) y confirma con el primer código. Desde **Seguridad** (ícono del
    escudo, arriba) agregas el método que no elegiste y escoges cuál se pide por defecto.
-5. Si olvidaste la contraseña, pulsa **¿Olvidaste tu contraseña?**: recibirás un código por correo para definir una nueva.
+5. Si olvidaste la contraseña, pulsa **¿Olvidaste tu contraseña?** y escribe tu correo: recibirás un enlace de un solo uso (vence en 30 minutos) que abre **Define tu contraseña nueva.**, donde solo escribes la contraseña nueva y su confirmación.
+6. Si perdiste la app autenticadora, pulsa **Perdí mi autenticador** en la pantalla del segundo factor: llega un código a tu correo (vence en 15 minutos) y, al verificarlo, configuras la app nueva con su QR antes de entrar.
 
 ### 5.3 Pantallas principales
 
@@ -394,6 +397,21 @@ Cualquier persona crea su cuenta desde **Crear cuenta**. El papel del `admin` y 
    `/auth/mfa/totp/start|activate`, `/auth/mfa/email/start|activate` y `/auth/mfa/preferred` agregan el
    otro método y eligen el preferido. La clave de la app se guarda cifrada, un código no se
    acepta dos veces y los errados la bloquean temporalmente.
+
+5. **Perdí mi autenticador:** con la cookie del inicio pendiente, `POST /auth/mfa/recovery/start` envía un
+   código al correo de la cuenta (aunque el método correo no esté activo), `POST /auth/mfa/recovery/verify`
+   lo valida y entrega la clave y el `otpauth://` de la app nueva, y `POST /auth/mfa/recovery/activate`
+   la confirma con su primer código y abre la sesión. La app anterior sigue valiendo hasta ese paso.
+
+#### Recuperación de contraseña
+
+1. `POST /auth/password-reset/request` recibe solo el correo y responde siempre lo mismo. Si la cuenta
+   existe, envía un enlace `/#restablecer=…` con un token aleatorio de un solo uso; solo se guarda su
+   hash. El enlace apunta únicamente a las interfaces permitidas (`WEB_ORIGINS`).
+2. `POST /auth/password-reset/check` comprueba el enlace al abrirlo, sin consumirlo.
+3. `POST /auth/password-reset/confirm` recibe el token y la contraseña nueva: invalida los enlaces de la
+   cuenta, cierra todas sus sesiones y deja la verificación en dos pasos como estaba. Los enlaces
+   inválidos repetidos desde una conexión la bloquean temporalmente.
 
 El código vence en pocos minutos, tiene intentos limitados y es de un solo uso. Toda operación que cambia estado exige el token CSRF (`GET /auth/csrf` y cabecera `X-CSRF-Token`).
 
