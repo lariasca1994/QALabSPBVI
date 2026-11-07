@@ -113,6 +113,13 @@ cuenta.
 
 #### ¿Olvidaste tu contraseña?
 
+![Recuperar la contraseña con el correo](img/manual/10-recuperar.png)
+
+| # | Campo | Qué escribir |
+|:-:|---|---|
+| 1 | Correo electrónico | Solo el correo de tu cuenta |
+| 2 | Enviar enlace | Envía el enlace de un solo uso si la cuenta existe; la respuesta es la misma en cualquier caso |
+
 1. Pulsa **¿Olvidaste tu contraseña?**, escribe solo tu **Correo electrónico** y pulsa **Enviar enlace**.
    La respuesta es siempre la misma, exista o no la cuenta.
 2. Abre el enlace del correo **Restablece tu contraseña · Laboratorio de pagos inmediatos**. Sirve una
@@ -142,6 +149,7 @@ cuenta.
 |:-:|---|---|
 | 1 | Código de acceso | Los 6 dígitos que llegaron a tu correo (vencen a los **5 minutos** y sirven una sola vez) o los que muestra tu app autenticadora |
 | 2 | Verificar e ingresar | Entra a la plataforma |
+| 3 | Perdí mi autenticador | Siempre visible: envía un código de recuperación al correo de la cuenta (ver abajo) |
 
 **¿No te llegó el código?** pide otro sin volver a escribir la contraseña.
 
