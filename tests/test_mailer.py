@@ -165,3 +165,32 @@ def test_reset_email_has_a_button_and_the_plain_link() -> None:
     assert 'href="https://ejemplo.test/#restablecer=abc"' in content.html
     assert "https://ejemplo.test/#restablecer=abc" in content.text
     assert "30 minutos" in content.text
+
+
+def test_sender_name_uses_the_portal_name_when_empty_or_legacy() -> None:
+    from app.core.email_templates import PORTAL_NAME, sender_name
+
+    assert sender_name("") == PORTAL_NAME
+    assert sender_name(None) == PORTAL_NAME
+    assert sender_name("QALabSPBVI") == PORTAL_NAME
+    assert sender_name(" qalabspbvi ") == PORTAL_NAME
+    assert sender_name("Otro remitente") == "Otro remitente"
+
+
+def test_brevo_mailer_replaces_the_legacy_sender_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BREVO_API_KEY", "local-test-api-key")
+    monkeypatch.setenv("BREVO_SENDER_EMAIL", "qa@example.com")
+    monkeypatch.setenv("BREVO_SENDER_NAME", "QALabSPBVI")
+    config.get_settings.cache_clear()
+    captured: dict[str, object] = {}
+
+    def fake_post(url: str, **kwargs) -> httpx.Response:
+        captured["json"] = kwargs["json"]
+        return httpx.Response(201, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr("app.core.mailer.httpx.post", fake_post)
+    try:
+        BrevoMailer().send(recipient="ana@example.com", subject="Asunto", body="texto")
+    finally:
+        config.get_settings.cache_clear()
+    assert captured["json"]["sender"]["name"] == "Laboratorio de pagos inmediatos"

@@ -6,7 +6,7 @@ import httpx
 from fastapi import Depends
 
 from app.core.config import get_settings
-from app.core.email_templates import EmailMessage, render_email
+from app.core.email_templates import EmailMessage, render_email, sender_name
 
 
 class MailDeliveryError(RuntimeError):
@@ -30,7 +30,7 @@ class BrevoMailer:
         payload = {
             "sender": {
                 "email": settings.brevo_sender_email,
-                "name": settings.brevo_sender_name,
+                "name": sender_name(settings.brevo_sender_name),
             },
             "to": [{"email": recipient}],
             "subject": subject,

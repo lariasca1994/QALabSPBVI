@@ -188,6 +188,17 @@ Este es un mensaje automático; no respondas a este correo.
 </html>"""
 
 
+# Nombres de remitente heredados que se reemplazan por el descriptivo (la variable de la nube
+# puede seguir con el valor anterior: no se edita a mano).
+_LEGACY_SENDER_NAMES = {"", "qalabspbvi"}
+
+
+def sender_name(configured: str | None) -> str:
+    """Nombre del remitente: el configurado, salvo vacío o el nombre interno anterior."""
+    value = (configured or "").strip()
+    return PORTAL_NAME if value.casefold() in _LEGACY_SENDER_NAMES else value
+
+
 def subject_with_portal(subject: str) -> str:
     """Todo asunto lleva el nombre del portal (una sola vez)."""
     if PORTAL_NAME.casefold() in subject.casefold():

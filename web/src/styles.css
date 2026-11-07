@@ -157,6 +157,7 @@ h1, h2, h3, .brand-copy strong { font-family: Inter, "Segoe UI", Arial, sans-ser
 .icon-button--subtle { width: 30px; height: 30px; border-color: transparent; background: transparent; }
 .text-button { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; cursor: pointer; color: var(--blue); background: transparent; font-size: 11px; font-weight: 600; }
 .back-button { margin-top: 18px; }
+.auth-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 18px; margin-top: 18px; }
 .inline-notice { display: flex; align-items: flex-start; gap: 8px; color: var(--green); font-size: 11px; line-height: 1.5; }
 .inline-notice svg { flex: 0 0 auto; }
 .alert { display: flex; align-items: center; gap: 9px; padding: 11px 12px; border: 1px solid transparent; border-radius: 7px; font-size: 11px; line-height: 1.5; }

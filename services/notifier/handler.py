@@ -19,6 +19,13 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 BREVO_URL = "https://api.brevo.com/v3/smtp/email"
+PORTAL_NAME = "Laboratorio de pagos inmediatos"
+
+
+def _sender_name() -> str:
+    """Nombre del remitente: el de la variable, salvo vacío o el nombre interno anterior."""
+    value = os.environ.get("BREVO_SENDER_NAME", "").strip()
+    return PORTAL_NAME if value.casefold() in {"", "qalabspbvi"} else value
 _api_key: str | None = None
 
 
@@ -43,7 +50,7 @@ def send_email(message: dict, api_key: str, opener=urllib.request.urlopen) -> No
     payload = {
         "sender": {
             "email": os.environ["BREVO_SENDER_EMAIL"],
-            "name": os.environ.get("BREVO_SENDER_NAME", "Laboratorio de pagos inmediatos"),
+            "name": _sender_name(),
         },
         "to": [{"email": message["recipient"]}],
         "subject": message["subject"],

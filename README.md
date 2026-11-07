@@ -208,7 +208,8 @@ Todos los correos (código MFA, bienvenida y avisos QA) usan una sola plantilla 
 
 - **Formato:** HTML con CSS inline y una columna adaptable, más una alternativa en texto plano.
 - **Sin recursos externos:** no usan JavaScript, imágenes, fuentes ni hojas de estilo externas.
-- **Contenido:** nunca incluyen credenciales, tokens ni datos de pagos. La única excepción es el código MFA, que se muestra con su vencimiento y el aviso de no compartirlo.
+- **Contenido:** nunca incluyen credenciales, tokens ni datos de pagos. Las únicas excepciones son el código MFA y el enlace de un solo uso para restablecer la contraseña, que se muestran con su vencimiento y el aviso de no compartirlos.
+- **Nombre:** el asunto, el encabezado, el pie y el remitente dicen **Laboratorio de pagos inmediatos**. Si `BREVO_SENDER_NAME` viene vacía o con el nombre interno anterior, la API y la Lambda de avisos usan ese nombre.
 
 Salen por la API HTTP de Brevo y el remitente (`BREVO_SENDER_EMAIL`) debe estar verificado:
 

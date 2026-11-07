@@ -52,3 +52,21 @@ def test_malformed_message_is_returned_for_retry(monkeypatch) -> None:
     monkeypatch.setenv("BREVO_SENDER_EMAIL", "lab@example.com")
     result = notifier.handler({"Records": [{"messageId": "9", "body": "no-json"}]}, None, api_key="k")
     assert result == {"batchItemFailures": [{"itemIdentifier": "9"}]}
+
+
+def test_legacy_or_empty_sender_name_becomes_the_portal_name(monkeypatch) -> None:
+    monkeypatch.setenv("BREVO_SENDER_EMAIL", "lab@example.com")
+    sent = []
+
+    def opener(request, timeout):
+        sent.append(json.loads(request.data))
+        return Response(201)
+
+    for value in ("QALabSPBVI", ""):
+        monkeypatch.setenv("BREVO_SENDER_NAME", value)
+        notifier.handler({"Records": [record("1", "ana@example.com")]}, None, api_key="k", opener=opener)
+    monkeypatch.setenv("BREVO_SENDER_NAME", "Otro remitente")
+    notifier.handler({"Records": [record("2", "ana@example.com")]}, None, api_key="k", opener=opener)
+    assert [payload["sender"]["name"] for payload in sent] == [
+        "Laboratorio de pagos inmediatos", "Laboratorio de pagos inmediatos", "Otro remitente",
+    ]

@@ -367,14 +367,14 @@ function AuthScreen({
             </div>
           )}
           {mode === "mfa" && (
-            <button className="text-button back-button" disabled={busy} onClick={() => { setNotice(""); setRecovering(true); }} type="button">
-              <Smartphone size={15} /> Perdí mi autenticador
-            </button>
-          )}
-          {mode === "mfa" && (
-            <button className="text-button back-button" onClick={onBack} type="button">
-              <ArrowLeftRight size={15} /> Volver al inicio de sesión
-            </button>
+            <div className="auth-links">
+              <button className="text-button" disabled={busy} onClick={() => { setNotice(""); setRecovering(true); }} type="button">
+                <Smartphone size={15} /> Perdí mi autenticador
+              </button>
+              <button className="text-button" onClick={onBack} type="button">
+                <ArrowLeftRight size={15} /> Volver al inicio de sesión
+              </button>
+            </div>
           )}
           {mode === "login" && (
             <button className="text-button back-button" onClick={() => { setNotice(""); setResetting(true); }} type="button">
