@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeftRight, Check, LoaderCircle, Mail, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { api, type MfaMethods, type TotpSetup } from "./api";
 import { friendlyError, Modal } from "./ui";
+import { CampoCodigo } from "./efectos/CampoCodigo";
 
 /** QR (otpauth://) y clave para configurar la app autenticadora. */
 export function TotpSetupBlock({ setup }: { setup: TotpSetup }) {
@@ -31,18 +32,7 @@ function CodeField({ id, value, onChange, label = "Código" }: { id: string; val
   return (
     <>
       <label className="field-label" htmlFor={id}>{label}</label>
-      <input
-        autoComplete="one-time-code"
-        className="text-input code-input"
-        id={id}
-        inputMode="numeric"
-        maxLength={6}
-        onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 6))}
-        placeholder="· · · · · ·"
-        required
-        type="text"
-        value={value}
-      />
+      <CampoCodigo id={id} onChange={onChange} value={value} />
     </>
   );
 }

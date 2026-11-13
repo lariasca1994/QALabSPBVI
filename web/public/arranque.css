@@ -38,3 +38,5 @@
   #arranque .trazo { stroke-dashoffset: 0 !important; }
   #arranque .surge, #arranque .sube, #arranque .arranque-nombre, #arranque .arranque-lema { opacity: 1 !important; transform: none !important; }
 }
+
+html.arrancando #root, html.arrancando #root * { animation-play-state: paused !important; }

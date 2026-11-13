@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import {
   Activity,
   ArrowDownLeft,
@@ -10,6 +10,7 @@ import {
   Bug,
   Check,
   ChevronDown,
+  ChevronsLeft,
   CircleHelp,
   CircleDollarSign,
   ClipboardCheck,
@@ -20,6 +21,7 @@ import {
   LayoutDashboard,
   LoaderCircle,
   LogOut,
+  MoreHorizontal,
   Moon,
   Plus,
   QrCode,
@@ -46,11 +48,17 @@ import { QrCollect, QrPay, type QrResult } from "./QrPayments";
 import { useInstallPrompt } from "./pwa";
 import { ChangePasswordModal, PasswordReset, PasswordResetFromLink, SignupForm } from "./PasswordForms";
 import { LostAuthenticator, SecurityModal, TotpSetupBlock } from "./TwoFactor";
+import { Transicion } from "./efectos/Transicion";
+import { Candado, type EstadoCandado } from "./efectos/Candado";
+import { CampoCodigo } from "./efectos/CampoCodigo";
+import { AnilloCodigo } from "./efectos/AnilloCodigo";
+import { Cifra } from "./efectos/Cifra";
+import { Mantenimiento } from "./efectos/Mantenimiento";
 import { api, ApiError, type Epic, type KeyTypeInfo, type LoginStep, type Payment, type TotpSetup, type User, type WorkItem } from "./api";
 
 type Theme = "light" | "dark";
 type View = "overview" | "keys" | "payments" | "qr" | "quality" | "bugs" | "audit" | "users";
-type AuthState = "checking" | "login" | "mfa" | "app";
+type AuthState = "checking" | "login" | "mfa" | "app" | "maintenance";
 
 interface ActionResult {
   method: string;
@@ -111,7 +119,9 @@ function AuthScreen({
   busy,
   theme,
   onToggleTheme,
+  verified = false,
 }: {
+  verified?: boolean;
   mode: "login" | "mfa";
   onRecovered: () => Promise<void>;
   resetToken: string | null;
@@ -141,6 +151,10 @@ function AuthScreen({
   const [setupError, setSetupError] = useState("");
   // "Perdí mi autenticador": recuperación del segundo factor por correo.
   const [recovering, setRecovering] = useState(false);
+  // Candado del segundo factor: tiembla un momento ante un código equivocado.
+  const [codeFailed, setCodeFailed] = useState(false);
+  // Cada envío de un código por correo reinicia su cuenta regresiva.
+  const [sends, setSends] = useState(0);
 
   useEffect(() => {
     if (mode === "mfa") {
@@ -149,6 +163,7 @@ function AuthScreen({
       setSetupError("");
       setRecovering(false);
       setResendWait(step?.method === "totp" ? 0 : RESEND_COOLDOWN_SECONDS);
+      setSends((n) => n + 1);
       setCode("");
     }
   }, [mode, step]);
@@ -172,6 +187,7 @@ function AuthScreen({
       setMethod("email");
       setCode("");
       setNotice("Te enviamos un código al correo.");
+      setSends((n) => n + 1);
       setResendWait(RESEND_COOLDOWN_SECONDS);
     } catch {
       // El mensaje de error lo muestra el contenedor.
@@ -190,6 +206,7 @@ function AuthScreen({
     try {
       await onResend();
       setCode("");
+      setSends((n) => n + 1);
       setNotice("Te enviamos un código nuevo. El anterior ya no sirve.");
     } catch {
       // El mensaje de error lo muestra el contenedor.
@@ -210,9 +227,19 @@ function AuthScreen({
         await onVerify(code, method);
       }
     } catch {
+      if (mode === "mfa") {
+        setCodeFailed(true);
+        window.setTimeout(() => setCodeFailed(false), 700);
+      }
       return;
     }
   }
+
+  // Paso visible del panel: al cambiar, el contenido se desliza en la misma pantalla.
+  const pane = signingUp ? "registro" : resetToken ? "nueva" : resetting ? "olvide" : mode === "mfa" && recovering ? "recuperar" : mode === "login" ? "login" : `mfa-${method}${totpSetup ? "-config" : ""}`;
+  const stepOrder = { login: 0, olvide: 1, registro: 1, nueva: 1, recuperar: 3 }[pane] ?? 2;
+  const showLock = !signingUp && !resetToken && !resetting && mode === "mfa" && !recovering;
+  const lockState: EstadoCandado = verified ? "abierto" : codeFailed ? "error" : busy ? "verificando" : "normal";
 
   return (
     <main className="auth-layout">
@@ -251,7 +278,8 @@ function AuthScreen({
           <ThemeButton theme={theme} onToggle={onToggleTheme} />
         </div>
         <div className="auth-form-wrap">
-          <div className="auth-icon"><ShieldCheck size={23} /></div>
+          <div className="auth-icon">{showLock ? <Candado estado={lockState} /> : <ShieldCheck size={23} />}</div>
+          <Transicion clave={pane} orden={stepOrder} className="auth-paso">
           <span className="eyebrow eyebrow--muted">{signingUp ? "NUEVA CUENTA" : resetToken || resetting || (mode === "mfa" && recovering) ? "RECUPERAR ACCESO" : mode === "login" ? "ACCESO SEGURO" : "SEGUNDO FACTOR"}</span>
           <h2>{signingUp ? "Crea tu cuenta." : resetToken ? "Define tu contraseña nueva." : resetting ? "Restablece tu contraseña." : mode === "mfa" && recovering ? "Recupera tu acceso." : mode === "login" ? "Qué bueno verte." : method === "totp" ? "Abre tu app autenticadora." : "Revisa tu correo."}</h2>
           <p className="auth-description">
@@ -311,19 +339,8 @@ function AuthScreen({
               <>
                 {totpSetup && method === "totp" && <TotpSetupBlock setup={totpSetup} />}
                 <label className="field-label" htmlFor="mfa-code">{method === "totp" ? "Código de la app" : "Código de acceso"}</label>
-                <input
-                  autoComplete="one-time-code"
-                  className="text-input code-input"
-                  id="mfa-code"
-                  inputMode="numeric"
-                  maxLength={6}
-                  onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="· · · · · ·"
-                  required
-                  type="text"
-                  value={code}
-                />
-                <p className="field-hint">{method === "totp" ? "La app muestra un código nuevo cada 30 segundos." : "El código es de un solo uso y vence en 5 minutos."}</p>
+                <CampoCodigo error={codeFailed} id="mfa-code" onChange={setCode} value={code} />
+                {method === "totp" ? <AnilloCodigo /> : <AnilloCodigo key={sends} minutos={5} />}
               </>
             )}
             {notice && <div className="inline-notice"><Check size={16} />{notice}</div>}
@@ -389,6 +406,7 @@ function AuthScreen({
           )}
           </>
           )}
+          </Transicion>
           <div className="auth-security-note">
             <ShieldCheck size={16} />
             <span>Conexión de laboratorio · Tus credenciales no se guardan en el navegador.</span>
@@ -510,6 +528,16 @@ function App() {
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userNotice, setUserNotice] = useState("");
   const [userError, setUserError] = useState("");
+  // El candado se abre un momento antes de entrar.
+  const [verified, setVerified] = useState(false);
+  // Menú compacto (se recuerda en este equipo) y hoja "Más" del teléfono.
+  const [compact, setCompact] = useState(() => { try { return localStorage.getItem("qalab-menu") === "compacto"; } catch { return false; } });
+  const [firstMenu, setFirstMenu] = useState(true);
+  const navRef = useRef<HTMLElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  const hoverRef = useRef<HTMLSpanElement>(null);
+  const moreRef = useRef<HTMLDialogElement>(null);
+  const [tooltip, setTooltip] = useState<{ text: string; top: number } | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -527,8 +555,13 @@ function App() {
       })
       .catch((error: unknown) => {
         if (active) {
+          // Sin respuesta de la API (red o 502/503/504): pantalla de mantenimiento.
+          if (!(error instanceof ApiError) || [502, 503, 504].includes(error.status)) {
+            setAuth("maintenance");
+            return;
+          }
           setAuth("login");
-          if (!(error instanceof ApiError && error.status === 401)) {
+          if (error.status !== 401) {
             setAuthError(friendlyError(error));
           }
         }
@@ -639,12 +672,17 @@ function App() {
       if (method === "totp") await api.verifyTotp(code);
       else await api.verifyCode(email, code);
       const currentUser = await api.me();
+      setVerified(true);
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        await new Promise((resolve) => window.setTimeout(resolve, 450));
+      }
       setUser(currentUser);
       setAuth("app");
     } catch (error) {
       setAuthError(friendlyError(error));
       throw error;
     } finally {
+      setVerified(false);
       setBusy(false);
     }
   }
@@ -709,6 +747,74 @@ function App() {
       : []),
   ], [user]);
 
+  // En el teléfono caben cinco secciones; con más, la última casilla es "Más".
+  const MOBILE_SLOTS = 5;
+  const moreItems = visibleNav.length > MOBILE_SLOTS ? visibleNav.slice(MOBILE_SLOTS) : [];
+  const navOrder = (id: View) => Math.max(0, visibleNav.findIndex((item) => item.id === id));
+
+  const placeIndicator = useCallback((instant: boolean) => {
+    const nav = navRef.current;
+    const indicator = indicatorRef.current;
+    if (!nav || !indicator) return;
+    let target = nav.querySelector<HTMLElement>(".nav-link--active");
+    if (!target || target.offsetParent === null) target = nav.querySelector<HTMLElement>("[data-more]");
+    if (!target || target.offsetParent === null || (target.dataset.more !== undefined && !moreItems.some((item) => item.id === view))) {
+      indicator.style.opacity = "0";
+      return;
+    }
+    indicator.style.opacity = "1";
+    if (instant) nav.dataset.quieto = "";
+    indicator.style.transform = `translate(${target.offsetLeft}px, ${target.offsetTop}px)`;
+    indicator.style.width = `${target.offsetWidth}px`;
+    indicator.style.height = `${target.offsetHeight}px`;
+    if (instant) requestAnimationFrame(() => requestAnimationFrame(() => { delete nav.dataset.quieto; }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, moreItems.length]);
+
+  useLayoutEffect(() => { placeIndicator(false); }, [placeIndicator, compact, auth]);
+  useEffect(() => {
+    if (auth !== "app" || !navRef.current) return undefined;
+    const observer = new ResizeObserver(() => placeIndicator(true));
+    observer.observe(navRef.current);
+    const done = window.setTimeout(() => setFirstMenu(false), 1200);
+    return () => { observer.disconnect(); window.clearTimeout(done); };
+  }, [auth, placeIndicator]);
+
+  function toggleMenu() {
+    const next = !compact;
+    setCompact(next);
+    setTooltip(null);
+    try { localStorage.setItem("qalab-menu", next ? "compacto" : "extendido"); } catch { /* sin almacenamiento */ }
+  }
+
+  function followPointer(target: EventTarget) {
+    const link = (target as Element).closest?.<HTMLElement>(".nav-link");
+    const hover = hoverRef.current;
+    if (!link || !hover) return;
+    hover.style.transform = `translate(${link.offsetLeft}px, ${link.offsetTop}px)`;
+    hover.style.width = `${link.offsetWidth}px`;
+    hover.style.height = `${link.offsetHeight}px`;
+    hover.dataset.listo = "";
+    const box = link.getBoundingClientRect();
+    setTooltip({ text: link.dataset.label ?? "", top: box.top + box.height / 2 - 14 });
+  }
+
+  function openMore() {
+    const sheet = moreRef.current;
+    if (!sheet) return;
+    if (sheet.open) closeMore();
+    else sheet.showModal();
+  }
+
+  function closeMore() {
+    const sheet = moreRef.current;
+    if (!sheet?.open) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { sheet.close(); return; }
+    sheet.dataset.cerrando = "";
+    window.setTimeout(() => { delete sheet.dataset.cerrando; sheet.close(); }, 200);
+  }
+
+  if (auth === "maintenance") return <Mantenimiento />;
   if (auth === "checking") {
     return <main className="loading-screen"><Brand /><LoaderCircle className="spin" size={22} /><span>Conectando con tu espacio…</span></main>;
   }
@@ -732,12 +838,13 @@ function App() {
         onResend={handleResend}
         onVerify={handleVerify}
         theme={theme}
+        verified={verified}
       />
     );
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-compacto={compact ? "" : undefined} data-primera={firstMenu ? "" : undefined}>
       <aside className="sidebar">
         <div className="sidebar-brand"><Brand /></div>
         <div className="workspace-select">
@@ -746,12 +853,23 @@ function App() {
           <ChevronDown size={15} />
         </div>
         <span className="nav-section-label">ESPACIO DE TRABAJO</span>
-        <nav className="primary-nav" aria-label="Navegación principal">
-          {visibleNav.map(({ id, label, mobileLabel, icon: Icon }) => (
+        <nav
+          className="primary-nav"
+          aria-label="Navegación principal"
+          onMouseLeave={() => setTooltip(null)}
+          onMouseOver={(event) => followPointer(event.target)}
+          ref={navRef}
+        >
+          <span aria-hidden="true" className="nav-ind" ref={indicatorRef} />
+          <span aria-hidden="true" className="nav-hov" ref={hoverRef} />
+          {visibleNav.map(({ id, label, mobileLabel, icon: Icon }, index) => (
             <button
-              className={`nav-link ${view === id ? "nav-link--active" : ""}`}
+              aria-current={view === id ? "page" : undefined}
+              className={`nav-link ${view === id ? "nav-link--active" : ""} ${index >= MOBILE_SLOTS && moreItems.length ? "solo-amplio" : ""}`}
+              data-label={label}
               key={id}
               onClick={() => { setView(id); setLoadError(""); }}
+              style={{ "--k": index } as CSSProperties}
               type="button"
             >
               <Icon size={18} strokeWidth={1.8} />
@@ -760,8 +878,26 @@ function App() {
               {id === "quality" && <span className="nav-count">{epics.length}</span>}
             </button>
           ))}
+          {moreItems.length > 0 && (
+            <button
+              aria-expanded={false}
+              aria-haspopup="dialog"
+              className={`nav-link solo-movil ${moreItems.some((item) => item.id === view) ? "nav-link--more-active" : ""}`}
+              data-more=""
+              onClick={openMore}
+              type="button"
+            >
+              <MoreHorizontal size={18} strokeWidth={1.8} />
+              <span className="nav-label-mobile">Más</span>
+            </button>
+          )}
         </nav>
+        {tooltip && compact && <span className="menu-etiqueta" data-visible="" style={{ top: tooltip.top }} aria-hidden="true">{tooltip.text}</span>}
         <div className="sidebar-bottom">
+          <button aria-expanded={!compact} className="menu-alternar" onClick={toggleMenu} title={compact ? "Extender menú" : "Compactar menú"} type="button">
+            <ChevronsLeft size={17} />
+            <span>{compact ? "Extender menú" : "Compactar menú"}</span>
+          </button>
           <div className="sidebar-status">
             <span className={`status-dot ${apiHealthy ? "status-dot--ok" : apiHealthy === false ? "status-dot--error" : ""}`} />
             <span>API</span>
@@ -776,6 +912,25 @@ function App() {
           </div>
         </div>
       </aside>
+      {moreItems.length > 0 && (
+        <dialog
+          aria-label="Más secciones"
+          className="hoja-mas"
+          onClick={(event) => { if (event.target === event.currentTarget) closeMore(); }}
+          onCancel={(event) => { event.preventDefault(); closeMore(); }}
+          ref={moreRef}
+        >
+          {moreItems.map(({ id, label, icon: Icon }, index) => (
+            <button
+              aria-current={view === id ? "page" : undefined}
+              key={id}
+              onClick={() => { setView(id); setLoadError(""); closeMore(); }}
+              style={{ "--k": index } as CSSProperties}
+              type="button"
+            ><Icon size={20} strokeWidth={1.8} /> {label}</button>
+          ))}
+        </dialog>
+      )}
 
       <div className="main-column">
         <header className="topbar">
@@ -811,6 +966,7 @@ function App() {
           {maintenance && <div className="alert alert--maintenance page-alert" role="status"><Wrench size={16} aria-hidden="true" /><span><strong>Base de llaves en mantenimiento.</strong> {maintenance}</span></div>}
           {databasesReady === false && !maintenance && <div className="alert alert--info page-alert" role="status"><LoaderCircle className="spin" size={16} /><span>Activando las bases de datos. La de llaves está en otra región y tarda cerca de un minuto en reanudarse; las ejecuciones se habilitan cuando esté lista.</span></div>}
           {loadError && <div className="alert alert--error page-alert" role="alert"><span>{loadError}</span><button className="icon-button" onClick={() => setLoadError("")} aria-label="Cerrar aviso"><X size={16} /></button></div>}
+          <Transicion clave={view} orden={navOrder(view)}>
           {view === "overview" && (
             <Overview
               apiHealthy={apiHealthy}
@@ -858,6 +1014,7 @@ function App() {
               users={users}
             />
           )}
+          </Transicion>
         </main>
         <footer className="app-footer">
           <span>Laboratorio de pagos inmediatos <b>·</b> Aseguramiento de calidad</span>
@@ -950,16 +1107,25 @@ function Overview({
       <section className="lower-grid">
         <div className="surface-card epic-card">
           <div className="card-heading"><div><h2>Épicas</h2><p>Avance de cada espacio de trabajo QA.</p></div><Command size={18} className="muted-icon" /></div>
+          {epics.length > 0 && <div className="epic-leyenda" aria-hidden="true"><span><i className="hu" />HU</span><span><i className="cp" />CP</span><span><i className="tareas" />Tareas abiertas</span></div>}
           {epics.length === 0 ? (
             <div className="empty-state"><div className="empty-icon"><ClipboardCheck size={19} /></div><strong>No hay épicas asignadas</strong><p>{user?.role === "admin" ? "Crea la primera épica desde Calidad y pruebas." : "Cuando te asocien a una épica, aparecerá en este espacio."}</p></div>
           ) : (
             <div className="epic-list">
-              {visibleEpics.map((epic) => {
+              {visibleEpics.map((epic, index) => {
                 const counts = progress[epic.key];
                 return (
                   <button className="epic-row" key={epic.key} onClick={() => onOpenEpic(epic.key)} type="button">
                     <div className="epic-icon"><ClipboardCheck size={17} /></div>
-                    <div className="epic-row-copy"><strong>{epic.title}</strong><small>{epic.key} · {counts ? `${counts.stories} HU · ${counts.cases} CP · ${counts.openTasks} tareas abiertas` : "Cargando avance…"} · {epic.members?.length ?? 0} integrantes</small></div>
+                    <div className="epic-row-copy"><strong>{epic.title}</strong><small>{epic.key} · {counts ? `${counts.stories} HU · ${counts.cases} CP · ${counts.openTasks} tareas abiertas` : "Cargando avance…"} · {epic.members?.length ?? 0} integrantes</small>
+                      {counts && counts.stories + counts.cases + counts.openTasks > 0 && (
+                        <span className="epic-barra" aria-hidden="true">
+                          {counts.stories > 0 && <i className="hu" style={{ flexGrow: counts.stories, "--k": index } as CSSProperties} />}
+                          {counts.cases > 0 && <i className="cp" style={{ flexGrow: counts.cases, "--k": index } as CSSProperties} />}
+                          {counts.openTasks > 0 && <i className="tareas" style={{ flexGrow: counts.openTasks, "--k": index } as CSSProperties} />}
+                        </span>
+                      )}
+                    </div>
                     <span className="epic-date">{formatDate(epic.created_at_epoch)}</span>
                     <ArrowUpRight size={16} className="epic-arrow" />
                   </button>
@@ -976,6 +1142,7 @@ function Overview({
             <div className="task-list">
               {myTasks.slice(0, 6).map((task) => (
                 <button className="epic-row" key={task.key} onClick={() => onOpenEpic(task.epic_key ?? "")} type="button">
+                  <span aria-hidden="true" className={`tarea-punto ${task.status === "in_progress" ? "tarea-punto--curso" : ""}`} />
                   <div className="epic-row-copy"><strong>{task.title}</strong><small>{task.key} · {task.epic_key} · {task.status === "in_progress" ? "En curso" : "Abierta"}</small></div>
                   <ArrowUpRight size={16} className="epic-arrow" />
                 </button>
@@ -1032,7 +1199,7 @@ function MetricCard({
   detail: string;
   tone: string;
 }) {
-  return <article className="metric-card"><div className={`metric-icon metric-icon--${tone}`}>{icon}</div><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
+  return <article className="metric-card"><div className={`metric-icon metric-icon--${tone}`}>{icon}</div><span>{label}</span><strong aria-label={value}><Cifra valor={value} /></strong><small>{detail}</small></article>;
 }
 
 /** Busca los campos *_xml (también anidados, como payment_return.pacs004_xml) de una respuesta. */
