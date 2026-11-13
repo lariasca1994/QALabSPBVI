@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#102b3f" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex" />
+    <title>Página no encontrada · Laboratorio de pagos inmediatos</title>
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <!-- Página autónoma (Vercel la sirve para direcciones que no existen). Colores copiados de styles.css. -->
+    <style>
+      :root {
+        color-scheme: light;
+        --page: #f3f6f8; --surface: #ffffff; --surface-2: #f8fafb; --line: #e4eaed;
+        --text: #183448; --strong: #102b3f; --muted: #71818d;
+        --blue: #17658a; --blue-soft: #eaf3f7; --gold: #b58a3b; --red: #b64e4a; --primary: #155c7d;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --page: #0f1d27; --surface: #172934; --surface-2: #1b303d; --line: #2b414d;
+          --text: #dce7ed; --strong: #f0f5f7; --muted: #9aadb8;
+          --blue: #75b5d1; --blue-soft: #203c4a; --gold: #d6b36e; --red: #e28c86;
+        }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; background: var(--page); color: var(--text); font: 14px/1.6 Inter, "Segoe UI", Arial, sans-serif; }
+      main { display: grid; grid-template-columns: minmax(0, 280px) minmax(0, 1fr); gap: 40px; align-items: center; width: 100%; max-width: 760px; animation: entrar .5s cubic-bezier(.2, .8, .2, 1) both; }
+      @keyframes entrar { from { opacity: 0; transform: translateY(10px); } }
+
+      .comprobante { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 18px 55px rgba(24, 52, 72, .1); }
+      .cabeza { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px dashed var(--line); color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+      .cabeza b { color: var(--red); letter-spacing: .06em; }
+      .cuerpo { display: flex; gap: 16px; align-items: center; padding: 16px; }
+      .qr { position: relative; display: grid; flex: none; grid-template-columns: repeat(9, 1fr); gap: 2px; width: 108px; }
+      .qr i { aspect-ratio: 1; border-radius: 2px; }
+      .qr i.on { background: var(--strong); }
+      .qr i.marco { background: var(--blue); }
+      .qr i.cae { animation: caer 1.1s cubic-bezier(.5, 0, .8, .4) both; animation-delay: calc(.5s + var(--i) * 70ms); }
+      @keyframes caer { to { opacity: .07; transform: translate(5px, 18px) rotate(28deg); } }
+      dl { display: grid; flex: 1; gap: 8px; min-width: 0; margin: 0; }
+      dt { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      dd { margin: 0; color: var(--strong); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+      dd.monto { font-size: 20px; letter-spacing: -.02em; }
+      .pie { display: flex; justify-content: space-between; padding: 10px 16px 12px; border-top: 1px dashed var(--line); background: var(--surface-2); color: var(--muted); font: 11px ui-monospace, Consolas, monospace; }
+
+      .eyebrow { margin: 0 0 10px; color: var(--gold); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+      h1 { margin: 0 0 10px; color: var(--strong); font-size: 30px; line-height: 1.2; letter-spacing: -.035em; }
+      p { margin: 0 0 18px; color: var(--muted); }
+      code { padding: 1px 6px; border-radius: 4px; background: var(--blue-soft); color: var(--strong); font: 12px ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+      .acciones { display: flex; flex-wrap: wrap; gap: 10px; }
+      a.boton { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border: 1px solid transparent; border-radius: 6px; font-size: 12px; font-weight: 700; text-decoration: none; transition: transform .18s, background .2s, border-color .2s; }
+      a.boton:active { transform: scale(.97); }
+      .principal { background: var(--primary); color: #fff; }
+      .principal:hover { background: #0d4e6c; }
+      .secundario { border-color: var(--line); background: var(--surface); color: var(--text); }
+      .secundario:hover { border-color: var(--blue); }
+      a:focus-visible { outline: 3px solid rgba(43, 132, 173, .42); outline-offset: 2px; }
+      @media (max-width: 680px) { main { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
+      @media (prefers-reduced-motion: reduce) { main, .qr i.cae { animation: none; } .qr i.cae { opacity: .07; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="comprobante" aria-hidden="true">
+        <div class="cabeza"><span>COMPROBANTE</span><b>404</b></div>
+        <div class="cuerpo">
+          <div class="qr" id="qr"></div>
+          <dl>
+            <div><dt>Destino</dt><dd id="destino">—</dd></div>
+            <div><dt>Cobro</dt><dd class="monto">$ 0</dd></div>
+          </dl>
+        </div>
+        <div class="pie"><span>Estado</span><span>sin destino</span></div>
+      </div>
+      <div>
+        <p class="eyebrow">PÁGINA NO ENCONTRADA</p>
+        <h1>Esta dirección no tiene destino</h1>
+        <p>Buscamos <code id="ruta">esta dirección</code> y ninguna pantalla del laboratorio responde ahí. Si tenías la sesión abierta, sigue abierta.</p>
+        <div class="acciones">
+          <a class="boton principal" href="/">Volver al laboratorio</a>
+          <a class="boton secundario" href="/?vista=qr">Pagos con QR</a>
+        </div>
+      </div>
+    </main>
+    <script>
+      (function () {
+        var ruta = location.pathname || "/";
+        document.getElementById("ruta").textContent = ruta;
+        document.getElementById("destino").textContent = ruta;
+        // QR de muestra de 9 × 9: tres marcos de esquina y módulos que se van cayendo.
+        var on = "111101111100100001101111101111000000000101001110100010001111100001001001101111001";
+        var caen = [4, 12, 20, 22, 30, 31, 38, 40, 41, 49, 50, 58, 59, 66, 67, 76, 77];
+        var qr = document.getElementById("qr");
+        for (var i = 0; i < 81; i++) {
+          var f = Math.floor(i / 9), c = i % 9, el = document.createElement("i");
+          var marco = (f < 3 && c < 3) || (f < 3 && c > 5) || (f > 5 && c < 3);
+          if (marco) { if (!(f % 9 === 1 && (c === 1 || c === 7)) && !(f === 7 && c === 1)) el.className = "marco"; }
+          else if (on.charAt(i) === "1") el.className = "on";
+          var k = caen.indexOf(i);
+          if (k >= 0 && el.className === "on") { el.className += " cae"; el.style.setProperty("--i", k); }
+          qr.appendChild(el);
+        }
+      })();
+    </script>
+  </body>
+</html>

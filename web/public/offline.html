@@ -2,25 +2,85 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#102b3f" />
     <title>Sin conexión · Laboratorio de pagos inmediatos</title>
+    <!-- Página autónoma que guarda el service worker: no carga nada externo (el ícono ya está en caché). -->
     <style>
-      :root { color-scheme: light dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-      body { display: grid; min-height: 100vh; margin: 0; padding: 24px; box-sizing: border-box; place-items: center; background: #102b3f; color: #f0f5f7; text-align: center; }
-      main { max-width: 360px; }
-      img { width: 72px; height: 72px; }
-      h1 { margin: 16px 0 8px; font-size: 20px; }
-      p { margin: 0 0 20px; color: #9aadb8; line-height: 1.5; }
-      button { padding: 10px 18px; border: 0; border-radius: 8px; background: #d6b36e; color: #102b3f; font: inherit; font-weight: 700; cursor: pointer; }
+      :root { color-scheme: dark; --fondo: #102b3f; --superficie: rgba(255, 255, 255, .05); --linea: rgba(255, 255, 255, .12); --texto: #f0f5f7; --suave: #9aadb8; --oro: #d6b36e; --azul: #8fc2d3; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); background: radial-gradient(ellipse at 70% 80%, rgba(37, 105, 133, .4), transparent 50%), linear-gradient(145deg, #102b3f, #163a50 55%, #102e42); color: var(--texto); font: 14px/1.6 Inter, "Segoe UI", system-ui, sans-serif; text-align: center; }
+      main { display: grid; justify-items: center; gap: 12px; width: 100%; max-width: 420px; animation: entrar .5s cubic-bezier(.2, .8, .2, 1) both; }
+      @keyframes entrar { from { opacity: 0; transform: translateY(10px); } }
+
+      .qr { position: relative; display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; width: 132px; padding: 12px; border: 1px solid var(--linea); border-radius: 14px; background: var(--superficie); }
+      .qr i { aspect-ratio: 1; border-radius: 2px; opacity: .28; }
+      .qr i.on { background: var(--texto); }
+      .qr i.marco { background: var(--azul); }
+      .qr::after { content: ""; position: absolute; top: 8px; left: 4px; right: 4px; height: 2px; border-radius: 2px; background: var(--oro); box-shadow: 0 0 12px 2px var(--oro); animation: barrer 2.4s ease-in-out infinite alternate; }
+      @keyframes barrer { to { top: calc(100% - 10px); } }
+
+      .etiqueta { margin: 6px 0 0; color: var(--oro); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+      h1 { margin: 0; font-size: 26px; letter-spacing: -.03em; }
+      p { margin: 0; color: var(--suave); }
+      .pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 18px; margin-top: 10px; }
+      .cuenta { display: flex; align-items: center; gap: 8px; color: var(--suave); font-size: 12px; }
+      .cuenta svg { width: 20px; height: 20px; transform: rotate(-90deg); }
+      .cuenta circle { fill: none; stroke-width: 3; }
+      .cuenta .fondo { stroke: var(--linea); }
+      .cuenta .valor { stroke: var(--oro); stroke-dasharray: 1; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+      button { min-height: 44px; padding: 0 20px; border: 0; border-radius: 8px; background: var(--oro); color: #102b3f; font: inherit; font-weight: 700; cursor: pointer; transition: transform .12s; }
+      button:active:not(:disabled) { transform: scale(.97); }
+      button:disabled { cursor: progress; opacity: .7; }
+      button:focus-visible { outline: 3px solid rgba(214, 179, 110, .5); outline-offset: 2px; }
+      @media (prefers-reduced-motion: reduce) { main, .qr::after { animation: none; } .cuenta .valor, button { transition: none; } }
     </style>
   </head>
   <body>
-    <main>
-      <img src="/icons/icon-192.png" alt="" />
+    <main role="status" aria-live="polite">
+      <div class="qr" id="qr" aria-hidden="true"></div>
+      <p class="etiqueta">SIN SEÑAL</p>
       <h1>Sin conexión</h1>
-      <p>El laboratorio de pagos inmediatos necesita internet para consultar saldos, llaves y pagos. Revisa tu conexión e inténtalo de nuevo.</p>
-      <button onclick="location.reload()" type="button">Reintentar</button>
+      <p>El laboratorio de pagos inmediatos necesita internet para consultar saldos, llaves y pagos. Revisa tu conexión: la página vuelve sola cuando haya red.</p>
+      <div class="pie">
+        <span class="cuenta">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle class="fondo" cx="12" cy="12" r="9" /><circle id="valor" class="valor" cx="12" cy="12" r="9" pathLength="1" /></svg>
+          <span id="texto"></span>
+        </span>
+        <button type="button" id="reintentar">Reintentar ahora</button>
+      </div>
     </main>
+    <script>
+      (function () {
+        // QR atenuado de muestra (9 × 9) con un barrido que lo busca.
+        var on = "111101111100100001101111101111000000000101001110100010001111100001001001101111001";
+        var qr = document.getElementById("qr");
+        for (var i = 0; i < 81; i++) {
+          var f = Math.floor(i / 9), c = i % 9, el = document.createElement("i");
+          var marco = (f < 3 && c < 3) || (f < 3 && c > 5) || (f > 5 && c < 3);
+          if (marco) { if (!(f === 1 && (c === 1 || c === 7)) && !(f === 7 && c === 1)) el.className = "marco"; }
+          else if (on.charAt(i) === "1") el.className = "on";
+          qr.appendChild(el);
+        }
+        // Cada 8 s pregunta (HEAD, el service worker no lo intercepta) si el sitio responde.
+        var TOTAL = 8, resto = TOTAL, revisando = false;
+        var valor = document.getElementById("valor"), texto = document.getElementById("texto"), boton = document.getElementById("reintentar");
+        function pintar() {
+          valor.style.strokeDashoffset = revisando ? 0 : 1 - resto / TOTAL;
+          texto.textContent = revisando ? "Comprobando…" : "Reintento automático en " + resto + " s";
+        }
+        function revisar() {
+          if (revisando) return;
+          revisando = true; boton.disabled = true; pintar();
+          fetch("/", { method: "HEAD", cache: "no-store" })
+            .then(function (r) { if (r.ok) { location.reload(); return; } throw new Error("sin respuesta"); })
+            .catch(function () { revisando = false; boton.disabled = false; resto = TOTAL; pintar(); });
+        }
+        boton.addEventListener("click", revisar);
+        window.addEventListener("online", revisar);
+        setInterval(function () { if (revisando) return; resto = resto > 0 ? resto - 1 : 0; if (resto === 0) revisar(); else pintar(); }, 1000);
+        pintar();
+      })();
+    </script>
   </body>
 </html>

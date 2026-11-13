@@ -3,7 +3,7 @@
 //   página sin conexión. NUNCA guarda respuestas de /api: son datos financieros y de sesión.
 // - Navegación: primero la red (así cada despliegue se ve enseguida); sin red, la última
 //   versión guardada o la página sin conexión.
-const VERSION = "qalab-v1";
+const VERSION = "qalab-v2";
 const SHELL = ["/", "/offline.html", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
