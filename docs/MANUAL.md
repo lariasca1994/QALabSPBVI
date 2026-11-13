@@ -153,6 +153,10 @@ cuenta.
 
 **¿No te llegó el código?** pide otro sin volver a escribir la contraseña.
 
+Cada dígito ocupa su propia casilla. Bajo las casillas, un círculo muestra cuánto le queda al
+código del correo (o cuándo la app muestra uno nuevo). El candado de arriba se abre cuando el
+código es correcto; si no lo es, tiembla y el aviso explica qué pasó.
+
 #### Perdí mi autenticador
 
 En la pantalla del segundo factor siempre está **Perdí mi autenticador**:
@@ -293,6 +297,19 @@ rechaza por CRC o firma sin mover dinero.
 | Ver Auditoría y Usuarios y roles | ✓ | ✓ | |
 
 ### 4.11 Preguntas frecuentes
+
+**¿Cómo uso el menú?** En el computador, **Compactar menú** (abajo a la izquierda) deja solo los
+íconos y **Extender menú** lo vuelve a abrir; al pasar el ratón por un ícono aparece su nombre. La
+plataforma recuerda tu elección en ese equipo. En el teléfono el menú es una barra abajo: **Más**
+abre las secciones que no caben (Bugs y fixes y, según tu rol, Auditoría y Usuarios y roles).
+
+**¿Qué significa "Estamos en mantenimiento"?** El servicio no respondió al abrir la plataforma. Tus
+llaves, pagos y casos siguen guardados. La pantalla lo comprueba cada 15 segundos y vuelve sola;
+también puedes pulsar **Reintentar ahora**. Si tu equipo no tiene internet, la misma pantalla dice
+**Sin conexión** y vuelve sola cuando haya red.
+
+**¿Qué significa "Esta dirección no tiene destino"?** La dirección escrita no existe en la
+plataforma. Usa **Volver al laboratorio**; si tenías la sesión abierta, sigue abierta.
 
 **Creé mi cuenta y no veo épicas.** Un administrador debe asociarte a una épica.
 
