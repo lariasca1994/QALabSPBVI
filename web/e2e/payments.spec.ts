@@ -136,7 +136,9 @@ test("crea un pago intra-SPBVI idempotente y verifica su respuesta en móvil", a
   await expectNoHorizontalOverflow(page);
 
   // Auditoría: todas las solicitudes del pago quedan correlacionadas por su operation_id.
-  await page.getByRole("button", { name: "Logs" }).click();
+  // En el teléfono, Auditoría está en la hoja "Más" del menú.
+  await page.getByRole("button", { name: "Más" }).click();
+  await page.getByRole("dialog", { name: "Más secciones" }).getByRole("button", { name: "Auditoría" }).click();
   await page.getByLabel("OPERACIÓN").fill(operationId);
   await page.getByRole("button", { name: "Filtrar" }).click();
   const rows = page.locator(".audit-table tbody tr");
