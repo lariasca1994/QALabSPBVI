@@ -806,6 +806,8 @@ function App() {
     else sheet.showModal();
   }
 
+  // Cerrar sin elegir: la hoja baja animada. Al elegir una sección se cierra en el acto
+  // (mientras baja, la hoja modal deja inerte el resto de la página).
   function closeMore() {
     const sheet = moreRef.current;
     if (!sheet?.open) return;
@@ -924,7 +926,7 @@ function App() {
             <button
               aria-current={view === id ? "page" : undefined}
               key={id}
-              onClick={() => { setView(id); setLoadError(""); closeMore(); }}
+              onClick={() => { moreRef.current?.close(); setView(id); setLoadError(""); }}
               style={{ "--k": index } as CSSProperties}
               type="button"
             ><Icon size={20} strokeWidth={1.8} /> {label}</button>
