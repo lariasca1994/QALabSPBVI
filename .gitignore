@@ -27,3 +27,8 @@ skills-lock.json
 # Instrucciones locales para Claude Code: nunca se suben a GitHub
 CLAUDE.md
 CLAUDE.local.md
+
+# Infraestructura, plan de despliegue y reportes internos: solo local
+infra/
+.azure/
+runtime-validation-report.md

@@ -1370,7 +1370,7 @@ function KeysPage({ role }: { role: User["role"] }) {
       />
       <div className="role-policy">
         <KeyRound size={17} />
-        <span><strong>La autorización la valida FastAPI.</strong> Las acciones personales requieren que el correo de la sesión sea el titular. Elige el SPBVI de la lista o crea uno nuevo al registrar una llave; la consulta resuelve solo llaves activas.</span>
+        <span><strong>Los permisos se validan en el servidor.</strong> Las acciones personales requieren que el correo de la sesión sea el titular. Elige el SPBVI de la lista o crea uno nuevo al registrar una llave; la consulta resuelve solo llaves activas.</span>
       </div>
       {notice && <div className="alert alert--success" role="status"><Check size={16} />{notice}</div>}
       {error && <div className="alert alert--error" role="alert">{error}</div>}
