@@ -120,7 +120,7 @@ test("perdí mi autenticador: entra con un código por correo y configura una ap
   const recoveryCode = await freshCode();
   await page.getByLabel("Código de recuperación").fill(recoveryCode === "000000" ? "111111" : "000000");
   await page.getByRole("button", { name: "Verificar código" }).click();
-  await expect(page.getByRole("alert")).toContainText("no es valido");
+  await expect(page.getByRole("alert")).toContainText("no es válido");
   await page.getByLabel("Código de recuperación").fill(recoveryCode);
   await page.getByRole("button", { name: "Verificar código" }).click();
 
