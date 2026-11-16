@@ -1,379 +1,275 @@
-# 📘 Manual de usuario · QALabSPBVI
+# 📘 Manual de usuario · Laboratorio de pagos inmediatos (QALabSPBVI)
 
-Guía para usar la plataforma paso a paso: qué significa cada campo, qué datos se ingresan y qué
-protege la plataforma. Para la arquitectura, la referencia de la API y la instalación vuelve al
-[README](../README.md).
+## 1. Portada
 
-**Demo:** [qalabspbvi-prod.vercel.app](https://qalabspbvi-prod.vercel.app)
+![Portada del Laboratorio de pagos inmediatos: calidad y confianza en cada transacción](img/manual/01-portada.png)
+
+| | |
+|---|---|
+| **Producto** | Laboratorio de pagos inmediatos (QALabSPBVI) |
+| **Documento** | Manual de usuario |
+| **Versión** | 2.0 · noviembre de 2026 |
+| **Dirigido a** | Equipos de aseguramiento de calidad (QA) y personas que prueban APIs de pagos |
+| **Dirección** | [Laboratorio de pagos inmediatos](https://qalabspbvi-prod.vercel.app) |
+| **Autor** | Luis F. A. |
 
 ## Contenido
 
-1. [Proyecto: objetivos y alcances](#1-proyecto-objetivos-y-alcances)
-2. [Glosario](#2-glosario)
-3. [Plataformas, base de datos y servicios](#3-plataformas-base-de-datos-y-servicios)
-4. [Paso a paso](#4-paso-a-paso)
-5. [Seguridad: tu información protegida](#5-seguridad-tu-información-protegida)
-6. [Agradecimientos](#6-agradecimientos)
+1. [Portada](#1-portada)
+2. [Introducción](#2-introducción)
+3. [Objetivo](#3-objetivo)
+4. [Alcance](#4-alcance)
+5. [Acceso al sistema](#5-acceso-al-sistema)
+6. [Pantalla principal](#6-pantalla-principal)
+7. [Navegación](#7-navegación)
+8. [Funcionalidades](#8-funcionalidades)
+9. [Gestión de perfil](#9-gestión-de-perfil)
+10. [Mensajes frecuentes](#10-mensajes-frecuentes)
+11. [Preguntas frecuentes](#11-preguntas-frecuentes)
+12. [Glosario](#12-glosario)
 
 ---
 
-## 1. Proyecto: objetivos y alcances
+## 2. Introducción
 
-### Objetivo
+El **Laboratorio de pagos inmediatos** simula un ecosistema de pagos con llaves (celular, correo,
+documento, alfanumérica o código de comercio) entre entidades financieras llamadas **SPBVI**. Sirve
+para practicar aseguramiento de calidad: cada caso de prueba es una solicitud a la API que se ejecuta
+con un clic y muestra la respuesta y su veredicto.
 
-Un laboratorio que **simula** un ecosistema de pagos inmediatos con llaves (celular, correo,
-documento, `@alias`, código de comercio) y una plataforma QA tipo Jira para probarlo: épicas,
-historias de usuario (HU), casos de prueba (CP) ejecutables con un clic, tareas, bugs y fixes.
+Es un entorno de laboratorio: **no mueve dinero real** ni se conecta a ninguna red de pagos.
 
-> **No mueve dinero real** ni se conecta a ninguna infraestructura de pagos. Todos los montos se
-> escriben en **centavos** (125000 = COP 1.250,00).
+Este manual explica cada pantalla, paso a paso y con imágenes.
 
-### Alcance: qué necesitas y qué esperar
+![Cómo funciona el Laboratorio de pagos inmediatos: personas, aplicación, plataforma e información](img/manual/00-como-funciona.svg)
 
-- Solo necesitas un navegador; también se instala como app (Chrome o Edge: menú → "Instalar app";
-  iPhone o iPad: Safari → Compartir → "Agregar a inicio"). Al abrirla desde su ícono muestra una **animación de entrada** breve (1 a 1,6 s) con el logotipo; en el navegador no aparece, y si el equipo tiene activado "reducir movimiento" se muestra sin animar.
-- Necesitas acceso a tu correo: cada inicio de sesión pide un **código de 6 dígitos** que llega
-  por correo.
-- Las bases se pausan sin uso. Mientras se activan, los botones de ejecutar quedan deshabilitados y
-  se habilitan solos cuando están listas.
-- Una cuenta nueva tiene rol `usuario` y empieza a trabajar cuando un administrador la **asocia a
-  una épica**.
+## 3. Objetivo
 
-### Límites
+Que cualquier persona del equipo de QA pueda, sin conocimientos técnicos:
 
-- Es un **laboratorio**: no registres llaves, documentos ni cuentas reales.
-- Los integrantes de una épica ven las ejecuciones y los avisos con tu nombre y correo.
-- Ejecutar un CP o registrar un bug envía un aviso por correo a toda la épica.
+- Crear su cuenta e ingresar de forma segura.
+- Registrar llaves, hacer pagos y cobrar con QR en el laboratorio.
+- Consultar y ejecutar los casos de prueba de las épicas en las que participa.
+- Reportar y hacer seguimiento a los bugs.
 
-## 2. Glosario
+## 4. Alcance
 
-Palabras técnicas que aparecen en este manual, explicadas en lenguaje simple.
+**Incluye:** registro e ingreso con verificación en dos pasos, gestión de llaves, pagos entre
+cuentas de la misma entidad o de entidades distintas, pagos con QR, épicas con historias de usuario
+(HU), casos de prueba (CP) y tareas, bugs y fixes, y uso en celular, tablet y computador.
 
-| Término | Qué significa |
-|---|---|
-| **Administrador** | Cuenta con permisos para gestionar usuarios y configuraciones de la aplicación. |
-| **API** | Puerta de entrada de un programa para que otros programas le pidan o le envíen datos. |
-| **Backend** | La parte de la aplicación que trabaja "detrás": procesa lo que envías y habla con la base de datos. |
-| **Base de datos** | Lugar donde la aplicación guarda la información de forma ordenada y permanente. |
-| **Caso de prueba** | Pasos y resultado esperado para comprobar que una función de un sistema trabaja bien. |
-| **Cifrado / TLS / HTTPS** | Protección que codifica la información mientras viaja, para que nadie en el camino pueda leerla. |
-| **Contraseña cifrada (hash)** | La contraseña no se guarda tal cual, sino como una "huella" de la que no se puede recuperar el texto original. |
-| **Cookie** | Pequeño dato que el navegador guarda para recordar tu sesión en ese sitio. |
-| **Código QR** | Cuadro de puntos que el celular lee con la cámara para abrir un enlace o un cobro. |
-| **Defecto (bug)** | Error encontrado al probar: el sistema no hace lo que debería. |
-| **Despliegue** | Publicar una nueva versión de la aplicación para que esté disponible en internet. |
-| **Insignia (badge)** | Pequeña imagen que muestra un estado en vivo, por ejemplo en un README de GitHub. |
-| **Liquidación** | Paso final de un pago en el que el dinero se mueve efectivamente de una cuenta a otra. |
-| **Llave (alias de pago)** | Dato fácil de recordar (como @usuario o un número) que identifica una cuenta para recibir pagos. |
-| **MFA (segundo factor)** | Verificación adicional a la contraseña, como un código de 6 dígitos, para confirmar que eres tú. |
-| **Navegador** | Programa con el que abres páginas web: Chrome, Edge, Firefox, Safari. |
-| **Nube** | Servidores de una empresa (Amazon, Microsoft, Google, Oracle…) donde la aplicación funciona sin depender de un computador propio. |
-| **Rate limit (límite de intentos)** | Tope de intentos en poco tiempo, para frenar a quien intenta adivinar contraseñas. |
-| **REST** | Forma estándar de organizar una API usando direcciones web y métodos como GET o POST. |
-| **Rol** | Tipo de cuenta que define qué puede hacer cada persona (por ejemplo, usuario o administrador). |
-| **Servidor** | Computador en la nube que atiende las peticiones de la aplicación. |
-| **Sesión** | El tiempo en que la aplicación te reconoce después de iniciar sesión, sin pedirte la contraseña de nuevo. |
-| **Tema claro / oscuro** | Combinación de colores de la interfaz; puedes elegir la clara o la oscura. |
-| **Token** | Credencial temporal que la aplicación te entrega al iniciar sesión, en lugar de enviar tu contraseña en cada paso. |
-| **Variables de entorno / secretos** | Claves y contraseñas internas de la aplicación, guardadas fuera del código para que no queden expuestas. |
+**No incluye:** dinero ni cuentas reales.
 
-## 3. Plataformas, base de datos y servicios
+**Qué necesitas:** un navegador actualizado, conexión a internet y un correo propio. Para ejecutar
+casos de prueba, un administrador debe asociarte a una épica.
 
-Qué servicio de nube, base de datos o API usa el proyecto y para qué sirve cada uno.
+## 5. Acceso al sistema
 
-| Plataforma | Tipo | Qué hace en el proyecto |
-|---|---|---|
-| ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white) | Nube | Publica la interfaz React y reenvía `/api/*` a la API, de modo que el navegador ve un solo dominio y las cookies siguen siendo `SameSite=Strict`. Se publica sola en cada push. |
-| ![Azure Container Apps](https://img.shields.io/badge/Azure_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) | Nube | Ejecuta la API FastAPI: autenticación con MFA, llaves DIFE/DICE, pagos intra e inter-SPBVI, MOL simulado, gestión QA y el ejecutor de CP. Escala a cero sin uso. |
-| ![Azure SQL](https://img.shields.io/badge/Azure_SQL-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) | Base de datos | DIFE: directorio federado de llaves de cada SPBVI y auditoría de su ciclo de vida. Resuelve las llaves de los pagos **intra-SPBVI**. |
-| ![Secretos de Container Apps](https://img.shields.io/badge/Secretos_de_Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white) | Gestión de secretos | Guarda cifradas las cadenas de conexión y claves de la API, como secretos de la propia Container App. |
-| ![Oracle](https://img.shields.io/badge/Oracle_ADB-F80000?style=for-the-badge&logo=oracle&logoColor=white) | Base de datos | DICE en Autonomous Database (OCI): índice central de llaves con unicidad global. Resuelve las llaves de los pagos **inter-SPBVI**. |
-| ![PostgreSQL](https://img.shields.io/badge/Neon_PostgreSQL-00E599?style=for-the-badge&logo=postgresql&logoColor=black) | Base de datos | PostgreSQL de cuentas, ledger, pagos, usuarios y sesiones; ahí liquidan los pagos intra e inter. En una base aparte guarda el registro de solicitudes que alimenta la auditoría. |
-| ![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white) | Base de datos | Artefactos QA: épicas, HU, CP con su JSON versionado, ejecuciones, bugs, fixes y la lista de llaves de cada épica. |
-| ![TiDB](https://img.shields.io/badge/TiDB_Cloud_(MySQL)-4479A1?style=for-the-badge&logo=mysql&logoColor=white) | Base de datos | MySQL de los cobros con QR: cada cobro dinámico con su monto, vencimiento y estado. Escala a cero sin uso. |
-| ![AWS Lambda](https://img.shields.io/badge/AWS_SQS_+_Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white) | Nube | Cola SQS con DLQ y Lambda que entrega por Brevo los avisos QA. La API solo puede enviar a la cola; la API key de Brevo vive en SSM Parameter Store. |
-| ![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=black) | Nube | Gateway ISO 20022: servicio aparte que genera los pacs.008 / pacs.002 de laboratorio. Se suspende sin uso; mientras despierta, la API los genera en proceso. |
-| ![Brevo](https://img.shields.io/badge/Brevo-0B996E?style=for-the-badge&logo=brevo&logoColor=white) | API / servicio externo | Envía el código MFA, la bienvenida y los avisos QA. |
-| ![GitHub](https://img.shields.io/badge/GitHub_Actions-181717?style=for-the-badge&logo=githubactions&logoColor=white) | Código y CI/CD | Código, CI/CD con Actions (OIDC hacia Azure y AWS, sin claves guardadas) e imágenes públicas en Container Registry. |
+### 5.1 Crear una cuenta
 
-## 4. Paso a paso
+En el inicio de sesión pulsa **Crear cuenta**.
 
-### 4.1 Iniciar sesión
-
-![Pantalla de acceso](img/manual/01-login.png)
+![Formulario de registro con sus campos numerados](img/manual/02-registro.png)
 
 | # | Campo | Qué escribir |
+|:-:|---|---|
+| 1 | Nombre | Tu nombre |
+| 2 | Correo electrónico | Un correo al que tengas acceso |
+| 3 | Contraseña | Mínimo 12 caracteres |
+| 4 | Repite la contraseña | La misma contraseña |
+| 5 | Crear cuenta | Crea la cuenta con rol usuario; empiezas a trabajar cuando te asocien a una épica |
+
+### 5.2 Iniciar sesión
+
+![Formulario de inicio de sesión con sus elementos numerados](img/manual/03-ingreso.png)
+
+| # | Elemento | Qué hace |
 |:-:|---|---|
 | 1 | Correo electrónico | El correo de tu cuenta |
 | 2 | Contraseña | Tu contraseña |
-| 3 | Continuar | Valida la contraseña y envía el código a tu correo |
+| 3 | Continuar | Comprueba tus datos y pide el código de tu segundo factor |
 
-Si los datos no coinciden, el mensaje es siempre «Correo o contraseña incorrectos», exista o no la
-cuenta.
+### 5.3 Verificación en dos pasos
 
-#### ¿Olvidaste tu contraseña?
+![Pantalla del código de verificación con sus elementos numerados](img/manual/04-verificacion.png)
 
-![Recuperar la contraseña con el correo](img/manual/10-recuperar.png)
+| # | Elemento | Qué hace |
+|:-:|---|---|
+| 1 | Código de acceso | Los 6 dígitos que llegan a tu correo (o los de tu app autenticadora) |
+| 2 | Verificar e ingresar | Confirma el código y abre el laboratorio |
+| 3 | Perdí mi autenticador | Te envía un código al correo de tu cuenta para configurar una app nueva |
+
+Si el código no llega, **Reenviar** pide otro. Desde **Seguridad** (el escudo junto a tu nombre)
+puedes agregar una app autenticadora y elegir cuál método se pide por defecto.
+
+### 5.4 Recuperar la contraseña
+
+En el inicio de sesión pulsa **¿Olvidaste tu contraseña?**.
+
+![Pantalla para pedir el enlace de recuperación](img/manual/05-recuperar.png)
+
+| # | Elemento | Qué hace |
+|:-:|---|---|
+| 1 | Correo electrónico | El correo de tu cuenta |
+| 2 | Enviar enlace | Envía un enlace de un solo uso para crear una contraseña nueva (vence en 30 minutos) |
+
+## 6. Pantalla principal
+
+El **Resumen** muestra el avance de tus épicas y tus tareas pendientes.
+
+![Resumen con sus partes numeradas](img/manual/06-pantalla-principal.png)
+
+| # | Elemento | Qué hace |
+|:-:|---|---|
+| 1 | Menú | Lleva a Resumen, Llaves, Pagos, Código QR, Calidad y pruebas, y Bugs y fixes |
+| 2 | Resumen | Épicas con su avance (HU, CP y tareas abiertas) y **Mis tareas** asignadas a ti |
+
+## 7. Navegación
+
+En el computador el menú está a la izquierda; **Compactar menú** lo reduce a íconos. Abajo están tu
+nombre, **Seguridad**, **Cambiar contraseña** y **Cerrar sesión**. Arriba están la búsqueda, los
+avisos, el tema claro u oscuro y la ayuda. En la tablet y en el celular el menú pasa a una barra
+inferior; **Más** abre las secciones que no caben.
+
+| Tablet en vertical | Celular |
+|:-:|:-:|
+| ![Resumen en una tablet en vertical](img/manual/07-navegacion-tablet.png) | ![Resumen en el celular con la barra inferior](img/manual/08-navegacion-movil.png) |
+
+## 8. Funcionalidades
+
+### 8.1 Crear: llaves, pagos y cobros con QR
+
+**Llaves.** En **Registrar llave** das de alta una llave en el directorio de su entidad y en el
+central:
+
+![Gestión de llaves con sus campos numerados](img/manual/09-crear.png)
 
 | # | Campo | Qué escribir |
 |:-:|---|---|
-| 1 | Correo electrónico | Solo el correo de tu cuenta |
-| 2 | Enviar enlace | Envía el enlace de un solo uso si la cuenta existe; la respuesta es la misma en cualquier caso |
+| 1 | SPBVI de origen | La entidad donde se registra la llave |
+| 2 | Tipo de llave | Celular, correo, documento, alfanumérica o código de comercio |
+| 3 | Valor de la llave | La llave, en el formato de su tipo |
+| 4 | Producto de depósito | La cuenta a la que llegan los pagos |
+| 5 | Correo del titular | Opcional: quién es dueño de la llave |
+| 6 | Operación | En **Consultar o administrar**: consultar, suspender, reactivar o eliminar una llave |
 
-1. Pulsa **¿Olvidaste tu contraseña?**, escribe solo tu **Correo electrónico** y pulsa **Enviar enlace**.
-   La respuesta es siempre la misma, exista o no la cuenta.
-2. Abre el enlace del correo **Restablece tu contraseña · Laboratorio de pagos inmediatos**. Sirve una
-   sola vez y vence a los **30 minutos**; si venció, pide otro.
-3. En **Define tu contraseña nueva.** escribe la **Contraseña nueva** (mínimo 12 caracteres), repítela
-   y pulsa **Guardar contraseña nueva**.
-4. Se cierran todas tus sesiones abiertas. Ingresa con la contraseña nueva: tu verificación en dos
-   pasos sigue igual.
+**Pagos.** Primero crea una cuenta de laboratorio y luego envía el pago:
 
-### 4.2 Crear una cuenta
-
-![Formulario de registro](img/manual/02-registro.png)
-
-| # | Campo | Qué escribir | Reglas |
-|:-:|---|---|---|
-| 1 | Nombre | Tu nombre visible en la plataforma | Obligatorio |
-| 2 | Correo electrónico | Donde recibirás los códigos y avisos | Único |
-| 3 | Contraseña | Tu contraseña | Mínimo **12 caracteres** |
-| 4 | Repite la contraseña | La misma contraseña | Debe coincidir |
-| 5 | Crear cuenta | Botón | Crea la cuenta con rol `usuario` |
-
-### 4.3 Código de acceso (MFA)
-
-![Pantalla del código de acceso](img/manual/03-mfa.png)
+![Pagos de laboratorio con sus campos numerados](img/manual/10-crear-pago.png)
 
 | # | Campo | Qué escribir |
 |:-:|---|---|
-| 1 | Código de acceso | Los 6 dígitos que llegaron a tu correo (vencen a los **5 minutos** y sirven una sola vez) o los que muestra tu app autenticadora |
-| 2 | Verificar e ingresar | Entra a la plataforma |
-| 3 | Perdí mi autenticador | Siempre visible: envía un código de recuperación al correo de la cuenta (ver abajo) |
-
-**¿No te llegó el código?** pide otro sin volver a escribir la contraseña.
-
-Cada dígito ocupa su propia casilla. Bajo las casillas, un círculo muestra cuánto le queda al
-código del correo (o cuándo la app muestra uno nuevo). El candado de arriba se abre cuando el
-código es correcto; si no lo es, tiembla y el aviso explica qué pasó.
-
-#### Perdí mi autenticador
-
-En la pantalla del segundo factor siempre está **Perdí mi autenticador**:
-
-1. Púlsalo: llega un **Código de recuperación** de 6 dígitos al correo de tu cuenta, aunque no uses el
-   código por correo como método. Vence a los **15 minutos** y sirve una sola vez; los envíos están
-   limitados.
-2. Escríbelo y pulsa **Verificar código**.
-3. Configura tu app autenticadora nueva: escanea el QR (o escribe la clave), escribe el **Código de la
-   app nueva** y pulsa **Activar app nueva e ingresar**. La app anterior deja de funcionar.
-
-La plataforma no tiene códigos de respaldo: la recuperación es siempre por el correo de la cuenta.
-
-La verificación en dos pasos es obligatoria y eliges el método:
-
-| Método | Cómo funciona |
-|---|---|
-| **App autenticadora** | Pulsa **Configurar app autenticadora** la primera vez, escanea el QR con Google Authenticator, Microsoft Authenticator u otra app (o escribe la clave) y escribe el primer código. Desde entonces se pide la app y no se envía correo. |
-| **Código por correo** | Escribe el código que llegó a tu correo; queda como tu método. |
-
-En **Seguridad** (ícono del escudo, arriba) agregas el método que no elegiste y escoges cuál se pide
-por defecto; si tienes los dos, la pantalla del código ofrece usar el otro.
-
-### 4.4 Resumen
-
-![Panel de resumen](img/manual/04-resumen.png)
-
-Muestra tus épicas con su avance, tus tareas pendientes y el **Estado del entorno** (API,
-directorios DIFE + DICE y liquidación simulada). El menú lateral (inferior en el celular) lleva a
-cada sección; arriba a la derecha están búsqueda, notificaciones, tema y ayuda.
-
-### 4.5 Llaves
-
-![Gestión de llaves con sus campos numerados](img/manual/05-llaves.png)
-
-**Registrar llave**
-
-| # | Campo | Qué escribir |
-|:-:|---|---|
-| 1 | SPBVI de origen | La entidad simulada donde se registra la llave (o **Nuevo SPBVI…**) |
-| 2 | Tipo de llave | Documento, celular, correo, alfanumérica (`@`) o código de comercio |
-| 3 | Valor de la llave | La llave en el formato del tipo (ver tabla) |
-| 4 | Producto de depósito | La cuenta de laboratorio que recibirá los pagos |
-| 5 | Correo del titular | Opcional: quién puede hacer acciones personales sobre la llave |
-
-**Consultar o administrar**
-
-| # | Campo | Qué escribir |
-|:-:|---|---|
-| 6 | Operación | Consultar, suspender o reactivar (personal o administrativa), asignar o cambiar titular, o eliminar; luego el SPBVI, el tipo y el valor de la llave |
-
-Formatos de llave (supuestos del laboratorio):
-
-| Tipo | Ejemplo | Regla |
-|---|---|---|
-| Documento | `1023456789` | 5 a 15 dígitos |
-| Celular | `3001234567` | 10 dígitos que inician en 3; se acepta `+57` |
-| Correo | `nombre@dominio.com` | Se guarda en minúsculas |
-| Alfanumérica | `@ana2026` | `@` + 3 a 20 letras o números |
-| Código de comercio | `0012345` | 4 a 10 dígitos |
-
-### 4.6 Pagos
-
-![Pagos de laboratorio con sus campos numerados](img/manual/06-pagos.png)
-
-**Cuenta de laboratorio** (solo `admin` y `administrador`)
-
-| # | Campo | Qué escribir |
-|:-:|---|---|
-| 1 | Identificador de cuenta | Nombre de la cuenta, por ejemplo `cuenta-ana` (y el **SPBVI** al que pertenece) |
-| 2 | Saldo inicial (centavos) | Saldo de partida, en centavos |
-
-**Enviar pago**
-
-| # | Campo | Qué escribir |
-|:-:|---|---|
-| 3 | Tipo de flujo | **Intra-SPBVI · DIFE** (misma entidad) o **Inter-SPBVI · DICE + MOL** (entre entidades) |
-| 4 | Identificador idempotente | Se genera solo; repetirlo no duplica el pago. ↻ genera otro |
+| 1 | Identificador de cuenta | Un nombre para la cuenta de prueba |
+| 2 | Saldo inicial (centavos) | El saldo, en centavos (125000 = $ 1.250,00) |
+| 3 | Tipo de flujo | Dentro de la misma entidad o entre entidades |
+| 4 | Identificador idempotente | Se genera solo; repetir el mismo pago con el mismo identificador no lo duplica |
 | 5 | Cuenta de origen | La cuenta que paga |
-| 6 | SPBVI destino | En intra es el mismo de la cuenta origen; en inter, otro |
-| 7 | Tipo de llave destino | Tipo de la llave que recibe |
-| 8 | Llave destino | Una llave de la lista, o **Escribir otra llave…** para probar rechazos |
-| 9 | Monto en centavos | Máximo **1.000 UVB** por operación |
+| 6 | SPBVI destino | La entidad que recibe |
+| 7 | Tipo de llave destino | El tipo de llave de quien recibe |
+| 8 | Llave destino | Elige una llave o escribe otra (útil para probar rechazos) |
+| 9 | Monto en centavos | El valor del pago |
 
-**Operaciones sobre un pago:** con el identificador de operación consultas su estado, pides una
-devolución (pacs.004), solicitas una cancelación (camt.056) o ves notificaciones (camt.054).
+**Cobros con QR.** En **Código QR** generas el QR que la otra persona escanea:
 
-### 4.7 Código QR
-
-![Pagos con QR con sus campos numerados](img/manual/07-qr.png)
-
-**Cobrar con QR**
+![Pagos con QR con sus campos numerados](img/manual/11-crear-qr.png)
 
 | # | Campo | Qué escribir |
 |:-:|---|---|
-| 1 | Tipo de QR | Cobro dinámico (un solo uso, con vencimiento), estático, o estático con monto fijo |
-| 2 | SPBVI de la llave | Entidad donde está la llave que recibe |
-| 3 | Tipo de llave | Tipo de esa llave |
-| 4 | Llave que recibe el pago | Una llave confirmada (un `usuario` solo puede usar llaves de las que es titular) |
-| 5 | Nombre que verá quien paga | Nombre del comercio |
-| 6 | Ciudad | Ciudad que muestra el QR |
-| 7 | Monto en centavos | Solo en dinámico y en estático con monto fijo |
-| 8 | Referencia | Opcional, por ejemplo "Factura 123" |
-| 9 | Vence en | 5, 10 o 30 minutos, o 1 hora (solo dinámico) |
+| 1 | Tipo de QR | Estático, estático con monto o cobro dinámico de un solo uso |
+| 2 | SPBVI de la llave | La entidad de la llave que cobra |
+| 3 | Tipo de llave | El tipo de la llave que recibe el pago |
+| 4 | Llave que recibe el pago | La llave que cobra |
+| 5 | Nombre que verá quien paga | El nombre del comercio |
+| 6 | Ciudad | La ciudad del comercio |
+| 7 | Monto en centavos | El valor (en el QR estático lo elige quien paga) |
+| 8 | Referencia | Opcional, por ejemplo el número de factura |
+| 9 | Vence en | Cuánto dura el cobro dinámico |
 
-Pulsa **Generar QR**. **Pagar con QR** lee el código con la **Cámara**, desde una **Imagen** o
-pegando su **Texto**; luego eliges la cuenta de origen y pulsas **Pagar**. Un QR alterado se
-rechaza por CRC o firma sin mover dinero.
+**Pagar con QR**, a la derecha, lee el código con la cámara, desde una imagen o pegando su
+contenido.
 
-### 4.8 Calidad y pruebas
+### 8.2 Consultar: épicas, historias y casos de prueba
 
-![Épica con sus historias, casos y tareas](img/manual/08-calidad.png)
+En **Calidad y pruebas** eliges la épica y ves sus integrantes, sus HU y sus CP. **JSON** muestra la
+solicitud del caso y **Ejecutar** la envía a la API y muestra la respuesta y el veredicto.
 
-1. Elige la **Épica**: aparecen sus HU con sus CP, las **Tareas** y las **Llaves de la épica**.
-2. En un CP, **Ejecutar** envía la solicitud REST y muestra método, URL, solicitud, código,
-   respuesta, veredicto y validación del contrato OpenAPI.
-3. **Editar JSON del caso** pide el **Motivo del cambio** y guarda la versión anterior en el
-   **Historial de versiones**.
+![Épicas, historias y casos de prueba](img/manual/12-consultar.png)
 
-### 4.9 Bugs y fixes
+### 8.3 Modificar: bugs y fixes
 
-![Bugs y fixes](img/manual/09-bugs.png)
+En **Bugs y fixes** sigues los defectos de la épica: abiertos, asignados, en fix, listos para
+retest, cerrados y reabiertos. Un bug se reporta desde una ejecución fallida, se asigna a un
+integrante, se registra su fix y se cierra con el retest.
 
-**Reportar bug** pide **Título**, **Descripción**, **Severidad**, **Caso de prueba** y, si aplica,
-**Ejecución**. El bug sigue el flujo `abierto → asignado → en_fix → listo_para_retest → cerrado`
-(o `reabierto` si falla el retest), y **Registrar fix** documenta **Qué se corrigió**.
+![Bugs y fixes de una épica](img/manual/13-modificar.png)
 
-### 4.10 Roles
+### 8.4 Reportar: resumen y estado del entorno
 
-| Acción | `admin` | `administrador` | `usuario` |
-|---|:-:|:-:|:-:|
-| Crear épicas | ✓ | | |
-| Asociar integrantes a épicas y asignar tareas | ✓ | ✓ | |
-| Crear HU, CP e importar programas | | ✓ | |
-| Ejecutar CP, editar su JSON y avanzar tareas (si integra la épica) | ✓ | ✓ | ✓ |
-| Registrar bugs y fixes | | | ✓ |
-| Crear cuentas de laboratorio y administrar cualquier llave | ✓ | ✓ | Solo acciones personales sobre sus llaves |
-| Ver Auditoría y Usuarios y roles | ✓ | ✓ | |
+El **Resumen** completo muestra el avance de cada épica, tus tareas y el **estado del entorno**:
+si la API está operativa, cuántas épicas tienes y los directorios y la liquidación simulada.
 
-### 4.11 Preguntas frecuentes
+![Resumen completo con el estado del entorno](img/manual/14-reportar.png)
 
-**¿Cómo uso el menú?** En el computador, **Compactar menú** (abajo a la izquierda) deja solo los
-íconos y **Extender menú** lo vuelve a abrir; al pasar el ratón por un ícono aparece su nombre. La
-plataforma recuerda tu elección en ese equipo. En el teléfono el menú es una barra abajo: **Más**
-abre las secciones que no caben (Bugs y fixes y, según tu rol, Auditoría y Usuarios y roles).
+## 9. Gestión de perfil
 
-**¿Qué significa "Estamos en mantenimiento"?** El servicio no respondió al abrir la plataforma. Tus
-llaves, pagos y casos siguen guardados. La pantalla lo comprueba cada 15 segundos y vuelve sola;
-también puedes pulsar **Reintentar ahora**. Si tu equipo no tiene internet, la misma pantalla dice
-**Sin conexión** y vuelve sola cuando haya red.
+Con la llave junto a tu nombre abres **Cambiar contraseña**:
 
-**¿Qué significa "Esta dirección no tiene destino"?** La dirección escrita no existe en la
-plataforma. Usa **Volver al laboratorio**; si tenías la sesión abierta, sigue abierta.
+![Ventana para cambiar la contraseña con sus campos numerados](img/manual/15-contrasena.png)
 
-**Creé mi cuenta y no veo épicas.** Un administrador debe asociarte a una épica.
+| # | Campo | Qué escribir |
+|:-:|---|---|
+| 1 | Contraseña actual | Tu contraseña de hoy |
+| 2 | Contraseña nueva | Mínimo 12 caracteres |
+| 3 | Repite la contraseña nueva | La misma contraseña nueva |
+| 4 | Guardar contraseña | Guarda el cambio; las sesiones en otros dispositivos se cierran |
 
-**¿Por qué el botón Ejecutar está gris?** Las bases se están activando después de un período sin
-uso; se habilita solo en uno o dos minutos.
+Con el escudo abres **Seguridad**, donde agregas el otro método de verificación y eliges el
+preferido.
 
-**¿Qué diferencia hay entre intra e inter-SPBVI?** Intra: origen y destino en la misma entidad; la
-llave se resuelve en su directorio (DIFE). Inter: entidades distintas; la llave se resuelve en el
-directorio central (DICE) y se liquida en el MOL simulado.
+## 10. Mensajes frecuentes
 
-## 5. Seguridad: tu información protegida
+| Mensaje | Qué significa | Qué hacer |
+|---|---|---|
+| Correo o contraseña incorrectos. | Los datos no coinciden | Revísalos o usa **¿Olvidaste tu contraseña?** |
+| El código no es válido o venció. | El código ya no sirve | Pide uno nuevo con **Reenviar** |
+| El código no es correcto. Revisa la hora de tu teléfono. | La hora del teléfono está desfasada | Activa la hora automática del teléfono |
+| Demasiados códigos incorrectos. Espera 15 minutos. | El ingreso se bloqueó por seguridad | Espera 15 minutos |
+| No tienes permisos para esta acción. | Tu rol no permite esa operación | Pide ayuda a un administrador |
+| La llave ya está registrada. | Esa llave ya existe | Usa otra llave |
+| La base de datos se está activando. Reintenta en unos segundos. | El servicio estaba en pausa | Espera unos segundos y repite |
+| Esta dirección no tiene destino | La dirección no existe | Usa **Volver al laboratorio** |
+| Sin conexión | Tu equipo no tiene internet | La pantalla reintenta sola |
 
-Tu confianza es lo primero: la plataforma solo pide los datos necesarios para funcionar, los protege y no los comparte con terceros. Esto es lo que se guarda y cómo se protege.
+| Página no encontrada | Sin conexión |
+|:-:|:-:|
+| ![Página no encontrada](img/manual/16-no-encontrada.png) | ![Pantalla sin conexión](img/manual/17-sin-conexion.png) |
 
-### Qué datos se guardan y dónde
+## 11. Preguntas frecuentes
 
-| Dato | Para qué se usa | Dónde se guarda | Cómo se protege |
-|---|---|---|---|
-| Nombre y correo | Identificarte y enviarte códigos y avisos | PostgreSQL (Neon) | Visibles para los integrantes de tus épicas en los avisos |
-| Contraseña | Iniciar sesión | PostgreSQL, **solo su huella** | No se puede leer ni recuperar |
-| Códigos MFA y de recuperación | Segundo factor | PostgreSQL, con vencimiento y límite de intentos | Un solo uso |
-| Clave de la app autenticadora | Segundo factor | PostgreSQL, **cifrada** | Nadie desde la aplicación |
-| Llaves de pago | Simular el directorio | Azure SQL (DIFE) y Oracle ADB (DICE) | Datos de laboratorio |
-| Cuentas, pagos y ledger | Simular la liquidación | PostgreSQL (Neon) | Sin dinero real |
-| Cobros QR | Pagos con QR | MySQL (TiDB Cloud), con TLS | Firma de seguridad en el QR |
-| Épicas, HU, CP, ejecuciones, bugs | Trabajo QA | MongoDB Atlas | Visibles para los integrantes de la épica |
-| Registro de solicitudes | Auditoría | PostgreSQL aparte | Solo `admin` y `administrador` |
-| Sesión | Mantenerte conectado | Cookies `SameSite=Strict` | Vencen por inactividad y por tiempo absoluto |
+**¿Se mueve dinero real?** No. Es un laboratorio: las cuentas, los saldos y la liquidación son
+simulados.
 
-### Cómo se protege tu información
+**¿Por qué no veo épicas?** Las cuentas nuevas quedan pendientes hasta que un administrador las
+asocia a una épica.
 
-Comprobado en el código del proyecto (`app/core/security.py`, `app/domains/auth/`):
+**¿Por qué la primera acción tarda un poco?** El servicio se pausa cuando nadie lo usa y tarda unos
+segundos en reactivarse.
 
-- **Contraseñas protegidas** con un algoritmo moderno; solo se guarda su huella.
-- **Segundo factor obligatorio, a elección:** app autenticadora (TOTP: clave cifrada, un código no
-  se acepta dos veces y los errados la bloquean temporalmente) o código por correo de 6 dígitos que
-  vence en pocos minutos, con intentos y envíos limitados.
-- **Bloqueo temporal** ante intentos fallidos repetidos de contraseña o de código, y límites en el
-  registro y la recuperación de cuenta.
-- **Registro de eventos de seguridad:** ingresos, intentos fallidos, bloqueos y cambios de
-  contraseña quedan registrados (nunca contraseñas ni códigos) y se depuran solos.
-- **Mensaje único** ante credenciales inválidas, exista o no la cuenta.
-- **Sesiones con doble vencimiento:** por inactividad y por tiempo máximo. Cambiar la
-  contraseña cierra las demás sesiones; restablecerla con el enlace o desactivar una cuenta
-  cierra todas las suyas.
-- **Recuperación segura:** el enlace para restablecer la contraseña es aleatorio, de un solo uso,
-  vence pronto y solo se guarda su huella; los enlaces inválidos repetidos bloquean temporalmente.
-  Perder la app autenticadora exige un código enviado al correo de la cuenta y configurar una app
-  nueva antes de entrar.
-- **Protección CSRF** y cookies restringidas al propio sitio.
-- **Roles validados en el servidor:** la interfaz solo oculta lo que el backend igual rechazaría.
-- **Pagos consistentes:** idempotencia por identificador, límite por operación, ledger que siempre
-  suma cero y QR firmados que se rechazan si se alteran.
-- **Correos sin datos sensibles:** nunca incluyen credenciales, tokens ni datos de pagos (salvo el
-  propio código MFA, con su aviso de no compartirlo).
-- **Secretos en gestores de secretos**, nunca en el código; cada base tiene credenciales propias y
-  exige conexión cifrada. El despliegue no guarda claves en el repositorio.
-- **Trazabilidad:** cada solicitud queda registrada con identificador de correlación, usuario y
-  operación.
-- **Al día en seguridad:** el runtime, el sistema y las dependencias se mantienen con los últimos
-  parches y se revisan periódicamente.
+**¿Se puede instalar como aplicación?** Sí: en Chrome o Edge, **Instalar aplicación**; en iPhone,
+Safari → **Compartir → Agregar a inicio**.
 
-## 6. Agradecimientos
+**¿Dónde pido ayuda o reporto un problema?** Telegram [@lfac6](https://t.me/lfac6), WhatsApp
+[@carraian160](https://wa.me/carraian160) o [ariascluisf@hotmail.com](mailto:ariascluisf@hotmail.com).
 
-A mi familia, por su apoyo incondicional, su paciencia y por creer en cada proyecto incluso cuando apenas era una idea. Este trabajo también es de ustedes.
+## 12. Glosario
 
-Y a ti, que usas esta plataforma: cada prueba, comentario y sugerencia ayuda a que siga mejorando.
+| Término | Qué significa |
+|---|---|
+| **CP (caso de prueba)** | Una solicitud a la API con el resultado esperado |
+| **DIFE / DICE** | Directorio de llaves de cada entidad / directorio central |
+| **Épica** | Un espacio de trabajo de QA con sus HU, CP y tareas |
+| **HU (historia de usuario)** | Una necesidad descrita desde quien usa el sistema |
+| **Idempotencia** | Repetir la misma operación no la duplica |
+| **Llave** | Dato fácil de recordar (celular, correo…) que identifica una cuenta para recibir pagos |
+| **SPBVI** | Entidad participante del ecosistema de pagos simulado |
+| **Verificación en dos pasos** | Además de la contraseña, se pide un código que solo tú puedes recibir |

@@ -56,9 +56,9 @@ MailerDependency = Annotated[Mailer, Depends(get_notification_mailer)]
 
 def _raise_http(error: Exception) -> None:
     if isinstance(error, QaNotFoundError):
-        raise HTTPException(status_code=404, detail="No se encontro el elemento solicitado.")
+        raise HTTPException(status_code=404, detail="No se encontró el elemento solicitado.")
     if isinstance(error, QaForbiddenError):
-        raise HTTPException(status_code=403, detail="No tienes permisos para esta accion.")
+        raise HTTPException(status_code=403, detail="No tienes permisos para esta acción.")
     if isinstance(error, QaConflictError):
         raise HTTPException(status_code=409, detail="El elemento no permite ese cambio de estado.")
     if isinstance(error, QaValidationError):

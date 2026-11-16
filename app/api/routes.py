@@ -311,7 +311,7 @@ def create_key(
     except DuplicateKeyError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="La llave ya esta registrada.",
+            detail="La llave ya está registrada.",
         ) from error
     except (SQLAlchemyError, RuntimeError) as error:
         dife_db.rollback()
@@ -366,12 +366,12 @@ def suspend_registered_key(
     except KeyNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontro la llave registrada en ambos directorios.",
+            detail="No se encontró la llave registrada en ambos directorios.",
         ) from error
     except KeyOwnershipError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo el titular de la llave puede solicitar esta accion personal.",
+            detail="Solo el titular de la llave puede solicitar esta acción personal.",
         ) from error
     except KeyStateConflictError as error:
         raise HTTPException(
@@ -435,12 +435,12 @@ def reactivate_registered_key(
     except KeyNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontro la llave registrada en ambos directorios.",
+            detail="No se encontró la llave registrada en ambos directorios.",
         ) from error
     except KeyOwnershipError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo el titular de la llave puede solicitar esta accion personal.",
+            detail="Solo el titular de la llave puede solicitar esta acción personal.",
         ) from error
     except KeyStateConflictError as error:
         raise HTTPException(
@@ -490,7 +490,7 @@ def assign_registered_key_owner(
     except KeyNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontro la llave registrada en ambos directorios.",
+            detail="No se encontró la llave registrada en ambos directorios.",
         ) from error
     except KeyStoreConsistencyError as error:
         raise HTTPException(
@@ -534,7 +534,7 @@ def delete_registered_key(
     except KeyNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontro la llave registrada.",
+            detail="No se encontró la llave registrada.",
         ) from error
     except KeyStoreConsistencyError as error:
         raise HTTPException(
@@ -613,7 +613,7 @@ def resolve_local_key(
     if key is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se encontro la llave confirmada en este SPBVI.",
+            detail="No se encontró la llave confirmada en este SPBVI.",
         )
     return key
 
@@ -825,12 +825,12 @@ def create_inter_spbvi_payment_route(
     except MolSettlementError as error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="El MOL simulado no pudo completar la liquidacion.",
+            detail="El MOL simulado no pudo completar la liquidación.",
         ) from error
     except SQLAlchemyError as error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No se pudo consultar DICE o persistir la liquidacion MOL.",
+            detail="No se pudo consultar DICE o persistir la liquidación MOL.",
         ) from error
 
     if not created:

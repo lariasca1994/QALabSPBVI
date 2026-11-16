@@ -25,7 +25,7 @@ class BrevoMailer:
     ) -> None:
         settings = get_settings()
         if not settings.brevo_api_key or not settings.brevo_sender_email:
-            raise MailDeliveryError("Brevo no esta configurado.")
+            raise MailDeliveryError("Brevo no está configurado.")
 
         payload = {
             "sender": {

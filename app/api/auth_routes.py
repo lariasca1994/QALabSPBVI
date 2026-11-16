@@ -150,7 +150,7 @@ def login(
         logger.exception("No se pudo entregar el codigo MFA por correo.")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No se pudo enviar el codigo. Intenta nuevamente mas tarde.",
+            detail="No se pudo enviar el código. Intenta nuevamente más tarde.",
         ) from error
 
     _set_pending_login_cookie(response, pending_token)
@@ -180,20 +180,20 @@ def resend_email_code(
     except ResendCooldownError as error:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Espera {error.retry_after} segundos antes de pedir otro codigo.",
+            detail=f"Espera {error.retry_after} segundos antes de pedir otro código.",
             headers={"Retry-After": str(error.retry_after)},
         ) from error
     except LoginRateLimitError as error:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Alcanzaste el maximo de codigos. Espera 15 minutos e inicia sesion de nuevo.",
+            detail="Alcanzaste el máximo de códigos. Espera 15 minutos e inicia sesión de nuevo.",
             headers={"Retry-After": "900"},
         ) from error
     except MailDeliveryError as error:
         logger.exception("No se pudo reenviar el codigo MFA por correo.")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No se pudo enviar el codigo. Intenta nuevamente mas tarde.",
+            detail="No se pudo enviar el código. Intenta nuevamente más tarde.",
         ) from error
     return {
         "message": (
@@ -240,7 +240,7 @@ def verify_email_code(
     except InvalidChallengeError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="El codigo no es valido o vencio.",
+            detail="El código no es válido o venció.",
         ) from error
     _set_session_cookies(response, raw_token, max_age)
     return {"message": "Autenticacion completada.", "role": user.role.value}
@@ -262,12 +262,12 @@ def verify_totp_code(
     except two_factor.TotpLockedError as error:
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
-            detail="Demasiados codigos incorrectos. Espera 15 minutos e intenta de nuevo.",
+            detail="Demasiados códigos incorrectos. Espera 15 minutos e intenta de nuevo.",
         ) from error
     except InvalidChallengeError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="El codigo no es valido o ya se uso.",
+            detail="El código no es válido o ya se usó.",
         ) from error
     _set_session_cookies(response, raw_token, max_age)
     return {"message": "Autenticacion completada.", "role": user.role.value}
@@ -279,9 +279,9 @@ def setup_totp_during_login(request: Request, db: DbSession) -> dict[str, str]:
     verify_csrf(request)
     user = pending_user(db, request.cookies.get(PENDING_LOGIN_COOKIE))
     if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El inicio de sesion vencio. Ingresa de nuevo.")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El inicio de sesión venció. Ingresa de nuevo.")
     if two_factor.methods(db, user)["chosen"]:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Tu cuenta ya eligio su metodo; agrega la app desde Seguridad.")
+        raise HTTPException(status.HTTP_409_CONFLICT, "Tu cuenta ya eligio su método; agrega la app desde Seguridad.")
     secret, uri = two_factor.start_totp_setup(db, user)
     return {"secret": secret, "uri": uri}
 
@@ -296,22 +296,22 @@ def start_lost_authenticator(
     try:
         start_mfa_recovery(db, pending_token=pending_token, mailer=mailer)
     except InvalidChallengeError as error:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El inicio de sesion vencio. Ingresa de nuevo.") from error
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El inicio de sesión venció. Ingresa de nuevo.") from error
     except ResendCooldownError as error:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
-            f"Espera {error.retry_after} segundos antes de pedir otro codigo.",
+            f"Espera {error.retry_after} segundos antes de pedir otro código.",
             headers={"Retry-After": str(error.retry_after)},
         ) from error
     except LoginRateLimitError as error:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
-            "Alcanzaste el maximo de codigos. Espera 15 minutos e intenta de nuevo.",
+            "Alcanzaste el máximo de códigos. Espera 15 minutos e intenta de nuevo.",
             headers={"Retry-After": "900"},
         ) from error
     except MailDeliveryError as error:
         logger.exception("No se pudo enviar el codigo de recuperacion del segundo factor.")
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "No se pudo enviar el codigo. Intenta nuevamente mas tarde.") from error
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "No se pudo enviar el código. Intenta nuevamente más tarde.") from error
     # El inicio pendiente se extendió: la cookie también.
     _set_pending_login_cookie(response, pending_token or "")
     return {"message": "Enviamos un codigo al correo de tu cuenta. Vence en 15 minutos."}
@@ -326,7 +326,7 @@ def verify_lost_authenticator(request: Request, payload: MfaCodeRequest, db: DbS
             db, pending_token=request.cookies.get(PENDING_LOGIN_COOKIE), code=payload.code
         )
     except InvalidChallengeError as error:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El codigo no es valido o vencio.") from error
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El código no es válido o venció.") from error
     return {"secret": secret, "uri": uri}
 
 
@@ -341,9 +341,9 @@ def activate_new_authenticator(
             db, pending_token=request.cookies.get(PENDING_LOGIN_COOKIE), code=payload.code
         )
     except two_factor.TotpLockedError as error:
-        raise HTTPException(status.HTTP_423_LOCKED, "Demasiados codigos incorrectos. Espera 15 minutos e intenta de nuevo.") from error
+        raise HTTPException(status.HTTP_423_LOCKED, "Demasiados códigos incorrectos. Espera 15 minutos e intenta de nuevo.") from error
     except InvalidChallengeError as error:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El codigo no es correcto. Revisa la hora de tu telefono.") from error
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "El código no es correcto. Revisa la hora de tu teléfono.") from error
     _set_session_cookies(response, raw_token, max_age)
     return {"message": "Autenticacion completada.", "role": user.role.value}
 
@@ -371,11 +371,11 @@ def activate_totp(
     try:
         valid = two_factor.verify_totp(db, user, payload.code)
     except two_factor.TotpLockedError as error:
-        raise HTTPException(status.HTTP_423_LOCKED, "Demasiados codigos incorrectos. Espera 15 minutos.") from error
+        raise HTTPException(status.HTTP_423_LOCKED, "Demasiados códigos incorrectos. Espera 15 minutos.") from error
     except two_factor.TotpNotConfiguredError as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Primero genera el codigo QR.") from error
+        raise HTTPException(status.HTTP_409_CONFLICT, "Primero genera el código QR.") from error
     if not valid:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El codigo no es correcto. Revisa la hora de tu telefono.")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El código no es correcto. Revisa la hora de tu teléfono.")
     return two_factor.methods(db, user)
 
 
@@ -387,9 +387,9 @@ def start_email_method(
     try:
         issue_email_code(db, user=user, mailer=mailer)
     except LoginRateLimitError as error:
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Alcanzaste el maximo de codigos. Espera 15 minutos.") from error
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Alcanzaste el máximo de códigos. Espera 15 minutos.") from error
     except MailDeliveryError as error:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "No se pudo enviar el codigo.") from error
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "No se pudo enviar el código.") from error
     return {"message": "Enviamos un codigo al correo de tu cuenta. Vence en 5 minutos."}
 
 
@@ -399,7 +399,7 @@ def activate_email_method(
 ) -> dict[str, object]:
     verify_csrf(request)
     if not confirm_email_code(db, user=user, code=payload.code):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El codigo no es valido o vencio.")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El código no es válido o venció.")
     return two_factor.methods(db, user)
 
 
@@ -409,7 +409,7 @@ def set_preferred_method(
 ) -> dict[str, object]:
     verify_csrf(request)
     if not two_factor.set_preferred(db, user, payload.method):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ese metodo no esta activo en tu cuenta.")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ese método no está activo en tu cuenta.")
     return two_factor.methods(db, user)
 
 
@@ -692,7 +692,7 @@ def patch_account_status(
     try:
         return _user_response(set_account_active(db, actor=actor, user_id=user_id, active=payload.is_active))
     except AccountNotFoundError as error:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "No se encontró la cuenta.") from error
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No se encontro la cuenta.") from error
     except AccountChangeForbiddenError as error:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
 

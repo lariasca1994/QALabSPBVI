@@ -140,7 +140,7 @@ class DiceKey(DiceBase):
 
 def _required_url(value: str, store_name: str) -> str:
     if not value:
-        raise RuntimeError(f"La conexion de {store_name} no esta configurada.")
+        raise RuntimeError(f"La conexión de {store_name} no está configurada.")
     return value
 
 
@@ -203,7 +203,7 @@ def ensure_dice_product_column(dice_engine: Engine) -> None:
         statement = "ALTER TABLE dice_keys ADD COLUMN deposit_product_id VARCHAR(100)"
     else:
         raise RuntimeError(
-            "La migracion de deposit_product_id solo esta habilitada para Oracle y SQLite."
+            "La migración de deposit_product_id solo está habilitada para Oracle y SQLite."
         )
     with dice_engine.begin() as connection:
         connection.execute(text(statement))
@@ -256,7 +256,7 @@ def ensure_key_lifecycle_columns(dife_engine: Engine, dice_engine: Engine) -> No
             )
         else:
             raise RuntimeError(
-                "La migracion de owner_email en DICE solo admite Oracle o SQLite."
+                "La migración de owner_email en DICE solo admite Oracle o SQLite."
             )
         with dice_engine.begin() as connection:
             connection.execute(text(statement))

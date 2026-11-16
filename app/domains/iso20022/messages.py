@@ -56,7 +56,7 @@ class Pacs008Data:
         _validate_cents(self.amount_cents)
         _validate_datetime(self.created_at)
         if re.fullmatch(r"[A-Z]{3}", self.currency) is None:
-            raise ValueError("La moneda debe ser un codigo de tres letras mayusculas.")
+            raise ValueError("La moneda debe ser un código de tres letras mayúsculas.")
 
 
 @dataclass(frozen=True)

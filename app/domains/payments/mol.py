@@ -46,7 +46,7 @@ def settle_with_mol(
         .values(balance_cents=Account.balance_cents + payment.amount_cents)
     )
     if credit.rowcount != 1:
-        raise MolSettlementError("La cuenta receptora no esta disponible.")
+        raise MolSettlementError("La cuenta receptora no está disponible.")
 
     db.add(
         LedgerEntry(

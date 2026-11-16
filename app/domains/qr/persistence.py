@@ -61,7 +61,7 @@ def get_qr_engine() -> Engine:
     url = get_settings().qr_database_url
     settings = get_settings()
     if not url:
-        raise RuntimeError("La conexion de la base de cobros QR no esta configurada.")
+        raise RuntimeError("La conexión de la base de cobros QR no está configurada.")
     # En la nube los cobros no pueden vivir en SQLite: el contenedor escala a cero y se perderían.
     if url.startswith("sqlite") and settings.app_env.casefold() not in {"local", "development", "test"}:
         raise RuntimeError("En la nube QR_DATABASE_URL debe apuntar a la base MySQL de cobros.")

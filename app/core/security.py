@@ -28,7 +28,7 @@ def keyed_digest(value: str) -> str:
     if len(secret) < 32:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="La autenticacion no esta configurada.",
+            detail="La autenticación no está configurada.",
         )
     return hmac.new(
         secret.encode("utf-8"),
@@ -57,7 +57,7 @@ def verify_csrf(request: Request) -> None:
     if not cookie or not header or not constant_time_equal(cookie, header):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Token CSRF invalido o ausente.",
+            detail="Token CSRF inválido o ausente.",
         )
 
 
@@ -71,7 +71,7 @@ def current_user(
     if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Autenticacion requerida.",
+            detail="Autenticación requerida.",
             headers={"WWW-Authenticate": "Cookie"},
         )
 
@@ -87,7 +87,7 @@ def current_user(
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="La sesion no es valida o expiro.",
+            detail="La sesión no es válida o expiró.",
             headers={"WWW-Authenticate": "Cookie"},
         )
 
@@ -95,7 +95,7 @@ def current_user(
     if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="La sesion no es valida o expiro.",
+            detail="La sesión no es válida o expiró.",
         )
 
     session.last_seen_epoch = now
@@ -112,7 +112,7 @@ def require_roles(*roles: UserRole):
         if user.role not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permisos para esta accion.",
+                detail="No tienes permisos para esta acción.",
             )
         return user
 

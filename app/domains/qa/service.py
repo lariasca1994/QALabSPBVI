@@ -508,7 +508,7 @@ def _validate_case_request(
     """Valida el contrato HTTP de un CP (alta y edición) y devuelve el método normalizado."""
     method = request_method.strip().upper()
     if method not in ALLOWED_CASE_METHODS:
-        raise QaValidationError("El metodo HTTP no esta permitido.")
+        raise QaValidationError("El método HTTP no está permitido.")
     parsed_path = urlsplit(request_path)
     if (
         not request_path.startswith("/")
@@ -521,7 +521,7 @@ def _validate_case_request(
     ):
         raise QaValidationError("La ruta del caso debe ser relativa al servicio local.")
     if request_path.startswith("/auth/") and method not in {"GET", "HEAD", "OPTIONS"}:
-        raise QaValidationError("Los casos no pueden alterar directamente la autenticacion.")
+        raise QaValidationError("Los casos no pueden alterar directamente la autenticación.")
     if _contains_sensitive_field(request_body):
         raise QaValidationError(
             "El JSON del caso no puede incluir credenciales en campos; usa referencias seguras."
@@ -559,7 +559,7 @@ def _validate_case_request(
             "La respuesta esperada no puede incluir credenciales en campos."
         )
     if any(code < 100 or code > 599 for code in expected_status_codes):
-        raise QaValidationError("Los codigos HTTP esperados deben estar entre 100 y 599.")
+        raise QaValidationError("Los códigos HTTP esperados deben estar entre 100 y 599.")
     try:
         validate_placeholders(
             request_path, request_query, request_headers, request_body, expected_response
@@ -656,7 +656,7 @@ def create_task(
         None,
     )
     if assignee_id is not None and assignee is None:
-        raise QaValidationError("La persona asignada debe pertenecer a la epica.")
+        raise QaValidationError("La persona asignada debe pertenecer a la épica.")
     return _create_work_item(
         database,
         collection_name="work_items",
@@ -694,7 +694,7 @@ def assign_task(
         (member for member in epic["members"] if member["user_id"] == assignee_id), None
     )
     if assignee is None:
-        raise QaValidationError("La persona asignada debe pertenecer a la epica.")
+        raise QaValidationError("La persona asignada debe pertenecer a la épica.")
     notification = _new_notification(
         event_type="task_assigned",
         epic=epic,
@@ -1049,7 +1049,7 @@ def _resolve_secrets(value: Any, values: set[str]) -> Any:
                 secret_value = dotenv_values(".env").get(variable_name)
             if not secret_value:
                 raise QaValidationError(
-                    f"El secreto configurado {variable_name} no esta disponible."
+                    f"El secreto configurado {variable_name} no está disponible."
                 )
             values.add(secret_value)
             return secret_value
@@ -1421,7 +1421,7 @@ def create_bug(
     if execution_key is not None and database.executions.find_one(
         {"key": execution_key, "case_key": case_key}
     ) is None:
-        raise QaValidationError("La ejecucion debe pertenecer al caso indicado.")
+        raise QaValidationError("La ejecución debe pertenecer al caso indicado.")
     return _create_work_item(
         database,
         collection_name="issues",
@@ -1605,7 +1605,7 @@ def transition_bug(
         raise QaConflictError
     if target_status == "assigned":
         if assignee_id is None:
-            raise QaValidationError("Debes asignar el bug a un integrante de la epica.")
+            raise QaValidationError("Debes asignar el bug a un integrante de la épica.")
         epic_for_assignment = _required_document(
             database, "epics", bug["epic_key"], "epic"
         )
@@ -1618,7 +1618,7 @@ def transition_bug(
             None,
         )
         if assignee is None:
-            raise QaValidationError("La persona asignada debe pertenecer a la epica.")
+            raise QaValidationError("La persona asignada debe pertenecer a la épica.")
         bug["assignee"] = assignee
     elif assignee_id is not None:
         raise QaValidationError("Solo se indica responsable al asignar el bug.")

@@ -21,7 +21,7 @@ def ensure_payment_type_column(database_engine: Engine = engine) -> None:
         return
     if database_engine.dialect.name not in {"postgresql", "sqlite"}:
         raise RuntimeError(
-            "La migracion de payment_type solo esta habilitada para PostgreSQL y SQLite."
+            "La migración de payment_type solo está habilitada para PostgreSQL y SQLite."
         )
     with database_engine.begin() as connection:
         connection.execute(

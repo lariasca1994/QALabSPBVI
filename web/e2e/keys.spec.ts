@@ -51,6 +51,6 @@ test("administra el ciclo de vida de una llave sin desbordamiento en móvil", as
 
   await page.getByLabel("Operación").selectOption("lookup");
   await page.getByRole("button", { name: "Consultar llave" }).click();
-  await expect(page.getByRole("alert")).toContainText("No se encontro la llave confirmada");
+  await expect(page.getByRole("alert")).toContainText("No se encontró la llave confirmada");
   await expectNoHorizontalOverflow(page);
 });

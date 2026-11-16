@@ -308,7 +308,7 @@ def create_inter_spbvi_payment(
             )
         except RuntimeError as error:
             raise MolSettlementError(
-                "El MOL simulado no pudo completar la liquidacion."
+                "El MOL simulado no pudo completar la liquidación."
             ) from error
         db.commit()
         db.refresh(payment)

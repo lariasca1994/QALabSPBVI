@@ -86,7 +86,7 @@ def _raise(error: Exception) -> None:
     if isinstance(error, ReturnInsufficientFundsError):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            "La cuenta receptora no tiene saldo suficiente para la devolucion.",
+            "La cuenta receptora no tiene saldo suficiente para la devolución.",
         ) from error
     if isinstance(error, LifecycleConflictError):
         raise HTTPException(status.HTTP_409_CONFLICT, str(error) or "Conflicto de estado.") from error
@@ -286,7 +286,7 @@ def get_account_notifications(
         query = query.where(Payment.operation_id == operation_id)
     rows = db.execute(query).all()
     if operation_id and not rows:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "La cuenta no tiene movimientos de esa operacion.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "La cuenta no tiene movimientos de esa operación.")
     entries = [
         NotificationEntry(
             entry_id=entry.id,
