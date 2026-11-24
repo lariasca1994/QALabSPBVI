@@ -1,4 +1,4 @@
-FROM python:3.13.17-slim-bookworm
+FROM python:3.13.18-slim-bookworm
 # Seguridad en cada compilación: actualizaciones del sistema (Linux), pip al día (sus
 # CVE de octubre 2026) y almacén de certificados sin las raíces que firmaron los
 # intermedios comprometidos de eMudhra (emSign y Comodo "AAA Certificate Services").
